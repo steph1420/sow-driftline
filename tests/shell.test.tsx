@@ -18,9 +18,11 @@ describe('shell', () => {
     const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label'))
     expect(tabs).toEqual(['Checklist', 'Overview', 'More'])
   })
-  it('D0-SHL-03 Checklist shows the calm empty state', () => {
+  // D1 changed D0-SHL-03: demo has dates, so the checklist grid shows; the empty state is covered in D1-UI-03.
+  it('D0-SHL-03/D1-SHL-03 Checklist shows the read-only grid with a Today/Upcoming/Last chip', () => {
     render(<App />)
-    expect(screen.getByRole('heading', { name: 'No dates yet' })).toBeTruthy()
+    expect(screen.getByRole('table')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /jump to (today|upcoming|last)/i })).toBeTruthy()
   })
   it('D0-SHL-04 tapping a dock tab switches screen', () => {
     render(<App />)
