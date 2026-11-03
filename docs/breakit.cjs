@@ -1,6 +1,6 @@
 // Break-it run v0.5 against a URL. Demo data + a stand-in bridge (page.route) for the copy path. Never touches a real sheet.
 const { chromium } = require('/workspace/choir-attendance/node_modules/playwright-core');
-const B = process.argv[2]; const SHOTS = '/workspace/sow-v05-shots';
+const B = process.argv[2]; const SHOTS = process.argv[3] || '/workspace/sow-v05-shots';
 const COPY = '1iIGXOzdW9NTqLxWnBwI6UkpwOKyihQxvrG8L1v6njYI', LIVE = '1vGXltIwxto-KGZr1ygSDk9EEM0m5rkLySXshZMdv4UQ';
 const results = []; const ok = (id, pass, note = '') => { results.push({ id, pass: !!pass, note }); console.log((pass ? 'PASS ' : 'FAIL ') + id + (note ? ' — ' + note : '')) };
 const NAMES = ['Aarav Rohan Fenwick', 'Mohammed Elias Thornbury', 'Lia Park', 'Lia Park', 'Zoya Imran', 'Ishaan Dev Okonkwo-Hale', 'Nathaniel Kwabena Ashworth', 'Ruhi Anand', 'Tobias Arjun Wexley', 'Sienna Priya Maddox', 'Omar Leif Bramwell', 'Yuki Asha'];
@@ -45,7 +45,7 @@ const onCount = (pg) => pg.locator('button.t.on').count();
     for (let i = 0; i < 21; i++) await pg.keyboard.press('Control+y');
     ok(`UNDOSTORM-${tag}`, (await onCount(pg)) === before && afterU !== before, `on ${before} → undo×21 ${afterU} → redo×21 ${await onCount(pg)}`);
     // swipe across many rows and back (column of the 2nd visible date)
-    const col = n === 'phone' ? 1 : 5; const rowsN = await pg.locator('tbody tr').count();
+    const col = n === 'phone' ? 1 : 2; const rowsN = await pg.locator('tbody tr').count();
     const cell = (r) => pg.locator('tbody tr').nth(r).locator('button.t').nth(col);
     await cell(2).scrollIntoViewIfNeeded(); const startOn = (await cell(2).getAttribute('aria-pressed')) === 'true';
     const a = await cell(2).boundingBox(); const far = await cell(8).boundingBox(); const back = await cell(5).boundingBox();
@@ -104,6 +104,46 @@ const onCount = (pg) => pg.locator('button.t.on').count();
     await pg.getByRole('tab', { name: 'Checklist' }).click(); await sleep(200); await pg.evaluate(() => scrollTo(0, 0));
     await pg.screenshot({ path: `${SHOTS}/checklist-${n}-${side}.png` });
     ok(`NOERRORS-${tag}`, errs.length === 0, errs.join(' | '));
+    await ctx.close();
+  }
+
+  // ---------- v0.6: Weeks toggle, Overview, quick sheet ----------
+  for (const [w, h, n] of [[412, 915, 'phone'], [915, 412, 'landscape'], [1440, 900, 'desktop']]) for (const side of ['night', 'day']) {
+    const ctx = await br.newContext({ viewport: { width: w, height: h }, serviceWorkers: 'block', hasTouch: n !== 'desktop' });
+    const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
+    await pg.goto(`${B}?demo&side=${side}`, { waitUntil: 'networkidle' }); await sleep(400); const tag = `${n}-${side}`;
+    const ncols = async () => (await pg.locator('thead th').count()) - 1;
+    const c0 = await ncols(); ok(`V06-FIRSTPAGE-${tag}`, (await pg.locator('table').count()) === 1, 'Checklist is first');
+    await pg.getByRole('button', { name: 'More options' }).click(); const sw = pg.getByRole('switch', { name: /weeks/i });
+    const def = await sw.getAttribute('aria-checked'); await sw.click(); await sleep(150); const c1 = await ncols();
+    await pg.keyboard.press('Escape'); await pg.getByRole('button', { name: 'More options' }).click(); await sleep(50);
+    if (side === 'night') await pg.screenshot({ path: `${SHOTS}/viewmenu-${n}-${side}.png` });
+    await pg.getByRole('button', { name: 'More options' }).click();
+    if (n !== 'phone' && side === 'night') await pg.screenshot({ path: `${SHOTS}/weeks-on-${n}-${side}.png` });
+    await pg.reload({ waitUntil: 'networkidle' }); await sleep(300); const c2 = await ncols();
+    const want = n === 'phone' ? [2, 2] : n === 'landscape' ? [2, 6] : [3, 6]; // demo has 6 dates → Weeks shows all 6
+    ok(`V06-WEEKS-${tag}`, def === 'false' && c0 === want[0] && c1 === want[1] && c2 === want[1], `default off=${def}; cols off ${c0} → on ${c1} → after reload ${c2}`);
+    await pg.getByRole('button', { name: 'More options' }).click(); await pg.getByRole('switch', { name: /weeks/i }).click(); await pg.getByRole('button', { name: 'More options' }).click();
+    // quick overview via keyboard + grabber
+    await pg.keyboard.press('Shift+O'); await sleep(200); const qo = await pg.getByRole('dialog', { name: /quick overview/i }).count();
+    if (n !== 'landscape') await pg.screenshot({ path: `${SHOTS}/quick-${n}-${side}.png` });
+    await pg.keyboard.press('Escape'); await sleep(100); const qc = await pg.getByRole('dialog').count();
+    const gb = await pg.getByRole('button', { name: /quick overview/i }).boundingBox();
+    await pg.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await pg.mouse.down(); await pg.mouse.move(gb.x + gb.width / 2, gb.y - 120, { steps: 6 }); await pg.mouse.up(); await sleep(200);
+    const qs = await pg.getByRole('dialog', { name: /quick overview/i }).count();
+    ok(`V06-QUICK-${tag}`, qo === 1 && qc === 0 && qs === 1, `⇧O ${qo}, Esc closes ${qc === 0}, swipe-up ${qs}`);
+    await pg.getByRole('button', { name: /close \(swipe down\)/i }).click(); await sleep(100);
+    // typing 'o' still opens search on desktop (not the sheet)
+    if (n === 'desktop') { await pg.keyboard.press('o'); await sleep(100); ok(`V06-O-VS-SEARCH-${tag}`, (await pg.getByRole('searchbox').count()) === 1 && (await pg.getByRole('dialog').count()) === 0, 'o = search, ⇧O = sheet'); await pg.keyboard.press('Escape') }
+    // Overview page
+    await pg.getByRole('tab', { name: 'Overview' }).click(); await sleep(200);
+    const cards = pg.getByRole('button', { name: /open .* on checklist/i }); const nc = await cards.count(); const txt = await cards.first().textContent();
+    if (n !== 'landscape') await pg.screenshot({ path: `${SHOTS}/overview-${n}-${side}.png`, fullPage: true });
+    await pg.getByRole('button', { name: 'Copy' }).click(); await sleep(150); const toast = await pg.getByRole('status').count();
+    await cards.first().click(); await sleep(250);
+    ok(`V06-OVERVIEW-${tag}`, nc >= 1 && /Today|Upcoming|Last/.test(txt) && /to go|All done/.test(txt) && (await pg.locator('table').count()) === 1 && toast >= 1, `${nc} card(s): ${txt.replace(/\s+/g, ' ').slice(0, 60)}… → opens Checklist; Copy toast ${toast}`);
+    if (n !== 'landscape') await pg.screenshot({ path: `${SHOTS}/checklist-${n}-${side}.png` });
+    ok(`V06-NOERRORS-${tag}`, errs.length === 0, errs.join(' | '));
     await ctx.close();
   }
   // ---------- copy path via stand-in bridge ----------
