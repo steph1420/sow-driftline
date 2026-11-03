@@ -1,0 +1,15 @@
+/* SoW Driftline shell — tokens only (r4 locked look). */
+:root { --sow-bar-height: calc(var(--dl-space-12) + var(--dl-space-2)); }
+.sow-bar { position: sticky; top: 0; z-index: var(--dl-z-header); height: var(--sow-bar-height); display: flex; align-items: center; gap: var(--dl-space-1); padding: 0 var(--dl-space-2) 0 var(--dl-space-3); background: var(--dl-header-bg); box-shadow: 0 1px 0 var(--dl-color-hairline); } /* token-ok: 1px hairline */
+.sow-pill { white-space: nowrap; flex: none; display: flex; align-items: center; gap: var(--dl-space-2); min-height: var(--dl-hit-min); padding: 0 var(--dl-space-3) 0 var(--dl-space-1); border-radius: var(--dl-radius-pill); background: var(--dl-color-track); box-shadow: inset 0 0 0 1px var(--dl-color-control-border); font-weight: 700; font-size: var(--dl-type-callout-size); } /* token-ok: 1px hairline */
+.sow-pill .dl-logo { width: var(--dl-space-8); height: var(--dl-space-8); font-size: var(--dl-type-footnote-size); }
+.sow-pill small { font-weight: 600; color: var(--dl-color-text-muted); font-size: var(--dl-type-footnote-size); }
+.sow-sp { flex: 1; }
+.sow-ib { width: var(--dl-hit-min); height: var(--dl-hit-min); flex: none; border-radius: var(--dl-radius-pill); display: grid; place-items: center; color: var(--dl-color-text-muted); font-size: var(--dl-type-headline-size); }
+.sow-dot { width: var(--dl-space-2); height: var(--dl-space-2); border-radius: var(--dl-radius-pill); background: var(--dl-color-text-faint); }
+.sow-main { padding: var(--dl-space-3) var(--dl-space-3) calc(var(--dl-space-16) + var(--dl-space-10)); display: flex; flex-direction: column; gap: var(--dl-space-3); max-width: calc(var(--dl-space-16) * 16); margin: 0 auto; }
+.sow-empty { text-align: center; padding: var(--dl-space-10) var(--dl-space-4); display: flex; flex-direction: column; gap: var(--dl-space-3); align-items: center; }
+.sow-empty .sow-ico { width: var(--dl-space-16); height: var(--dl-space-16); border-radius: var(--dl-radius-xl); display: grid; place-items: center; font-size: var(--dl-type-title1-size); background: var(--dl-chip-accent-bg); color: var(--dl-color-accent); }
+.sow-empty p { margin: 0; }
+.sow-foot { text-align: center; font-size: var(--dl-type-caption-size); color: var(--dl-color-text-faint); }
+@media (max-width: 600px) { .sow-pill small { display: none; } } /* token-ok: 1px hairline */
