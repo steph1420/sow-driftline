@@ -1,7 +1,7 @@
 // D2 auto-save. B-B4-1 fix: (1) only changed cells are pushed, never a whole sheet; (2) one writer at a time
 // across tabs (Web Locks); (3) every tab hears every tick (BroadcastChannel) and merges it per cell.
 import type { SheetState } from '../data/contract'
-import { applyOps, mergePending, type Op } from './ops'
+import { applyOps, mergeNewest, mergePending, type Op } from './ops'
 import { Outbox } from './outbox'
 export type Lock = <T>(name: string, fn: () => Promise<T>) => Promise<T>
 export type Channel = { post: (m: unknown) => void; listen: (fn: (m: unknown) => void) => void }
@@ -20,7 +20,7 @@ export function broadcast(name: string): Channel | undefined {
 export function createEngine(o: Opts) {
   const box = new Outbox(o.storage, o.key); let status: SaveStatus = box.list().length ? 'offline' : 'saved'; let t: ReturnType<typeof setTimeout> | undefined
   const tell = (s: SaveStatus) => { status = s; o.onStatus?.(s, box.list().length) }
-  o.channel?.listen((m) => { const x = m as { ops?: Op[]; state?: SheetState }; if (x.ops) o.onState((s) => applyOps(s, x.ops!)); if (x.state) o.onState(() => mergePending(x.state!, box.list())) })
+  o.channel?.listen((m) => { const x = m as { ops?: Op[]; state?: SheetState }; if (x.ops) o.onState((s) => applyOps(s, x.ops!)); if (x.state) o.onState((s) => mergeNewest(s, x.state!, box.list())) })
   const schedule = (ms: number) => { clearTimeout(t); t = setTimeout(() => void flush(), ms) }
   async function flush(): Promise<void> {
     clearTimeout(t)
@@ -28,8 +28,8 @@ export function createEngine(o: Opts) {
       const ops = box.list(); if (!ops.length) { tell('saved'); return }
       tell('saving')
       try {
-        const st = await o.push(ops); box.ack(ops); const merged = mergePending(st, box.list())
-        o.onState(() => merged); o.channel?.post({ state: st }); tell(box.list().length ? 'saving' : 'saved')
+        const st = await o.push(ops); box.ack(ops)
+        o.onState((s) => mergeNewest(s, st, box.list())); o.channel?.post({ state: st }); tell(box.list().length ? 'saving' : 'saved')
         if (box.list().length) schedule(0)
       } catch (e) { tell(/offline/i.test(String(e)) ? 'offline' : 'error'); if (o.retryMs) schedule(o.retryMs) }
     })
@@ -39,5 +39,7 @@ export function createEngine(o: Opts) {
     /** A tick on this device: shown at once, queued, told to other tabs, saved after the grace. */
     local(op: Op) { box.add(op); o.onState((s) => applyOps(s, [op])); o.channel?.post({ ops: [op] }); tell('saving'); if (o.graceMs > 0) schedule(o.graceMs) },
     adoptPull: (remote: SheetState) => mergePending(remote, box.list()),
+    /** Quick sync pull: per box newest wins, pending local ticks stay on top. */
+    pulled(remote: SheetState) { o.onState((s) => mergeNewest(s, remote, box.list())) },
   }
 }

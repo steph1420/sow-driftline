@@ -1,4 +1,12 @@
 # Changelog
+## 0.4.0-beta.1 — 2026-11-04
+"A working app now" (Steve t155u/t156u). Beta only.
+- A–Z grip restored (old /sow/ look and behaviour): a three-line handle above the rail; tap moves the strip to the other side, drag sideways and it snaps to the nearest edge.
+- A–Z rail shows only letters that have names; they spread to fill the rail.
+- Quick sync: while connected, the app pulls every 4 s (config `quickSyncMs`), paused when hidden, and pulls at once on focus/visible/online. Merge is per box, newest wins; ticks still waiting to save are never overwritten.
+- Desktop: the date header now sticks below the bar, so a jump never tucks it under.
+- docs/DEVICE_REGISTRY_PLAN.md (deferred; needs an Apps Script deploy).
+- Tests: 46 (5 new + 2 changed, written first), incl. an end-to-end test against a faithful bridge mock (ping/pull/push).
 ## 0.3.0-beta.1 — 2026-11-04
 Rail fix + D2 in one Beta release (Steve t154u). Stable stays 0.1.0.
 - A–Z rail (t146u, t151u 1A): fixed in its own gutter, full height between bar and dock, never scrolls with the list; all 26 letters fit the screen, only letters present are active; tap or drag-scrub jumps to the first full name of that letter (an empty letter goes to the next one) with a letter bubble; phone and desktop. Developer options: rail side, bubble on/off.

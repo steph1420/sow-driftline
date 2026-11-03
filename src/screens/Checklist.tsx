@@ -4,9 +4,9 @@ import type { SheetState } from '../data/contract'
 import { AzRail } from './AzRail'
 import { fmtDay, pickAnchor, searchIndex, toChecklist, toGo, visibleCols, type Layout } from '../data/model'
 
-type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number; onTick?: (sessionId: string, roll: number) => void; railSide?: 'right' | 'left'; railBubble?: boolean }
+type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number; onTick?: (sessionId: string, roll: number) => void; railSide?: 'right' | 'left'; railBubble?: boolean; onRailSide?: (s: 'right' | 'left') => void }
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
-export function Checklist({ state, classKey, today, layout, jump = 0, onTick, railSide = 'right', railBubble = true }: Props) {
+export function Checklist({ state, classKey, today, layout, jump = 0, onTick, railSide = 'right', railBubble = true, onRailSide }: Props) {
   const c = useMemo(() => toChecklist(state, classKey), [state, classKey])
   const anchor = pickAnchor(c.columns.map((x) => x.date), today)
   const [end, setEnd] = useState(anchor.index)
@@ -54,7 +54,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, ra
         </table>
         {end < c.columns.length - 1 && <button className="sow-more" onClick={() => setEnd(end + 1)}>later date →</button>}
       </div>
-      <AzRail names={names} onJump={go} side={railSide} bubble={railBubble} />
+      <AzRail names={names} onJump={go} side={railSide} bubble={railBubble} onSide={onRailSide} />
       {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--accent" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
     </>
   )

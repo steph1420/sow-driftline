@@ -6,3 +6,4 @@ Master log: steph1420/agent-common handovers/lfps-sow/DECISIONS.md.
 - t145u GO D1: read-only checklist on the TEST COPY via the bridge (`pull`), because the copy is not publicly shared (gviz returns a sign-in page). Pairing code, no token in the build.
 - t151u/t152u: 1A rail pinned; 2B Beta stays on demo by default; 3A guessed labels; Q-TOK-1 pairing code OR setup file; B-B4-1 must fix; Q-DUP-1 allow duplicates, roll number is the key.
 - t153u GO rail + D2; t154u: ship both as ONE Beta release v0.3.0-beta.1.
+- t155u/t156u: v0.4.0-beta.1 = grip, hide empty letters, quick sync polling, header fix; device registry deferred (plan in docs).

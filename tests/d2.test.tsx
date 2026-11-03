@@ -123,3 +123,54 @@ describe('D2 store (demo, on device)', () => {
     expect(useApp.getState().snaps.length).toBeGreaterThan(0)
   })
 })
+
+describe('D4P quick sync (t155u)', () => {
+  it('D4P-SYNC-01 pull merges per box newest-wins and never clobbers pending local ticks', async () => {
+    const { mergeNewest } = await import('../src/sync/ops')
+    const local = applyOps(base(), [op(1, true, '2026-11-03T10:00:05.000Z'), op(2, true, '2026-11-03T10:00:00.000Z')])
+    const remote = applyOps(base(), [op(1, false, '2026-11-03T10:00:01.000Z'), op(2, false, '2026-11-03T10:00:09.000Z'), op(3, true, '2026-11-03T10:00:02.000Z')])
+    const m = mergeNewest(local, remote, [op(3, false, '2026-11-03T10:00:10.000Z')])
+    expect([isSet(m, 1), isSet(m, 2), isSet(m, 3)]).toEqual([true, false, false])
+  })
+  it('D4P-SYNC-02 another device saves → this app picks it up by polling; paused when hidden', async () => {
+    const { createPoller } = await import('../src/sync/poller')
+    const bridge = fakeBridge(base()); let st = base(); let hidden = false
+    const p = createPoller({ pull: async () => structuredClone(bridge.get()), everyMs: 10, hidden: () => hidden, onPulled: (r) => { st = mergeNewest2(st, r) } })
+    p.start(); await bridge.push([op(2, true, '2026-11-03T10:00:00.000Z')])
+    await new Promise((r) => setTimeout(r, 40)); expect(isSet(st, 2)).toBe(true)
+    hidden = true; const n = p.count(); await new Promise((r) => setTimeout(r, 40)); expect(p.count()).toBe(n)
+    hidden = false; await p.now(); expect(p.count()).toBe(n + 1); p.stop()
+  })
+})
+import { mergeNewest as mergeNewest2 } from '../src/sync/ops'
+
+/** Faithful bridge mock at the fetch level: ping (COPY id), pull, push with applyPush_ rules (per-tick newer wins, roster check). */
+function bridgeFetch(start: SheetState) {
+  let st = structuredClone(start)
+  const f = async (_u: string, i: { body: string }) => {
+    const b = JSON.parse(i.body); let out: unknown
+    if (b.token !== 'tok') out = { ok: false, error: 'bad token' }
+    else if (b.action === 'ping') out = { ok: true, schema: 1, sheetId: COPY_SHEET_ID }
+    else if (b.action === 'pull') out = structuredClone(st)
+    else if (b.action === 'push') {
+      const ops: Op[] = b.ticks.filter((t: { roll: number }) => st.roster.some((p) => p.roll === t.roll)).map((t: Op) => { const se = st.sessions.find((x) => x.date === t.date && x.subjectKey === t.subjectKey)!; return { ...t, sessionId: se.sessionId, classKey: se.classKey } })
+      st = applyOps(st, ops); out = { ok: true, applied: ops.length, ignored: 0, rejected: [], state: structuredClone(st) }
+    } else out = { ok: false, error: 'unknown action' }
+    return { ok: true, json: async () => out } as Response
+  }
+  return { f, get: () => st }
+}
+describe('D4P end to end against a faithful bridge mock', () => {
+  it('D4P-E2E-01 device A ticks → saved to sheet → device B picks it up by quick sync', async () => {
+    const { sheetBridgeSource } = await import('../src/data/sheetSource')
+    const { createPoller } = await import('../src/sync/poller')
+    const { mergeNewest } = await import('../src/sync/ops')
+    const br = bridgeFetch(base()); const tok = () => 'tok'
+    let a = base(); let b = base()
+    const A = createEngine({ storage: localStorage, key: 'eA', push: copyWriter('https://x/exec', tok, br.f as never), lock: memLock(), graceMs: 0, onState: (fn) => { a = fn(a) } })
+    A.local(op(2, true, '2026-11-03T10:00:00.000Z')); await A.flush()
+    expect(A.status()).toBe('saved'); expect(isSet(br.get(), 2)).toBe(true)
+    const P = createPoller({ pull: () => sheetBridgeSource('https://x/exec', tok, br.f as never).pull(), everyMs: 1000, hidden: () => false, onPulled: (r) => { b = mergeNewest(b, r) } })
+    await P.now(); expect(isSet(b, 2)).toBe(true); expect(isSet(a, 2)).toBe(true)
+  })
+})

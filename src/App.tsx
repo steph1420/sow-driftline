@@ -28,7 +28,7 @@ export function App() {
     <>
       <Bar />
       <main className="sow-main">
-        {tab === 'checklist' && <Checklist state={data} classKey={cls} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} onTick={tick} railSide={dev.railSide} railBubble={dev.railBubble} />}
+        {tab === 'checklist' && <Checklist state={data} classKey={cls} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} onTick={tick} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
         {tab === 'overview' && <Placeholder title="Overview" />}
         {tab === 'more' && <More />}
         <p className="sow-foot">Driftline · {FLAVOR === 'beta' ? 'Beta' : 'Stable'} · v{VERSION} · {source === 'copy' ? `test copy · ${saveText(save, waiting)}` : 'demo data · saved on this device'}</p>

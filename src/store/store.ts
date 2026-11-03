@@ -10,6 +10,7 @@ import { parseSetup } from '../data/setup'
 import { applyOps, type Op } from '../sync/ops'
 import { broadcast, createEngine, webLock, type SaveStatus } from '../sync/engine'
 import { History } from '../sync/history'
+import { createPoller } from '../sync/poller'
 import { listSnapshots, restoreOps, takeSnapshot, type Snapshot } from '../sync/snapshots'
 
 export type Tab = 'checklist' | 'overview' | 'more'
@@ -36,6 +37,13 @@ const nowIso = () => { lastMs = Math.max(Date.now(), lastMs + 1); return new Dat
 const loadDev = (): Dev => { try { return { railSide: 'right', railBubble: true, ...JSON.parse(localStorage.getItem(DEV) || '{}') } } catch { return { railSide: 'right', railBubble: true } } }
 const demoOps = (): Op[] => { try { return JSON.parse(localStorage.getItem(DEMO_TICKS) || '[]') } catch { return [] } }
 let engine: ReturnType<typeof createEngine> | null = null
+let poller: ReturnType<typeof createPoller> | null = null
+function syncLoop(on: boolean) {
+  poller?.stop(); poller = null; if (!on) return
+  poller = createPoller({ pull: () => sheetBridgeSource(bridgeUrl(), token).pull(), everyMs: CONFIG.timing.quickSyncMs, hidden: () => typeof document !== 'undefined' && document.hidden,
+    onPulled: (r) => { if (engine && useApp.getState().source === 'copy') { engine.pulled(r); useApp.setState({ pulledAt: nowIso() }) } } })
+  poller.start()
+}
 const forceDemo = () => typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo')
 const token = () => (forceDemo() ? null : localStorage.getItem(TOKEN))
 function loadSide(): Side {
@@ -75,7 +83,7 @@ export const useApp = create<State>((set, get) => ({
   },
   setDev: (d) => { const dev = { ...get().dev, ...d }; localStorage.setItem(DEV, JSON.stringify(dev)); set({ dev }) },
   setToken: (t) => localStorage.setItem(TOKEN, t),
-  unpair: () => { localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); engine = null; set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(DEMO_STATE, demoOps())) }) },
+  unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); engine = null; set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(DEMO_STATE, demoOps())) }) },
   pair: async (code) => { const t = await claimPair(COPY_BRIDGE_URL, code); localStorage.setItem(BRIDGE, COPY_BRIDGE_URL); localStorage.setItem(TOKEN, t); engine = null; await get().refresh() },
   refresh: async () => {
     const paired = !!token()
@@ -85,11 +93,11 @@ export const useApp = create<State>((set, get) => ({
       let data = await rs.pull()
       if (paired) { data = eng().adoptPull(data); void eng().flush() }
       set({ source: paired ? 'copy' : 'demo', status: 'ok', pulledAt: nowIso(), save: paired ? eng().status() : 'demo', waiting: paired ? eng().waiting() : 0, ...flags(), ...withData(data, get().currentClass) })
-      get().snapshotNow(paired ? 'Opened' : 'Opened (demo)')
+      get().snapshotNow(paired ? 'Opened' : 'Opened (demo)'); syncLoop(paired)
     }
     catch (e) { set({ status: 'error', error: e instanceof Error ? e.message : String(e) }) }
   },
-  reset: () => { engine = null; set({ ...initial(), ...flags() }) },
+  reset: () => { syncLoop(false); engine = null; set({ ...initial(), ...flags() }) },
 }))
 
 const flags = () => { const h = hist(); return { canUndo: h.canUndo(), canRedo: h.canRedo(), snaps: listSnapshots(localStorage, snapKey()) } }
@@ -105,7 +113,9 @@ function write(op: Op) {
   useApp.setState(flags())
 }
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => { if (engine) void engine.flush() })
+  window.addEventListener('online', () => { if (engine) void engine.flush(); void poller?.now() })
+  window.addEventListener('focus', () => void poller?.now())
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) void poller?.now() })
   window.addEventListener('pagehide', () => { if (engine) void engine.flush() })
   setInterval(() => { const s = useApp.getState(); if (s.status === 'ok') s.snapshotNow('Auto') }, CONFIG.timing.snapshotEveryMs)
 }

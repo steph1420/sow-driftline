@@ -16,3 +16,11 @@ export function applyOps(s: SheetState, ops: Op[]): SheetState {
 }
 /** A pulled sheet plus anything still waiting to be saved. */
 export const mergePending = (remote: SheetState, pending: Op[]) => applyOps(remote, pending)
+/** Quick sync: a pulled sheet merged with what this app shows, per box newest wins; pending ops always on top. */
+export function mergeNewest(local: SheetState, remote: SheetState, pending: Op[] = []): SheetState {
+  const r = new Map(remote.ticks.map((t) => [cellKey(t), t]))
+  const keep = local.ticks.filter((t) => { const x = r.get(cellKey(t)); return !x || String(t.updatedAt) > String(x.updatedAt) })
+  const ses = new Map(remote.sessions.map((x) => [x.sessionId, x]))
+  const ops: Op[] = keep.map((t) => ({ sessionId: t.sessionId, subjectKey: t.subjectKey, classKey: t.classKey, date: ses.get(t.sessionId)?.date ?? local.sessions.find((x) => x.sessionId === t.sessionId)?.date ?? '', roll: t.roll, set: t.set, updatedAt: String(t.updatedAt) }))
+  return applyOps(applyOps(remote, ops.filter((o) => o.date)), pending)
+}
