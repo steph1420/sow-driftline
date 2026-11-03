@@ -78,7 +78,8 @@ describe('D1 checklist UI', () => {
     fireEvent.click(screen.getByText('Aarav Rohan Fenwick'))
     expect(screen.getByRole('status').textContent).toContain('Aarav Rohan Fenwick')
   })
-  it('D1-UI-02 soft "N to go" and read-only ticks', async () => {
+  // D2 changed D1-UI-02: ticks are buttons only when onTick is given (writes)
+  it('D1-UI-02 soft "N to go" and read-only ticks without onTick', async () => {
     const { Checklist } = await import('../src/screens/Checklist')
     render(<Checklist state={st} classKey="A" today="2026-11-03" layout="phone" />)
     expect(screen.getByText(/2 to go/)).toBeTruthy()

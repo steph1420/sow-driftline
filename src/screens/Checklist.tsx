@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CONFIG } from '../config'
 import type { SheetState } from '../data/contract'
-import { fmtDay, letterIndex, pickAnchor, searchIndex, toChecklist, toGo, visibleCols, type Layout } from '../data/model'
+import { AzRail } from './AzRail'
+import { fmtDay, pickAnchor, searchIndex, toChecklist, toGo, visibleCols, type Layout } from '../data/model'
 
-type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number }
-export function Checklist({ state, classKey, today, layout, jump = 0 }: Props) {
+type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number; onTick?: (sessionId: string, roll: number) => void; railSide?: 'right' | 'left'; railBubble?: boolean }
+const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
+export function Checklist({ state, classKey, today, layout, jump = 0, onTick, railSide = 'right', railBubble = true }: Props) {
   const c = useMemo(() => toChecklist(state, classKey), [state, classKey])
   const anchor = pickAnchor(c.columns.map((x) => x.date), today)
   const [end, setEnd] = useState(anchor.index)
@@ -20,8 +22,8 @@ export function Checklist({ state, classKey, today, layout, jump = 0 }: Props) {
   const cols = visibleCols(c.columns.length, end, layout)
   const focus = c.columns[anchor.index]!
   const names = c.pupils.map((p) => p.name)
-  const go = (i: number) => { if (i < 0) return; setSel(i); rows.current[i]?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }) }
-  const letters = [...new Set(names.map((n) => n.trim()[0]?.toUpperCase()).filter(Boolean))].sort() as string[]
+  const go = (i: number) => { if (i < 0) return; setSel(i); rows.current[i]?.scrollIntoView?.({ block: 'start', behavior: 'auto' }) }
+  const dup = new Set(names.filter((n, i) => names.indexOf(n) !== i)) // Q-DUP-1: roll tells twins apart
   const left = toGo(c, focus.sessionId); const done = c.pupils.length - left
   const f = fmtDay(focus.date)
   return (
@@ -44,14 +46,15 @@ export function Checklist({ state, classKey, today, layout, jump = 0 }: Props) {
             {cols.map((i) => { const s = c.columns[i]!; const d = fmtDay(s.date); return <th key={s.sessionId} className={i === anchor.index ? 'today' : ''}>{s.kind ? `${s.kind} · ` : ''}{d.dow}<b>{d.dm}</b></th> })}</tr></thead>
           <tbody>{c.pupils.map((p, r) => (
             <tr key={p.roll} ref={(el) => { rows.current[r] = el }} className={sel === r ? 'sel' : ''}>
-              <td className="n" onClick={() => { setSel(r); setToast(p.name) }}>{p.name}</td>
+              <td className="n" onClick={() => { setSel(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>
               {cols.map((i) => { const s = c.columns[i]!; const fut = s.date > today; const on = c.ticked(s.sessionId, p.roll)
-                return <td key={s.sessionId} className={i === anchor.index ? 'today' : ''}><span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? '✓' : ''}</span></td> })}
+                return <td key={s.sessionId} className={i === anchor.index ? 'today' : ''}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-pressed={on} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${on ? 'done' : 'not yet'}`} onClick={() => onTick(s.sessionId, p.roll)}>{on ? '✓' : ''}</button>
+                  : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? '✓' : ''}</span>}</td> })}
             </tr>))}</tbody>
         </table>
         {end < c.columns.length - 1 && <button className="sow-more" onClick={() => setEnd(end + 1)}>later date →</button>}
-        {layout === 'phone' && <nav className="sow-az" aria-label="Jump by letter">{letters.map((L) => <button key={L} onClick={() => go(letterIndex(names, L))}>{L}</button>)}</nav>}
       </div>
+      <AzRail names={names} onJump={go} side={railSide} bubble={railBubble} />
       {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--accent" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
     </>
   )

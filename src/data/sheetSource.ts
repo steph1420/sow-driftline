@@ -1,4 +1,4 @@
-// D1 sheet adapter: READ ONLY, TEST COPY ONLY. Never sends push/prefsPush/struct ops.
+// Sheet adapter, TEST COPY ONLY. Reads: ping/pull/pairClaim. D2 adds one write: tick-only `push`, after a ping proves the COPY.
 import type { RosterSource, SheetState } from './contract'
 export const COPY_SHEET_ID = '1iIGXOzdW9NTqLxWnBwI6UkpwOKyihQxvrG8L1v6njYI'
 export const LIVE_SHEET_ID = '1vGXltIwxto-KGZr1ygSDk9EEM0m5rkLySXshZMdv4UQ'
@@ -7,8 +7,9 @@ export const COPY_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxU01l41
 export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim']
 type Fetcher = (u: string, init: { method: string; headers: Record<string, string>; body: string; redirect: 'follow' }) => Promise<Response>
 
-export async function call<T>(url: string, body: Record<string, unknown>, fetcher: Fetcher = fetch as unknown as Fetcher): Promise<T> {
-  if (!READ_ACTIONS.includes(String(body.action))) throw new Error(`Blocked: “${String(body.action)}” is not a read action`)
+export const WRITE_ACTIONS: readonly string[] = ['push']
+export async function call<T>(url: string, body: Record<string, unknown>, fetcher: Fetcher = fetch as unknown as Fetcher, write = false): Promise<T> {
+  if (!(READ_ACTIONS.includes(String(body.action)) || (write && WRITE_ACTIONS.includes(String(body.action))))) throw new Error(`Blocked: “${String(body.action)}” is not allowed`)
   let res: Response
   try { res = await fetcher(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow' }) }
   catch { throw new Error('You’re offline') }
@@ -35,3 +36,21 @@ export async function claimPair(url: string, code: string, fetcher?: Fetcher): P
   if (!r.token) throw new Error('Code not accepted')
   return r.token
 }
+
+import type { Op } from '../sync/ops'
+async function assertCopy(url: string, t: string, fetcher?: Fetcher) {
+  const p = await call<{ sheetId?: string }>(url, { action: 'ping', token: t }, fetcher)
+  if (p.sheetId !== COPY_SHEET_ID) throw new Error('This bridge is not the test copy · writes go to the test copy only')
+}
+/** Tick-only writer for the COPY. Re-proves the COPY on every push; never LIVE. Uses the existing bridge `push` (no Apps Script change). */
+export function copyWriter(url: string, token: () => string | null, fetcher?: Fetcher) {
+  return async (ops: Op[]): Promise<SheetState> => {
+    const t = token(); if (!t) throw new Error('Not paired yet')
+    await assertCopy(url, t, fetcher)
+    const r = await call<{ state?: SheetState }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ticks: ops.map((o) => ({ subjectKey: o.subjectKey, date: o.date, topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt })) }, fetcher, true)
+    if (!r.state) throw new Error('Sheet: no state in reply')
+    return r.state
+  }
+}
+/** Setup-file connect: only accepted if that bridge is the COPY. */
+export async function verifyCopy(url: string, token: string, fetcher?: Fetcher) { await assertCopy(url, token, fetcher) }

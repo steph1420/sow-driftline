@@ -1,0 +1,43 @@
+// D2 auto-save. B-B4-1 fix: (1) only changed cells are pushed, never a whole sheet; (2) one writer at a time
+// across tabs (Web Locks); (3) every tab hears every tick (BroadcastChannel) and merges it per cell.
+import type { SheetState } from '../data/contract'
+import { applyOps, mergePending, type Op } from './ops'
+import { Outbox } from './outbox'
+export type Lock = <T>(name: string, fn: () => Promise<T>) => Promise<T>
+export type Channel = { post: (m: unknown) => void; listen: (fn: (m: unknown) => void) => void }
+export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
+type Opts = { storage: Storage; key: string; push: (ops: Op[]) => Promise<SheetState>; lock: Lock; channel?: Channel; graceMs: number; retryMs?: number
+  onState: (f: (s: SheetState) => SheetState) => void; onStatus?: (s: SaveStatus, waiting: number) => void }
+
+export function memLock(): Lock { const q = new Map<string, Promise<unknown>>(); return (n, fn) => { const p = (q.get(n) ?? Promise.resolve()).then(fn, fn); q.set(n, p.catch(() => {})); return p } }
+export function memChannelHub() { const ls: ((m: unknown) => void)[] = []; return { join(): Channel { let me: ((m: unknown) => void) | null = null; return { post: (m) => ls.forEach((l) => l !== me && l(m)), listen: (fn) => { me = fn; ls.push(fn) } } } } }
+export const webLock: Lock = (n, fn) => (typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request(n, fn) as Promise<never> : memLock()(n, fn))
+export function broadcast(name: string): Channel | undefined {
+  if (typeof BroadcastChannel === 'undefined') return undefined
+  const c = new BroadcastChannel(name); return { post: (m) => c.postMessage(m), listen: (fn) => { c.onmessage = (e) => fn(e.data) } }
+}
+
+export function createEngine(o: Opts) {
+  const box = new Outbox(o.storage, o.key); let status: SaveStatus = box.list().length ? 'offline' : 'saved'; let t: ReturnType<typeof setTimeout> | undefined
+  const tell = (s: SaveStatus) => { status = s; o.onStatus?.(s, box.list().length) }
+  o.channel?.listen((m) => { const x = m as { ops?: Op[]; state?: SheetState }; if (x.ops) o.onState((s) => applyOps(s, x.ops!)); if (x.state) o.onState(() => mergePending(x.state!, box.list())) })
+  const schedule = (ms: number) => { clearTimeout(t); t = setTimeout(() => void flush(), ms) }
+  async function flush(): Promise<void> {
+    clearTimeout(t)
+    await o.lock('sow-driftline:push', async () => {
+      const ops = box.list(); if (!ops.length) { tell('saved'); return }
+      tell('saving')
+      try {
+        const st = await o.push(ops); box.ack(ops); const merged = mergePending(st, box.list())
+        o.onState(() => merged); o.channel?.post({ state: st }); tell(box.list().length ? 'saving' : 'saved')
+        if (box.list().length) schedule(0)
+      } catch (e) { tell(/offline/i.test(String(e)) ? 'offline' : 'error'); if (o.retryMs) schedule(o.retryMs) }
+    })
+  }
+  return {
+    status: () => status, waiting: () => box.list().length, flush,
+    /** A tick on this device: shown at once, queued, told to other tabs, saved after the grace. */
+    local(op: Op) { box.add(op); o.onState((s) => applyOps(s, [op])); o.channel?.post({ ops: [op] }); tell('saving'); if (o.graceMs > 0) schedule(o.graceMs) },
+    adoptPull: (remote: SheetState) => mergePending(remote, box.list()),
+  }
+}

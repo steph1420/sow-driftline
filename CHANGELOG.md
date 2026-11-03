@@ -1,4 +1,17 @@
 # Changelog
+## 0.3.0-beta.1 — 2026-11-04
+Rail fix + D2 in one Beta release (Steve t154u). Stable stays 0.1.0.
+- A–Z rail (t146u, t151u 1A): fixed in its own gutter, full height between bar and dock, never scrolls with the list; all 26 letters fit the screen, only letters present are active; tap or drag-scrub jumps to the first full name of that letter (an empty letter goes to the next one) with a letter bubble; phone and desktop. Developer options: rail side, bubble on/off.
+- D2 ticking: tap a box to tick/untick. Auto-save to the TEST COPY only (re-checked on every save; the live sheet is refused) with a subtle status dot + footer (all saved / saving / offline · N waiting); offline queue on the device, retried and sent on reconnect or when the app is hidden.
+- B-B4-1 fix: only changed cells are sent, one writer at a time across tabs (Web Locks), every tab hears every tick (BroadcastChannel) and merges per cell (newer wins), so two tabs never overwrite each other.
+- Automatic on-device snapshots (on open + every 10 min when changed; 12 kept) with a Restore list in More; Restore keeps a "Before restore" snapshot first.
+- Undo/Redo in the bar, kept on the device across restarts.
+- Q-TOK-1: connect by pairing code or by opening a setup file (`{"kind":"sow-driftline-setup","bridgeUrl","token"}`); accepted only if it is the test copy; token stays on the device.
+- Q-DUP-1: rows keyed by roll number; when two names match, a subtle #roll shows and the toast says the roll.
+- Demo stays the default (2B): demo ticks save on this device only.
+- Uses the existing bridge `push` action — no Apps Script change needed.
+- Removed committed tsconfig.tsbuildinfo (now ignored).
+- Tests: 41 (15 new, written first). D1-UI-02 now checks read-only only when no tick handler is given.
 ## 0.2.0-beta.1 — 2026-11-04
 D1: first usable thing, **read only**.
 - Checklist grid in the r4 locked look: name column 50% on phone, one line with ellipsis, tap a name for the full-name toast; max 2 date columns on phone portrait (desktop up to 9); soft-blue "N to go"; A–Z rail and "Find a name" search jump to the full name; earlier/later date buttons.
