@@ -5,11 +5,9 @@ export const COPY_SHEET_ID = '1iIGXOzdW9NTqLxWnBwI6UkpwOKyihQxvrG8L1v6njYI'
 export const LIVE_SHEET_ID = '1vGXltIwxto-KGZr1ygSDk9EEM0m5rkLySXshZMdv4UQ'
 /** Test-copy bridge address (not a secret). The token arrives only by pairing on the device. */
 export const COPY_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxU01l41mPcriTlPOXsrvh3krmiWuRh97UM1McXO9vZoJPF07woCDF17gLvnwOoYXkAtA/exec'
-/** LIVE bridge address (same as the old /sow/ app's built-in default; not a secret — the token comes only by pairing). */
-export const LIVE_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycby2SaO9tEQC_-PgLyh7EaUoK7ganHAnXuizqYtMjSFW3qEhUcO5di6cB8czYf38PAD3/exec'
-/** Stable = LIVE + test copy; Beta = test copy only (Steve, 4 Nov 02:24). */
-export const allowedSheets = (f: Flavor = FLAVOR): string[] => (f === 'stable' ? [LIVE_SHEET_ID, COPY_SHEET_ID] : [COPY_SHEET_ID])
-const refuse = (f: Flavor) => new Error(f === 'beta' ? 'This bridge is not the test copy · Beta works with the test copy only' : 'This bridge is not an allowed sheet')
+/** Copy-only everywhere (Steve t168u/t169u). LIVE stays off until Steve says otherwise. */
+export const allowedSheets = (_f: Flavor = FLAVOR): string[] => [COPY_SHEET_ID]
+const refuse = (_f: Flavor) => new Error('This bridge is not the test copy · the app works with the test copy only')
 export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim', 'devicesList']
 type Fetcher = (u: string, init: { method: string; headers: Record<string, string>; body: string; redirect: 'follow' }) => Promise<Response>
 

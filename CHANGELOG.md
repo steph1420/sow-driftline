@@ -1,4 +1,12 @@
 # Changelog
+## 0.6.0-beta.1 — 2026-11-04
+Steve t169u. Beta only.
+- Weeks (the wide many-date grid that read as a "week view" on desktop) is now a switch in the ⋮ view menu, OFF by default, remembered on this device. Off: desktop shows 3 dates, phone 2. On: up to 9 dates with a thin line where a new week starts, on desktop and phone held sideways only (phone upright always 2). ⋮ now opens this small view menu (Weeks · Quick overview · More…) instead of jumping straight to More.
+- Overview page: one card per class with the Today/Upcoming/Last date, soft-blue "N to go" and progress; tap a card → that class on Checklist at that date. Below: Done / To go / Waiting, "Still to come in" (first 5, then "Show all"), and Share footer (Copy · Share) with the v0.47 Pending text.
+- Quick overview sheet on Checklist: swipe up on the small handle above the dock, ⇧O, or ⋮ › Quick overview; swipe down on its handle, Esc or tap outside closes. (Plain "o" on desktop still starts a name search.)
+- Removed the dormant Stable→LIVE connection code: copy-only everywhere until Steve says otherwise.
+- Break-it fix: the swipe-up handle now keeps tracking the finger after it leaves the handle (found by the break-it run; test V06-QO-03).
+- Tests: 85 app + 4 bridge. Break-it 101/101 (docs/BREAK_IT_v0.6.md).
 ## 0.5.0-beta.1 — 2026-11-04
 Ported from /sow/ (Steve t163u). Beta only.
 - Swipe to tick: press a box and drag up/down the same column; every box crossed gets the first box's new value; one Undo step. Small wobble = tap. Developer option "Swipe to tick".

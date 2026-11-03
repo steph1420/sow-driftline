@@ -4,7 +4,7 @@ import { storageKey } from '../config'
 import type { SheetState } from '../data/contract'
 import { classesOf } from '../data/model'
 import { DEMO_STATE, fakeSource } from '../data/fakeSource'
-import { LIVE_BRIDGE_URL, LIVE_SHEET_ID, lastSheetId, COPY_BRIDGE_URL, claimPair, copyWriter, sheetBridgeSource, verifyCopy } from '../data/sheetSource'
+import { LIVE_SHEET_ID, lastSheetId, COPY_BRIDGE_URL, claimPair, copyWriter, sheetBridgeSource, verifyCopy } from '../data/sheetSource'
 import { CONFIG, FLAVOR } from '../config'
 import { parseSetup } from '../data/setup'
 import { applyOps, type Op } from '../sync/ops'
@@ -20,14 +20,17 @@ type State = {
   tab: Tab; side: Side; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
   data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
+  view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
   tick: (sessionId: string, roll: number) => void; tickMany: (sessionId: string, rolls: number[], value: boolean) => void; deviceName: string; setDeviceName: (n: string) => void; undo: () => void; redo: () => void; restore: (at: string) => void; snapshotNow: (label: string) => void
   importSetup: (text: string) => Promise<void>; setDev: (d: Partial<Dev>) => void
-  setToken: (t: string) => void; unpair: () => void; pair: (code: string, target?: 'live' | 'copy') => Promise<void>; refresh: () => Promise<void>; reset: () => void
+  setToken: (t: string) => void; unpair: () => void; pair: (code: string) => Promise<void>; refresh: () => Promise<void>; reset: () => void
 }
+export type View = { weeks: boolean }
 export type Dev = { railSide: 'right' | 'left'; railBubble: boolean; swipeTick: boolean }
 const PREFS = storageKey('prefs'); const TOKEN = storageKey('copyToken'); const BRIDGE = storageKey('copyBridge'); const DEV = storageKey('dev')
-const DEMO_TICKS = storageKey('demoTicks'); const DEVNAME = storageKey('deviceName')
+const DEMO_TICKS = storageKey('demoTicks'); const VIEW = storageKey('view')
+const loadView = (): View => { try { return { weeks: false, ...JSON.parse(localStorage.getItem(VIEW) || '{}') } } catch { return { weeks: false } } }; const DEVNAME = storageKey('deviceName')
 const guessName = () => { const u = typeof navigator !== 'undefined' ? navigator.userAgent : ''; return /iPad/.test(u) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android phone' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows PC' : 'This device' }
 const src = () => (token() ? 'copy' : 'demo') as 'copy' | 'demo'
 const hist = () => new History(localStorage, storageKey(`undo-${src()}`))
@@ -56,7 +59,7 @@ function withData(data: SheetState, prev?: string) {
   const classes = classesOf(data).map((c) => ({ ...c, label: labelOf(c.classKey) }))
   return { data, classes, currentClass: classes.some((c) => c.classKey === prev) ? prev! : classes[0]?.classKey ?? '' }
 }
-const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(DEMO_STATE, demoOps())) })
+const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(DEMO_STATE, demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab }),
@@ -89,10 +92,13 @@ export const useApp = create<State>((set, get) => ({
     await verifyCopy(u, t) // refuses anything that is not the test copy; nothing is stored until it passes
     localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh()
   },
+  setView: (v) => { const view = { ...get().view, ...v }; localStorage.setItem(VIEW, JSON.stringify(view)); set({ view }) },
+  setQuick: (quick) => set({ quick }),
+  openClass: (k) => set({ currentClass: k, tab: 'checklist', quick: false, jump: get().jump + 1 }),
   setDev: (d) => { const dev = { ...get().dev, ...d }; localStorage.setItem(DEV, JSON.stringify(dev)); set({ dev }) },
   setToken: (t) => localStorage.setItem(TOKEN, t),
   unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); engine = null; set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(DEMO_STATE, demoOps())) }) },
-  pair: async (code, target = 'copy') => { const u = target === 'live' && FLAVOR === 'stable' ? LIVE_BRIDGE_URL : COPY_BRIDGE_URL; const t = await claimPair(u, code, undefined, target === 'live' ? undefined : get().deviceName); localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh() },
+  pair: async (code) => { const u = COPY_BRIDGE_URL; const t = await claimPair(u, code, undefined, get().deviceName); localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh() },
   refresh: async () => {
     const paired = !!token()
     const rs = paired ? sheetBridgeSource(bridgeUrl(), token) : fakeSource(applyOps(DEMO_STATE, demoOps()))

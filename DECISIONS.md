@@ -10,3 +10,4 @@ Master log: steph1420/agent-common handovers/lfps-sow/DECISIONS.md.
 - t163u GO v0.5: swipe, centre snap, quick search, keyboard, channel switch, device registry (app + COPY bridge prepared, not deployed).
 - 02:24 widget: Stable may connect to LIVE (existing bridge, tick cells only); Beta copy-only. t166u: Stable only after a documented break-it pass on Beta (docs/BREAK_IT_v0.5.md) and a LIVE backup.
 - Beta storage namespace split from Stable (same origin).
+- t168u: Stable release + LIVE cancelled. t169u GO v0.6: Weeks toggle (off by default, desktop + phone landscape), Overview + quick sheet + Share footer, LIVE code removed. Quick overview key = Shift+O because plain letters start a search on desktop (t163u).

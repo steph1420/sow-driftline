@@ -9,8 +9,13 @@ export function pickAnchor(dates: string[], today: string): { kind: AnchorKind; 
   return { kind: 'last', index: dates.length - 1 }
 }
 export type Layout = 'phone' | 'desktop'
-export function visibleCols(total: number, end: number, layout: Layout): number[] {
-  const n = layout === 'phone' ? CONFIG.layout.phoneMaxDateCols : CONFIG.layout.desktopDateCols
+/** v0.6 (t169u): Weeks = the wide many-date grid. Off by default; only desktop + phone landscape. */
+export function dateColsFor(o: { layout: Layout; landscape: boolean; weeks: boolean }): number {
+  if (o.weeks && (o.layout === 'desktop' || o.landscape)) return CONFIG.layout.desktopDateCols
+  return o.layout === 'desktop' ? CONFIG.layout.desktopCalmDateCols : CONFIG.layout.phoneMaxDateCols
+}
+export function visibleCols(total: number, end: number, layout: Layout, cols?: number): number[] {
+  const n = cols ?? (layout === 'phone' ? CONFIG.layout.phoneMaxDateCols : CONFIG.layout.desktopDateCols)
   const hi = Math.max(0, Math.min(end, total - 1)); const lo = Math.max(0, hi - n + 1)
   return total ? Array.from({ length: hi - lo + 1 }, (_, i) => lo + i) : []
 }

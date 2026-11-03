@@ -16,21 +16,20 @@ function Devices() {
     {!d.revoked && <button className="dl-btn dl-btn--quiet" onClick={async () => { if (confirm(`Remove ${d.name}? It will need a new pairing code.`)) { await cli().revoke(d.id); void load() } }}>Remove</button>}</div>)}</div>
 }
 export function More() {
-  const s = useApp(); const [code, setCode] = useState(''); const [busy, setBusy] = useState(false); const [target, setTarget] = useState<'live' | 'copy'>(FLAVOR === 'stable' ? 'live' : 'copy')
+  const s = useApp(); const [code, setCode] = useState(''); const [busy, setBusy] = useState(false)
   return (
     <>
       <div className="dl-card">
         <h2 className="dl-card__title">More</h2>
         <div className="dl-eyebrow">Data</div>
-        <p className="dl-muted sow-note">{s.source === 'copy' ? `Connected to the ${sheetLabel()}. Ticks save by themselves${s.pulledAt ? ` · checked ${new Date(s.pulledAt).toLocaleTimeString()}` : ''}.` : 'Showing a demo class with made-up names. Ticks stay on this device.'} {FLAVOR === 'beta' ? 'Beta never touches your live sheet.' : 'Only the boxes you tick are saved.'}</p>
+        <p className="dl-muted sow-note">{s.source === 'copy' ? `Connected to the ${sheetLabel()}. Ticks save by themselves${s.pulledAt ? ` · checked ${new Date(s.pulledAt).toLocaleTimeString()}` : ''}.` : 'Showing a demo class with made-up names. Ticks stay on this device.'} Your live sheet is never touched.</p>
         {s.error && <p className="sow-note" role="alert">{s.error}</p>}
         {s.source === 'copy' ? (
           <div className="sow-pair"><button className="dl-btn dl-btn--secondary" onClick={() => void s.refresh()}>Refresh</button><button className="dl-btn dl-btn--quiet" onClick={s.unpair}>Back to demo</button></div>
         ) : (
           <>
-            {FLAVOR === 'stable' && <div className="sow-pair">{(['live', 'copy'] as const).map((x) => <button key={x} className={`dl-btn ${target === x ? 'dl-btn--primary' : 'dl-btn--secondary'}`} onClick={() => setTarget(x)}>{x === 'live' ? 'Live sheet' : 'Test copy'}</button>)}</div>}
-            <p className="dl-muted sow-note">{target === 'live' ? 'In the old SoW app (/sow/) open Setup › Pair a device, then type the 6-digit code here.' : 'On a device already on SoW Beta, open Setup › Pair a device, then type the 6-digit code here.'}</p>
-            <form className="sow-pair" onSubmit={async (e) => { e.preventDefault(); setBusy(true); try { await s.pair(code, target) } catch (err) { useApp.setState({ error: err instanceof Error ? err.message : String(err) }) } setBusy(false); setCode('') }}>
+            <p className="dl-muted sow-note">On a device already on SoW Beta, open Setup › Pair a device, then type the 6-digit code here.</p>
+            <form className="sow-pair" onSubmit={async (e) => { e.preventDefault(); setBusy(true); try { await s.pair(code) } catch (err) { useApp.setState({ error: err instanceof Error ? err.message : String(err) }) } setBusy(false); setCode('') }}>
               <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} aria-label="6-digit code" placeholder="000000" />
               <button className="dl-btn dl-btn--primary" disabled={code.length !== 6 || busy}>Connect</button>
             </form>
