@@ -1,4 +1,14 @@
 # Changelog
+## 0.5.0-beta.1 — 2026-11-04
+Ported from /sow/ (Steve t163u). Beta only.
+- Swipe to tick: press a box and drag up/down the same column; every box crossed gets the first box's new value; one Undo step. Small wobble = tap. Developer option "Swipe to tick".
+- A–Z / search jump puts the name in the middle of the list (near the top it stays where it lands) and flashes it.
+- Quick search pill: on desktop just type anywhere; "/" or the Find button everywhere. Ported /sow/ ranking (roll, first name, initials, partial, typos). One letter = A–Z jump. Esc/Enter closes.
+- Keyboard: arrows/Home/End/PgUp/PgDn move between boxes, Space/Enter ticks, Ctrl/Cmd+Z undo, Ctrl+Y or Ctrl/Cmd+Shift+Z redo, "/" search.
+- More: device name, Stable/Beta channel switch, Devices list (name, last seen, Remove) when the bridge supports it; otherwise a calm "needs the bridge update" note.
+- bridge/Code.js = COPY bridge 0.50.0-dl.1 (0.46.2 + device registry, additive). Not deployed — steps in docs/BRIDGE_DEPLOY_v0.50.0-dl.1.md.
+- Guard: Stable may use LIVE + test copy; Beta = test copy only; devices never on LIVE. Beta now has its own storage namespace (`sow-driftline-beta:*`), so Beta and Stable never share token/queue on github.io (Beta demo ticks from 0.3–0.4 start fresh).
+- Tests: 78 app + 4 bridge (old /sow/ bridge suite 63/63 also passes on the new bridge file).
 ## 0.4.0-beta.1 — 2026-11-04
 "A working app now" (Steve t155u/t156u). Beta only.
 - A–Z grip restored (old /sow/ look and behaviour): a three-line handle above the rail; tap moves the strip to the other side, drag sideways and it snaps to the nearest edge.

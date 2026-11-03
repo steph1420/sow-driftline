@@ -74,11 +74,12 @@ describe('D2 snapshots + undo', () => {
     const ops = restoreOps(s1, listSnapshots(localStorage, 'snap')[0]!.state, '2026-11-03T11:00:00.000Z')
     expect(ops).toEqual([op(1, false, '2026-11-03T11:00:00.000Z')])
   })
+  // v0.5 changed D2-UNDO-01: undo/redo return a list (a swipe is one step)
   it('D2-UNDO-01 undo/redo survives an app restart', () => {
     const h = new History(localStorage, 'undo'); h.record(op(1, true, '2026-11-03T10:00:00.000Z'), false)
     const h2 = new History(localStorage, 'undo')
-    expect(h2.undo('2026-11-03T10:05:00.000Z')).toEqual(op(1, false, '2026-11-03T10:05:00.000Z'))
-    expect(new History(localStorage, 'undo').redo('2026-11-03T10:06:00.000Z')).toEqual(op(1, true, '2026-11-03T10:06:00.000Z'))
+    expect(h2.undo('2026-11-03T10:05:00.000Z')).toEqual([op(1, false, '2026-11-03T10:05:00.000Z')])
+    expect(new History(localStorage, 'undo').redo('2026-11-03T10:06:00.000Z')).toEqual([op(1, true, '2026-11-03T10:06:00.000Z')])
   })
 })
 
@@ -88,9 +89,10 @@ describe('Q-TOK-1 connect: pairing code or setup file, COPY only', () => {
     expect(() => parseSetup('{"kind":"x"}')).toThrow()
     expect(() => parseSetup(JSON.stringify({ kind: 'sow-driftline-setup', bridgeUrl: 'https://evil.example/exec', token: 'a' }))).toThrow()
   })
+  // v0.5 changed D2-TOK-02: Beta rule
   it('D2-TOK-02 writes are refused unless the bridge is the test copy', async () => {
     const mk = (sheetId: string) => copyWriter('https://x/exec', () => 'tok', (async (_u: string, i: { body: string }) => {
-      const b = JSON.parse(i.body); return { ok: true, json: async () => (b.action === 'ping' ? { ok: true, schema: 1, sheetId } : { ok: true, state: base() }) } as Response }) as never)
+      const b = JSON.parse(i.body); return { ok: true, json: async () => (b.action === 'ping' ? { ok: true, schema: 1, sheetId } : { ok: true, state: base() }) } as Response }) as never, 'beta')
     await expect(mk(LIVE_SHEET_ID)([op(1, true, '2026-11-03T10:00:00.000Z')])).rejects.toThrow(/not the test copy/i)
     await expect(mk(COPY_SHEET_ID)([op(1, true, '2026-11-03T10:00:00.000Z')])).resolves.toBeTruthy()
   })

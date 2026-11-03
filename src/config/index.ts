@@ -1,11 +1,16 @@
 // One config module (06 rule 6). Every timing/layout number lives here; Developer options will override later.
+declare const __APP_FLAVOR__: string
+export type Flavor = 'stable' | 'beta'
+export const FLAVOR: Flavor = typeof __APP_FLAVOR__ !== 'undefined' && __APP_FLAVOR__ === 'beta' ? 'beta' : 'stable'
+/** v0.5: Beta and Stable share the github.io origin, so they must never share keys (token, outbox, tabs channel). */
+export const namespaceFor = (f: Flavor) => (f === 'beta' ? 'sow-driftline-beta' : 'sow-driftline')
 export const CONFIG = {
-  namespace: 'sow-driftline',
+  namespace: namespaceFor(FLAVOR),
   idbName: 'sow-driftline',
   storageVersion: 1,
-  timing: { pendingGraceMs: 3000, panelSettlePx: 24, panelSettleMs: 120, updateCheckMs: 5 * 60 * 1000, nameToastMs: 2600, railBubbleMs: 650, saveRetryMs: 15000, snapshotEveryMs: 10 * 60 * 1000, quickSyncMs: 4000, gripSnapMinPx: 8 },
+  timing: { pendingGraceMs: 3000, panelSettlePx: 24, panelSettleMs: 120, updateCheckMs: 5 * 60 * 1000, nameToastMs: 2600, railBubbleMs: 650, saveRetryMs: 15000, snapshotEveryMs: 10 * 60 * 1000, quickSyncMs: 4000, gripSnapMinPx: 8, swipeEngagePx: 10, swipeExtendPx: 28, swipeExtendFrac: 0.6, jumpFlashMs: 1200 },
   data: { snapshotsMax: 12, undoMax: 200 },
-  layout: { phoneMaxDateCols: 2, desktopDateCols: 9, phoneNameShare: 0.5, headerHeightPx: 56, desktopMinWidthPx: 1000, desktopScaleDivisor: 600, desktopScaleMax: 2.4 },
+  layout: { phoneMaxDateCols: 2, desktopDateCols: 9, phoneNameShare: 0.5, headerHeightPx: 56, dockReservePx: 88, desktopMinWidthPx: 1000, desktopScaleDivisor: 600, desktopScaleMax: 2.4 },
 } as const
 
 /** Every localStorage / idb key goes through here so nothing collides with /sow/. */

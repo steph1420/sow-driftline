@@ -61,9 +61,10 @@ describe('D1 sheet adapter (read-only, COPY only)', () => {
     expect(calls.every((a) => READ_ACTIONS.includes(a))).toBe(true)
     expect(READ_ACTIONS).not.toContain('push')
   })
+  // v0.5 changed D1-RO-02: this is the Beta rule (Stable may use LIVE, see tests/flavor.test.ts)
   it('D1-RO-02 refuses any sheet that is not the COPY (never LIVE)', async () => {
     const fetcher = async () => ({ ok: true, json: async () => ({ ok: true, schema: 1, sheetId: LIVE_SHEET_ID }) }) as Response
-    await expect(sheetBridgeSource('https://x/exec', () => 'tok', fetcher as never).pull()).rejects.toThrow(/not the test copy/i)
+    await expect(sheetBridgeSource('https://x/exec', () => 'tok', fetcher as never, 'beta').pull()).rejects.toThrow(/not the test copy/i)
   })
   it('D1-FAKE-01 demo source uses made-up names only', async () => {
     const s = await fakeSource(DEMO_STATE).pull()

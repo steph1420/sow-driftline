@@ -1,13 +1,19 @@
 // Sheet adapter, TEST COPY ONLY. Reads: ping/pull/pairClaim. D2 adds one write: tick-only `push`, after a ping proves the COPY.
 import type { RosterSource, SheetState } from './contract'
+import { FLAVOR, type Flavor } from '../config'
 export const COPY_SHEET_ID = '1iIGXOzdW9NTqLxWnBwI6UkpwOKyihQxvrG8L1v6njYI'
 export const LIVE_SHEET_ID = '1vGXltIwxto-KGZr1ygSDk9EEM0m5rkLySXshZMdv4UQ'
 /** Test-copy bridge address (not a secret). The token arrives only by pairing on the device. */
 export const COPY_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxU01l41mPcriTlPOXsrvh3krmiWuRh97UM1McXO9vZoJPF07woCDF17gLvnwOoYXkAtA/exec'
-export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim']
+/** LIVE bridge address (same as the old /sow/ app's built-in default; not a secret — the token comes only by pairing). */
+export const LIVE_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycby2SaO9tEQC_-PgLyh7EaUoK7ganHAnXuizqYtMjSFW3qEhUcO5di6cB8czYf38PAD3/exec'
+/** Stable = LIVE + test copy; Beta = test copy only (Steve, 4 Nov 02:24). */
+export const allowedSheets = (f: Flavor = FLAVOR): string[] => (f === 'stable' ? [LIVE_SHEET_ID, COPY_SHEET_ID] : [COPY_SHEET_ID])
+const refuse = (f: Flavor) => new Error(f === 'beta' ? 'This bridge is not the test copy · Beta works with the test copy only' : 'This bridge is not an allowed sheet')
+export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim', 'devicesList']
 type Fetcher = (u: string, init: { method: string; headers: Record<string, string>; body: string; redirect: 'follow' }) => Promise<Response>
 
-export const WRITE_ACTIONS: readonly string[] = ['push']
+export const WRITE_ACTIONS: readonly string[] = ['push', 'deviceRevoke', 'deviceRename']
 export async function call<T>(url: string, body: Record<string, unknown>, fetcher: Fetcher = fetch as unknown as Fetcher, write = false): Promise<T> {
   if (!(READ_ACTIONS.includes(String(body.action)) || (write && WRITE_ACTIONS.includes(String(body.action))))) throw new Error(`Blocked: “${String(body.action)}” is not allowed`)
   let res: Response
@@ -19,34 +25,40 @@ export async function call<T>(url: string, body: Record<string, unknown>, fetche
   return j as T
 }
 
-export function sheetBridgeSource(url: string, token: () => string | null, fetcher?: Fetcher): RosterSource {
+export function sheetBridgeSource(url: string, token: () => string | null, fetcher?: Fetcher, flavor: Flavor = FLAVOR): RosterSource {
   return {
     kind: 'sheet',
     async pull() {
       const t = token(); if (!t) throw new Error('Not paired yet')
       const p = await call<{ sheetId?: string }>(url, { action: 'ping', token: t }, fetcher)
-      if (p.sheetId !== COPY_SHEET_ID) throw new Error('This bridge is not the test copy · D1 reads the test copy only')
+      if (!allowedSheets(flavor).includes(String(p.sheetId))) throw refuse(flavor)
+      lastSheetId = String(p.sheetId)
       return call<SheetState>(url, { action: 'pull', token: t }, fetcher)
     },
   }
 }
 /** One-time pairing: the 6-digit code comes from SoW › Setup on an already-paired device. Returns the token (kept on device only). */
-export async function claimPair(url: string, code: string, fetcher?: Fetcher): Promise<string> {
-  const r = await call<{ token?: string }>(url, { action: 'pairClaim', code: code.trim() }, fetcher)
-  if (!r.token) throw new Error('Code not accepted')
-  return r.token
+/** v0.5: sends the device name; a 0.50 bridge answers with a per-device key (revocable one by one), an older one with the shared token. */
+export async function claimPair(url: string, code: string, fetcher?: Fetcher, deviceName?: string): Promise<string> {
+  const r = await call<{ token?: string; deviceKey?: string }>(url, { action: 'pairClaim', code: code.trim(), ...(deviceName ? { deviceName } : {}) }, fetcher)
+  const k = r.deviceKey || r.token
+  if (!k) throw new Error('Code not accepted')
+  return k
 }
 
 import type { Op } from '../sync/ops'
-async function assertCopy(url: string, t: string, fetcher?: Fetcher) {
+async function assertCopy(url: string, t: string, fetcher?: Fetcher, flavor: Flavor = FLAVOR) {
   const p = await call<{ sheetId?: string }>(url, { action: 'ping', token: t }, fetcher)
-  if (p.sheetId !== COPY_SHEET_ID) throw new Error('This bridge is not the test copy · writes go to the test copy only')
+  if (!allowedSheets(flavor).includes(String(p.sheetId))) throw refuse(flavor)
+  lastSheetId = String(p.sheetId)
 }
+/** Sheet id of the last successful ping (devices are disabled on LIVE). */
+export let lastSheetId: string | null = null
 /** Tick-only writer for the COPY. Re-proves the COPY on every push; never LIVE. Uses the existing bridge `push` (no Apps Script change). */
-export function copyWriter(url: string, token: () => string | null, fetcher?: Fetcher) {
+export function copyWriter(url: string, token: () => string | null, fetcher?: Fetcher, flavor: Flavor = FLAVOR) {
   return async (ops: Op[]): Promise<SheetState> => {
     const t = token(); if (!t) throw new Error('Not paired yet')
-    await assertCopy(url, t, fetcher)
+    await assertCopy(url, t, fetcher, flavor) // tick cells only, via the existing bridge push; no struct/schema ops ever
     const r = await call<{ state?: SheetState }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ticks: ops.map((o) => ({ subjectKey: o.subjectKey, date: o.date, topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt })) }, fetcher, true)
     if (!r.state) throw new Error('Sheet: no state in reply')
     return r.state

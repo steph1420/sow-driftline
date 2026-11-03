@@ -4,8 +4,8 @@ import { storageKey } from '../config'
 import type { SheetState } from '../data/contract'
 import { classesOf } from '../data/model'
 import { DEMO_STATE, fakeSource } from '../data/fakeSource'
-import { COPY_BRIDGE_URL, claimPair, copyWriter, sheetBridgeSource, verifyCopy } from '../data/sheetSource'
-import { CONFIG } from '../config'
+import { LIVE_BRIDGE_URL, LIVE_SHEET_ID, lastSheetId, COPY_BRIDGE_URL, claimPair, copyWriter, sheetBridgeSource, verifyCopy } from '../data/sheetSource'
+import { CONFIG, FLAVOR } from '../config'
 import { parseSetup } from '../data/setup'
 import { applyOps, type Op } from '../sync/ops'
 import { broadcast, createEngine, webLock, type SaveStatus } from '../sync/engine'
@@ -21,20 +21,21 @@ type State = {
   data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
-  tick: (sessionId: string, roll: number) => void; undo: () => void; redo: () => void; restore: (at: string) => void; snapshotNow: (label: string) => void
+  tick: (sessionId: string, roll: number) => void; tickMany: (sessionId: string, rolls: number[], value: boolean) => void; deviceName: string; setDeviceName: (n: string) => void; undo: () => void; redo: () => void; restore: (at: string) => void; snapshotNow: (label: string) => void
   importSetup: (text: string) => Promise<void>; setDev: (d: Partial<Dev>) => void
-  setToken: (t: string) => void; unpair: () => void; pair: (code: string) => Promise<void>; refresh: () => Promise<void>; reset: () => void
+  setToken: (t: string) => void; unpair: () => void; pair: (code: string, target?: 'live' | 'copy') => Promise<void>; refresh: () => Promise<void>; reset: () => void
 }
-export type Dev = { railSide: 'right' | 'left'; railBubble: boolean }
+export type Dev = { railSide: 'right' | 'left'; railBubble: boolean; swipeTick: boolean }
 const PREFS = storageKey('prefs'); const TOKEN = storageKey('copyToken'); const BRIDGE = storageKey('copyBridge'); const DEV = storageKey('dev')
-const DEMO_TICKS = storageKey('demoTicks')
+const DEMO_TICKS = storageKey('demoTicks'); const DEVNAME = storageKey('deviceName')
+const guessName = () => { const u = typeof navigator !== 'undefined' ? navigator.userAgent : ''; return /iPad/.test(u) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android phone' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows PC' : 'This device' }
 const src = () => (token() ? 'copy' : 'demo') as 'copy' | 'demo'
 const hist = () => new History(localStorage, storageKey(`undo-${src()}`))
 const snapKey = () => storageKey(`snapshots-${src()}`)
 const bridgeUrl = () => localStorage.getItem(BRIDGE) || COPY_BRIDGE_URL
 let lastMs = 0 // strictly increasing, so a quick Undo→Redo is never seen as “older”
 const nowIso = () => { lastMs = Math.max(Date.now(), lastMs + 1); return new Date(lastMs).toISOString() }
-const loadDev = (): Dev => { try { return { railSide: 'right', railBubble: true, ...JSON.parse(localStorage.getItem(DEV) || '{}') } } catch { return { railSide: 'right', railBubble: true } } }
+const loadDev = (): Dev => { try { return { railSide: 'right', railBubble: true, swipeTick: true, ...JSON.parse(localStorage.getItem(DEV) || '{}') } } catch { return { railSide: 'right', railBubble: true, swipeTick: true } } }
 const demoOps = (): Op[] => { try { return JSON.parse(localStorage.getItem(DEMO_TICKS) || '[]') } catch { return [] } }
 let engine: ReturnType<typeof createEngine> | null = null
 let poller: ReturnType<typeof createPoller> | null = null
@@ -55,7 +56,7 @@ function withData(data: SheetState, prev?: string) {
   const classes = classesOf(data).map((c) => ({ ...c, label: labelOf(c.classKey) }))
   return { data, classes, currentClass: classes.some((c) => c.classKey === prev) ? prev! : classes[0]?.classKey ?? '' }
 }
-const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), ...withData(applyOps(DEMO_STATE, demoOps())) })
+const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(DEMO_STATE, demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab }),
@@ -68,8 +69,15 @@ export const useApp = create<State>((set, get) => ({
     const op: Op = { sessionId, subjectKey: se.subjectKey, classKey: se.classKey, date: se.date, roll, set: !before, updatedAt: nowIso() }
     hist().record(op, before); write(op)
   },
-  undo: () => { const op = hist().undo(nowIso()); if (op) write(op) },
-  redo: () => { const op = hist().redo(nowIso()); if (op) write(op) },
+  tickMany: (sessionId, rolls, value) => {
+    const d = get().data; const se = d.sessions.find((x) => x.sessionId === sessionId); if (!se) return
+    const at = nowIso(); const cells = rolls.map((roll) => ({ op: { sessionId, subjectKey: se.subjectKey, classKey: se.classKey, date: se.date, roll, set: value, updatedAt: at } as Op, before: d.ticks.some((t) => t.sessionId === sessionId && t.roll === roll && t.set) }))
+      .filter((c) => c.before !== value)
+    hist().recordMany(cells); for (const c of cells) write(c.op)
+  },
+  setDeviceName: (deviceName) => { localStorage.setItem(DEVNAME, deviceName); set({ deviceName }) },
+  undo: () => { for (const op of hist().undo(nowIso()) ?? []) write(op); useApp.setState(flags()) },
+  redo: () => { for (const op of hist().redo(nowIso()) ?? []) write(op); useApp.setState(flags()) },
   snapshotNow: (label) => { takeSnapshot(localStorage, snapKey(), get().data, label, nowIso(), CONFIG.data.snapshotsMax); set({ snaps: listSnapshots(localStorage, snapKey()) }) },
   restore: (at) => {
     const snap = listSnapshots(localStorage, snapKey()).find((x) => x.at === at); if (!snap) return
@@ -84,7 +92,7 @@ export const useApp = create<State>((set, get) => ({
   setDev: (d) => { const dev = { ...get().dev, ...d }; localStorage.setItem(DEV, JSON.stringify(dev)); set({ dev }) },
   setToken: (t) => localStorage.setItem(TOKEN, t),
   unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); engine = null; set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(DEMO_STATE, demoOps())) }) },
-  pair: async (code) => { const t = await claimPair(COPY_BRIDGE_URL, code); localStorage.setItem(BRIDGE, COPY_BRIDGE_URL); localStorage.setItem(TOKEN, t); engine = null; await get().refresh() },
+  pair: async (code, target = 'copy') => { const u = target === 'live' && FLAVOR === 'stable' ? LIVE_BRIDGE_URL : COPY_BRIDGE_URL; const t = await claimPair(u, code, undefined, target === 'live' ? undefined : get().deviceName); localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh() },
   refresh: async () => {
     const paired = !!token()
     const rs = paired ? sheetBridgeSource(bridgeUrl(), token) : fakeSource(applyOps(DEMO_STATE, demoOps()))
@@ -119,3 +127,6 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', () => { if (engine) void engine.flush() })
   setInterval(() => { const s = useApp.getState(); if (s.status === 'ok') s.snapshotNow('Auto') }, CONFIG.timing.snapshotEveryMs)
 }
+export const currentBridge = () => ({ url: bridgeUrl(), token })
+export const onLive = () => lastSheetId === LIVE_SHEET_ID
+export const sheetLabel = () => (onLive() ? 'live sheet' : 'test copy')

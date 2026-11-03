@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApp } from '../store/store'
+import { sheetLabel, useApp } from '../store/store'
 import { pickAnchor, toChecklist } from '../data/model'
 import { todayIso } from '../data/today'
 export function Bar() {
@@ -8,7 +8,7 @@ export function Bar() {
   const cls = s.classes.find((c) => c.classKey === s.currentClass) ?? { classKey: '', label: '—', subject: '' }
   const a = cls.classKey ? pickAnchor(toChecklist(s.data, cls.classKey).columns.map((c) => c.date), todayIso()).kind : 'none'
   const chip = { today: 'Today', upcoming: 'Upcoming', last: 'Last', none: '' }[a]
-  const dot = s.status === 'error' ? 'Could not refresh' : s.source === 'copy' ? { saved: 'All saved to the test copy', saving: 'Saving…', offline: `Offline, ${s.waiting} waiting`, error: `Not saved yet, ${s.waiting} waiting`, demo: '' }[s.save] : 'Demo, saved on this device'
+  const dot = s.status === 'error' ? 'Could not refresh' : s.source === 'copy' ? { saved: `All saved to the ${sheetLabel()}`, saving: 'Saving…', offline: `Offline, ${s.waiting} waiting`, error: `Not saved yet, ${s.waiting} waiting`, demo: '' }[s.save] : 'Demo, saved on this device'
   return (
     <header className="sow-bar">
       <button className="sow-pill" aria-label={`Switch class, ${cls.label} ${cls.subject}`} onClick={() => setOpen(!open)}>
