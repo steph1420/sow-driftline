@@ -75,3 +75,21 @@ describe('v0.7 dates (F-DT-05, F-OV-05)', () => {
   it('V07-DT-02 moving a session onto its own day is not a collision', () => expect(collides(st, 'A_ENG_HW', '2026-11-06', 'a4')).toBe(false))
   it('V07-DT-03 next class day follows the class weekdays, skips taken days', () => expect(nextClassDay(st, 'A_ENG_HW', '2026-11-04')).toBe('2026-11-09'))
 })
+
+// S2 (v0.6.1 lock): no save wording on screen; only the status dot carries it (as its label).
+import { render as renderS2, cleanup as cleanupS2 } from '@testing-library/react'
+import { App as AppS2 } from '../src/App'
+import { useApp as useAppS2 } from '../src/store/store'
+describe('V07-S2 quiet save state', () => {
+  it('V07-S2-01 footer shows no saved/saving/waiting text', () => {
+    cleanupS2(); localStorage.clear(); useAppS2.getState().reset()
+    const { container } = renderS2(<AppS2 />)
+    const foot = container.querySelector('.sow-foot')!.textContent!
+    expect(foot).toMatch(/Driftline/); expect(foot).not.toMatch(/sav|waiting|on this device/i)
+  })
+  it('V07-S2-02 status dot still has an accessible label', () => {
+    cleanupS2(); localStorage.clear(); useAppS2.getState().reset()
+    const { container } = renderS2(<AppS2 />)
+    expect(container.querySelector('.sow-dot')!.getAttribute('aria-label')).toBeTruthy()
+  })
+})

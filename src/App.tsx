@@ -15,10 +15,9 @@ declare const __APP_FLAVOR__: string
 const VERSION = typeof __APP_VERSION__ === 'undefined' ? 'test' : __APP_VERSION__
 const FLAVOR = typeof __APP_FLAVOR__ === 'undefined' ? 'stable' : __APP_FLAVOR__
 
-export const saveText = (s: string, n: number) => ({ saved: 'all saved', saving: 'saving…', offline: `offline · ${n} waiting`, error: `not saved yet · ${n} waiting`, demo: 'on this device' } as Record<string, string>)[s] ?? ''
 export function App() {
   const tab = useApp((s) => s.tab); const side = useApp((s) => s.side)
-  const data = useApp((s) => s.data); const cls = useApp((s) => s.currentClass); const jump = useApp((s) => s.jump); const source = useApp((s) => s.source); const tick = useApp((s) => s.tick); const dev = useApp((s) => s.dev); const save = useApp((s) => s.save); const waiting = useApp((s) => s.waiting); const view = useApp((s) => s.view)
+  const data = useApp((s) => s.data); const cls = useApp((s) => s.currentClass); const jump = useApp((s) => s.jump); const source = useApp((s) => s.source); const tick = useApp((s) => s.tick); const dev = useApp((s) => s.dev); const view = useApp((s) => s.view)
   const [land, setLand] = useState(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight)
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth >= CONFIG.layout.desktopMinWidthPx)
   useEffect(() => { void useApp.getState().refresh(); const r = () => { setWide(window.innerWidth >= CONFIG.layout.desktopMinWidthPx); setLand(window.innerWidth > window.innerHeight) }; window.addEventListener('resize', r); return () => window.removeEventListener('resize', r) }, [])
@@ -40,7 +39,7 @@ export function App() {
         {tab === 'checklist' && <Checklist state={data} classKey={cls} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateColsFor({ layout: wide ? 'desktop' : 'phone', landscape: land, weeks: view.weeks })} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
         {tab === 'overview' && <Overview />}
         {tab === 'more' && <More />}
-        <p className="sow-foot">Driftline · {FLAVOR === 'beta' ? 'Beta' : 'Stable'} · v{VERSION} · {source === 'copy' ? `${sheetLabel()} · ${saveText(save, waiting)}` : 'demo data · saved on this device'}</p>
+        <p className="sow-foot">Driftline · {FLAVOR === 'beta' ? 'Beta' : 'Stable'} · v{VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>
       </main>
       {tab === 'checklist' && <QuickSheet />}
       <Dock />

@@ -104,3 +104,6 @@
 .sow-sheet { position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: calc(var(--dl-space-16) * 10); max-height: 85vh; overflow: auto; z-index: var(--dl-z-sheet); display: flex; flex-direction: column; gap: var(--dl-space-3); padding: var(--dl-space-2) var(--dl-space-3) calc(var(--dl-space-6) + env(safe-area-inset-bottom)); border-radius: var(--dl-radius-xl) var(--dl-radius-xl) 0 0; background: var(--dl-color-bg); box-shadow: var(--dl-color-shadow); touch-action: pan-y; }
 .sow-sheet__grip { align-self: center; margin: var(--dl-space-1) 0; }
 .sow-sheet__handle { align-self: stretch; min-height: var(--dl-hit-min); display: grid; place-items: center; touch-action: none; }
+/* v0.7.0 S2: blue ticks (v07d lock, t73u) and a quiet status dot (v0.6.1) */
+.sow-grid .t.on { background: var(--dl-chip-accent-bg); color: var(--dl-color-accent); box-shadow: none; }
+.sow-dot.saved { background: var(--dl-color-text-faint); }
