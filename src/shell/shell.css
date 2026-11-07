@@ -12,7 +12,9 @@
 .sow-empty .sow-ico { width: var(--dl-space-16); height: var(--dl-space-16); border-radius: var(--dl-radius-xl); display: grid; place-items: center; font-size: var(--dl-type-title1-size); background: var(--dl-chip-accent-bg); color: var(--dl-color-accent); }
 .sow-empty p { margin: 0; }
 .sow-foot { text-align: center; font-size: var(--dl-type-caption-size); color: var(--dl-color-text-faint); }
-@media (max-width: 600px) { .sow-pill small { display: none; } } /* token-ok: 1px hairline */
+/* S4b (t102u): the pill always names subject + type; on phones the letter logo goes and the subject ellipsises instead */
+.sow-pill { min-width: 0; flex: 0 1 auto; } .sow-pill small { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+@media (max-width: 600px) { .sow-pill .dl-logo { display: none; } .sow-pill { padding-left: var(--dl-space-3); gap: var(--dl-space-1); } .sow-pend { padding-inline: var(--dl-space-2); } .sow-bar .sow-ib { width: var(--dl-space-8); } .sow-pill small { font-size: var(--dl-type-caption-size); } .sow-bar { gap: 0; padding-right: 0; } }
 /* D1 checklist — r4 calm notebook look, tokens only */
 .sow-glance { display: flex; align-items: center; gap: var(--dl-space-3); }
 .sow-prog { height: var(--dl-space-2); border-radius: var(--dl-radius-pill); background: var(--dl-color-track); overflow: hidden; margin-top: var(--dl-space-3); }
