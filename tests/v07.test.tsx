@@ -119,3 +119,20 @@ describe('V07-S3 quick overview', () => {
   })
   it('V07-S3-05 no Waiting box', () => { const d = open(); expect(d.textContent).not.toMatch(/waiting/i) })
 })
+
+// S3b (t95u): Copy back beside Share; Share opens 4 target blobs (WhatsApp, Keep, Mail, Messages).
+describe('V07-S3b share targets', () => {
+  const open = () => { cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); renderS2(<AppS2 />); feS3.keyDown(document.body, { key: 'O', shiftKey: true }); return scrS3.getByRole('dialog', { name: /quick overview/i }) }
+  it('V07-S3b-01 Copy and Share both shown; targets hidden until Share', () => {
+    const d = open(); expect(wS3(d).getByRole('button', { name: 'Copy' })).toBeTruthy()
+    expect(wS3(d).queryByRole('link', { name: /whatsapp/i })).toBeNull()
+  })
+  it('V07-S3b-02 Share opens WhatsApp, Keep, Mail, Messages with the list text', () => {
+    const d = open(); feS3.click(wS3(d).getByRole('button', { name: 'Share' }))
+    const wa = wS3(d).getByRole('link', { name: /whatsapp/i }) as HTMLAnchorElement
+    expect(wa.href).toMatch(/^https:\/\/wa\.me\/\?text=/)
+    expect((wS3(d).getByRole('link', { name: /mail/i }) as HTMLAnchorElement).href).toMatch(/^mailto:\?subject=.*&body=/)
+    expect((wS3(d).getByRole('link', { name: /messages/i }) as HTMLAnchorElement).href).toMatch(/^sms:\?&?body=/)
+    expect(wS3(d).getByRole('button', { name: /keep/i })).toBeTruthy()
+  })
+})
