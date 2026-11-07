@@ -150,3 +150,30 @@ describe('V07-S3b share targets', () => {
     feS3.click(wS3(d).getByRole('button', { name: 'Reset' })); expect(box.value).toMatch(/not set\/found/)
   })
 })
+
+// v0.7.0 S4 (step 3): v0.7j Overview cards
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { afterEach } from 'vitest'
+describe('S4 Overview cards (F-OV)', () => {
+  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
+  const load = async () => { cleanup(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
+    history.replaceState(null, '', '/?demo=school'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' })); return useApp }
+  it('S4-01 page header: date eyebrow, "Your classes", hint', async () => {
+    await load(); expect(screen.getByRole('heading', { name: 'Your classes' })).toBeTruthy(); expect(screen.getByText('Tap a class to open its checklist')).toBeTruthy()
+  })
+  it('S4-02 one squircle per class subject type with a type pill and topic, no progress or late chips', async () => {
+    await load(); const cards = screen.getAllByRole('button', { name: /open .* on checklist/i })
+    expect(cards.length).toBe(6)
+    for (const c of cards) { expect(c.querySelector('.sow-sq__pill')?.textContent).toMatch(/^(CW|HW|Test)$/); expect(c.querySelector('.sow-prog')).toBeNull(); expect(c.textContent).not.toMatch(/late/i) }
+  })
+  it('S4-03 tapping a card opens Checklist focused on that card\'s session', async () => {
+    const useApp = await load(); const card = screen.getByRole('button', { name: /open KG-C Phonics Test on checklist/i })
+    fireEvent.click(card); const s = useApp.getState()
+    expect(s.tab).toBe('checklist'); expect(s.currentClass).toBe('KG-C'); expect(s.focus).toMatch(/^KG-C_PHO_TEST\|/)
+    expect(screen.getByRole('table')).toBeTruthy()
+  })
+  it('S4-04 changing class from the bar drops the card focus', async () => {
+    const useApp = await load(); fireEvent.click(screen.getAllByRole('button', { name: /open .* on checklist/i })[0]!)
+    useApp.getState().setClass('KG-B'); expect(useApp.getState().focus).toBeNull()
+  })
+})

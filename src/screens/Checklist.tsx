@@ -11,12 +11,14 @@ import { extendTarget, rollsBetween } from './paint'
 type Side = 'right' | 'left'
 type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number
   onTick?: (sessionId: string, roll: number) => void; onTickMany?: (sessionId: string, rolls: number[], value: boolean) => void
-  railSide?: Side; railBubble?: boolean; onRailSide?: (s: Side) => void; swipe?: boolean; dateCols?: number }
+  railSide?: Side; railBubble?: boolean; onRailSide?: (s: Side) => void; swipe?: boolean; dateCols?: number; focusSessionId?: string | null }
 type Paint = { sid: string; start: number; value: boolean; y0: number; engaged: boolean; armed: boolean; rolls: number[] }
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
-export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols }: Props) {
+export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols, focusSessionId = null }: Props) {
   const c = useMemo(() => toChecklist(state, classKey), [state, classKey])
-  const anchor = pickAnchor(c.columns.map((x) => x.date), today)
+  const a0 = pickAnchor(c.columns.map((x) => x.date), today)
+  const fi = focusSessionId ? c.columns.findIndex((x) => x.sessionId === focusSessionId) : -1 // v0.7j: opened from a class card
+  const anchor = fi < 0 ? a0 : { index: fi, kind: (c.columns[fi]!.date === today ? 'today' : c.columns[fi]!.date > today ? 'upcoming' : 'last') as typeof a0.kind }
   const [end, setEnd] = useState(anchor.index)
   const [sel, setSel] = useState<number | null>(null)
   const [flash, setFlash] = useState(0)

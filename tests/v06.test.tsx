@@ -25,13 +25,14 @@ describe('V06 Weeks view toggle', () => {
 })
 
 describe('V06 Overview', () => {
-  it('V06-OV-01 one card per class with the dynamic date chip, soft "N to go" and progress', async () => {
+  // v0.7.0 S4 changed V06-OV-01: v0.7j cards are per class + subject + type, say "to go ›"/"✓ All in", and have no progress bar.
+  it('V06-OV-01 one card per class subject with the date line and soft "N to go", no progress bar', async () => {
     const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
     render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
     const cards = screen.getAllByRole('button', { name: /open .* on checklist/i })
-    expect(cards.length).toBe(useApp.getState().classes.length)
-    expect(cards[0]!.textContent).toMatch(/Today|Upcoming|Last/); expect(cards[0]!.textContent).toMatch(/\d+ to go|All done/)
-    expect(cards[0]!.querySelector('.sow-prog')).toBeTruthy()
+    expect(cards.length).toBe(useApp.getState().data.subjects.filter((x) => x.active).length)
+    expect(cards[0]!.textContent).toMatch(/Today|Next|Last/); expect(cards[0]!.textContent).toMatch(/\d+ to go|All in/)
+    expect(cards[0]!.querySelector('.sow-prog')).toBeNull()
   })
   it('V06-OV-02 tapping a class card opens that class on Checklist at that date', async () => {
     const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
@@ -44,9 +45,10 @@ describe('V06 Overview', () => {
     const { shareText } = await import('../src/data/share')
     expect(shareText({ label: 'KG-A', date: '2026-11-03', names: ['Lia Park', 'Ana'] })).toBe('KG-A • Tue 3/11 • not set/found (2):\nLia Park\nAna')
   })
-  it('V06-OV-04 Checklist stays the first page', async () => {
+  // v0.7.0 S4 changed V06-OV-04: Overview is now first in the dock, but the app still opens on Checklist.
+  it('V06-OV-04 the app still opens on Checklist', async () => {
     const { App } = await import('../src/App'); render(<App />)
-    expect(screen.getAllByRole('tab')[0]!.getAttribute('aria-label')).toBe('Checklist'); expect(screen.getByRole('table')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Checklist' }).getAttribute('aria-selected')).toBe('true'); expect(screen.getByRole('table')).toBeTruthy()
   })
 })
 

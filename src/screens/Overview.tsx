@@ -2,7 +2,9 @@
 // Summary (v0.6.1) = curved Done | To go split counter with names panels, Share.
 import { useEffect, useRef, useState } from 'react'
 import { CONFIG } from '../config'
-import { useApp } from '../store/store'
+import { labelOf, useApp } from '../store/store'
+import { overviewCards, type Card } from '../data/overview'
+import { addDays } from '../data/dial'
 import { fmtDay, pickAnchor, toChecklist, toGo } from '../data/model'
 import { todayIso } from '../data/today'
 import { shareText } from '../data/share'
@@ -14,18 +16,7 @@ function useFocus(classKey: string) {
   const left = col ? toGo(c, col.sessionId) : 0
   return { c, a, col, left, done: c.pupils.length - left, missing: col ? c.pupils.filter((p) => !c.ticked(col.sessionId, p.roll)) : [] }
 }
-function ClassCard({ classKey, label, subject }: { classKey: string; label: string; subject: string }) {
-  const { c, a, col, left, done } = useFocus(classKey); const open = useApp((s) => s.openClass)
-  const f = col ? fmtDay(col.date) : null
-  return (
-    <button className="dl-card sow-ccard" aria-label={`Open ${label} ${subject} on Checklist`} onClick={() => open(classKey)}>
-      <div className="sow-glance"><span className="dl-logo" aria-hidden>{label.slice(-1)}</span>
-        <div><div className="dl-headline">{label} <span className="dl-muted sow-note">{subject}</span></div>
-          <div className="dl-eyebrow">{f ? `${CHIP[a.kind]} · ${col!.kind ? col!.kind + ' · ' : ''}${f.dow} ${f.dm}` : 'No dates yet'}</div></div>
-        <span className="sow-sp" />{col && (left > 0 ? <span className="dl-chip dl-tone--accent">{left} to go</span> : <span className="dl-chip dl-tone--positive">All done</span>)}</div>
-      <div className="sow-prog"><i style={{ width: `${c.pupils.length ? (done / c.pupils.length) * 100 : 0}%` }} /></div>
-    </button>)
-}
+const dayMon = (iso: string) => { const d = new Date(iso + 'T00:00:00'); return { dow: d.toLocaleDateString('en-GB', { weekday: 'short' }), dm: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) } } // Wed, 4 Nov
 const longDay = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '')
 /** v0.6.1 quick overview (mocks v061/qo*): curved Done | To go split counter; each half opens its names panel. */
 export function Summary({ classKey, label, onClose }: { classKey: string; label: string; onClose?: () => void }) {
@@ -70,14 +61,28 @@ export function Summary({ classKey, label, onClose }: { classKey: string; label:
     {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--positive" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
   </div>)
 }
+/** v0.7j Overview: one squircle card per class + subject + type; tap opens Checklist on that session. */
+function ClassCard({ c, today }: { c: Card; today: string }) {
+  const open = useApp((s) => s.openSession); const f = c.date ? dayMon(c.date) : null
+  const when = !c.date ? 'No dates yet' : c.date === today ? 'Today' : c.date === addDays(today, 1) ? 'Tomorrow' : ''
+  return (
+    <button className="sow-sq" aria-label={`Open ${c.label} ${c.subject} ${c.kind} on Checklist`} disabled={!c.sessionId} onClick={() => c.sessionId && open(c.classKey, c.sessionId)}>
+      <span className="sow-sq__top"><b className="sow-sq__cls">{c.label}</b><span className="sow-sq__sub">{c.subject}</span><span className="sow-sq__pill">{c.kind}</span></span>
+      <span className="sow-sq__topic">{c.topic || (c.date ? 'No topic yet' : '')}</span>
+      <span className="sow-sq__foot"><span className="sow-sq__when">{f ? [when, `${f.dow}, ${f.dm}`].filter(Boolean).join(' · ') : when}</span>
+        {c.sessionId && (c.toGo > 0 ? <span className="sow-sq__go">{c.toGo} to go ›</span> : <span className="sow-sq__in">✓ All in</span>)}</span>
+    </button>)
+}
 export function Overview() {
-  const classes = useApp((s) => s.classes); const cur = useApp((s) => s.currentClass)
-  const label = classes.find((c) => c.classKey === cur)?.label ?? ''
-  return (<>
-    <div className="dl-eyebrow sow-sec">Your classes</div>
-    {classes.map((c) => <ClassCard key={c.classKey} {...c} />)}
-    {cur && <><div className="dl-eyebrow sow-sec">This class</div><Summary classKey={cur} label={label} /></>}
-  </>)
+  const data = useApp((s) => s.data); const today = todayIso()
+  const cards = overviewCards(data, today).map((c) => ({ ...c, label: labelOf(c.classKey) }))
+  return (<div className="sow-ov">
+    <div className="dl-muted sow-ov__date">{new Date(today + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+    <h1 className="sow-ov__title">Your classes</h1>
+    <p className="dl-muted sow-ov__hint">Tap a class to open its checklist</p>
+    <div className="sow-sqs">{cards.map((c) => <ClassCard key={c.subjectKey} c={c} today={today} />)}</div>
+    {!cards.length && <p className="dl-muted">No classes yet.</p>}
+  </div>)
 }
 /** Pull-up quick overview on Checklist: swipe up on the grabber, ⇧O, or ⋮ › Quick overview. */
 export function QuickSheet() {

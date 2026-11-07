@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp, type Tab } from '../store/store'
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'checklist', label: 'Checklist', icon: '✓' }, { id: 'overview', label: 'Overview', icon: '◎' }, { id: 'more', label: 'More', icon: '⋯' },
+  { id: 'overview', label: 'Overview', icon: '◎' }, { id: 'checklist', label: 'Checklist', icon: '✓' }, { id: 'more', label: 'More', icon: '⋯' },
 ]
 export function Dock() {
   const tab = useApp((s) => s.tab); const setTab = useApp((s) => s.setTab); const reduce = useReducedMotion()
