@@ -11,6 +11,7 @@ import { todayIso } from '../data/today'
 import { shareText } from '../data/share'
 import { isPhone, shareTargets } from '../data/shareTargets'
 import { GLYPH, Icon } from '../ui/icons'
+import { Hint } from './Hint'
 const CHIP = { today: 'Today', upcoming: 'Upcoming', last: 'Last', none: '' } as const
 function useFocus(classKey: string) {
   const data = useApp((s) => s.data); const sub = useApp((s) => s.subject); const fs = useApp((s) => s.focus)
@@ -86,6 +87,7 @@ export function Overview() {
     <div className="dl-muted sow-ov__date">{new Date(today + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     <h1 className="sow-ov__title">Your classes</h1>
     <p className="dl-muted sow-ov__hint">Tap a class to open its checklist</p>
+    <Hint ids={['path']} />
     <div className="sow-sqs">{cards.map((c) => <ClassCard key={c.subjectKey} c={c} today={today} onPath={() => setPath(c.subjectKey)} />)}</div>
     {!cards.length && <p className="dl-muted">No classes yet.</p>}
     {path && <WeekPath subjectKey={path} today={today} onClose={() => setPath(null)} />}

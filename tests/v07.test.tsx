@@ -256,3 +256,68 @@ describe('S6 checklist heading and dates', () => {
     expect(useApp.getState().quick).toBe(true); expect(screen.getByText('Still to come in')).toBeTruthy()
   })
 })
+
+// v0.7.0 S7–S10 (steps 6–9): change date, new date, late/back-date, hints. Demo data only.
+describe('S7–S10 dates, late and hints', () => {
+  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
+  const load = async (sub = /open KG-A English HW on checklist/i) => { cleanup(); localStorage.clear(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
+    history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
+    fireEvent.click(screen.getByRole('button', { name: sub })); return useApp }
+  const openChange = () => { fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'Change date' })) }
+  const sid = 'KG-A_ENG_HW|2026-11-04'
+  it('S7-01 the button is dim until something changes; the Day wheel moves within the week', async () => {
+    await load(); openChange(); const go = () => screen.getByRole('button', { name: /^Move (to|date)/ }) as HTMLButtonElement
+    expect(go().disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Day Thu' })); expect(go().textContent).toBe('Move to Thu 5 Nov'); expect(go().disabled).toBe(false)
+  })
+  it('S7-02 a day that already has this label shows the collision note and blocks the move', async () => {
+    await load(); openChange(); fireEvent.click(screen.getByRole('button', { name: 'Day Tue' })); fireEvent.click(screen.getByRole('button', { name: 'Day Mon' }))
+    expect(screen.getByText(/already has Mon 2 Nov/)).toBeTruthy(); expect((screen.getByRole('button', { name: /^Move (to|date)/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('S7-03 Cancel changes nothing', async () => {
+    const useApp = await load(); const before = JSON.stringify(useApp.getState().data); openChange(); fireEvent.click(screen.getByRole('button', { name: 'Day Thu' })); fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(JSON.stringify(useApp.getState().data)).toBe(before)
+  })
+  it('S7-04 moving keeps the ticks with the date, shows a toast, and Undo puts it back', async () => {
+    const useApp = await load(); const n = useApp.getState().data.ticks.filter((t) => t.sessionId === sid && t.set).length
+    openChange(); fireEvent.click(screen.getByRole('button', { name: 'Day Thu' })); fireEvent.click(screen.getByRole('button', { name: 'Move to Thu 5 Nov' }))
+    expect(useApp.getState().data.sessions.find((x) => x.sessionId === sid)!.date).toBe('2026-11-05')
+    expect(useApp.getState().data.ticks.filter((t) => t.sessionId === sid && t.set).length).toBe(n)
+    expect(screen.getByText(/Moved to Thu 5 Nov/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' })); expect(useApp.getState().data.sessions.find((x) => x.sessionId === sid)!.date).toBe('2026-11-04')
+  })
+  it('S7-05 a topic edit is kept on this device across reloads', async () => {
+    const useApp = await load(); openChange(); fireEvent.click(screen.getByRole('button', { name: 'Edit topic' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Topic' }), { target: { value: 'Letters M & N' } }); fireEvent.click(screen.getByRole('button', { name: 'Save topic' }))
+    useApp.getState().reset(); expect(useApp.getState().data.sessions.find((x) => x.sessionId === sid)!.topic).toBe('Letters M & N')
+  })
+  it('S8-01 + New date picks the next class day, adds it and opens it; no duplicate on the same day', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'New date' }))
+    const go = screen.getByRole('button', { name: /^Add HW/ }) as HTMLButtonElement; expect(go.textContent).toBe('Add HW · Thursday 5 Nov')
+    fireEvent.click(go); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-05')
+    expect(document.querySelector('.sow-clhead__sub')?.textContent).toMatch(/Thursday 5 November/)
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'New date' }))
+    // next free class day is Tue 10 Nov (Mon/Wed/Fri already exist); spin back to Mon 9 Nov, which exists
+    fireEvent.click(screen.getByRole('button', { name: 'Date 9' }))
+    expect(screen.getByText(/already has Mon 9 Nov/)).toBeTruthy(); expect((screen.getByRole('button', { name: /^Add HW/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('S9-01 the mode pill shows only after the due time; a late tick gets the notch and the Late Submission toast', async () => {
+    const useApp = await load(); expect(screen.queryByRole('button', { name: /Marking late/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    expect(screen.getByRole('button', { name: /Marking late submissions/ })).toBeTruthy()
+    const off = screen.getAllByRole('button', { name: /Mon 2\/11, not yet/ })[0]!; fireEvent.click(off)
+    expect(screen.getByRole('status', { name: 'Late Submission' })).toBeTruthy(); expect(document.querySelectorAll('.t.late').length).toBe(1)
+    void useApp
+  })
+  it('S9-02 back-date mode records the tick as on time (no notch)', async () => {
+    await load(); fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    fireEvent.click(screen.getByRole('button', { name: /Marking late submissions/ })); expect(screen.getByRole('button', { name: /Marking on back-date/ })).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: /Mon 2\/11, not yet/ })[0]!)
+    expect(document.querySelectorAll('.t.late').length).toBe(0); expect(screen.queryByRole('status', { name: 'Late Submission' })).toBeNull()
+  })
+  it('S10-01 hints show one at a time and each ✕ is remembered', async () => {
+    const useApp = await load(); const h = () => document.querySelector('.sow-hint span')?.textContent
+    expect(h()).toMatch(/Swipe down the ticks/); fireEvent.click(screen.getByRole('button', { name: 'Got it, hide this hint' }))
+    expect(h()).toMatch(/A–Z strip/); useApp.getState().reset(); expect(useApp.getState().hints).toEqual(['swipe'])
+  })
+})

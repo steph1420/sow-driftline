@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 /** Text glyphs. Swap any value for another character or emoji. */
 export const GLYPH = {
   close: '✕', tick: '✓', down: '⌄', up: '⌃', next: '›', go: '→',
-  undo: '↶', redo: '↷', menu: '⋮', moreDots: '⋯', search: '⌕', edit: '✎', overview: '◎',
+  undo: '↶', redo: '↷', menu: '⋮', moreDots: '⋯', search: '⌕', edit: '✎', overview: '◎', clock: '◷', up2: '↑',
 } as const
 
 const svg = (body: ReactNode) => <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">{body}</svg> /* token-ok: svg units */
