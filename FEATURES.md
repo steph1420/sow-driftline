@@ -6,7 +6,7 @@ This sheet is the single reference for what the app does. It feeds three things:
 3. **New features and debugging.** Use the "Rules", "Data", "Code", "Tests" and "Mock" lines.
 
 Status tags:
-- **LIVE (Beta v0.6.0-beta.1)** means it is shipped now.
+- **LIVE (Beta v0.7.0-beta.1)** or **LIVE** means it is shipped now.
 - **v0.7.0 (building)** means it is locked by Steve and being built for v0.7.0-beta.1.
 - **Deferred** means agreed but parked.
 
@@ -56,7 +56,7 @@ House rules that apply to every feature:
 - **Mock:** every `*-day.png` and `*-night.png` pair.
 
 ### F-SH-04 Footer line
-- **Status:** LIVE. **v0.7.0 (building):** the v0.6.1 lock says no "waiting to save" text.
+- **Status:** LIVE. **v0.7.0-beta.1:** the v0.6.1 lock says no "waiting to save" text.
 - **What you see:** "Driftline · Beta · v… · test copy". In v0.7 the save state is shown only by the status dot (F-SY-02).
 - **Code:** `App.tsx` (`saveText`)
 
@@ -72,7 +72,7 @@ House rules that apply to every feature:
 ## 2. Overview (v0.7j: your class list)
 
 ### F-OV-01 All-classes list
-- **Status:** v0.7.0 (building). It replaces the v0.6 cards, the progress bars and the Done/To go/Waiting block.
+- **Status:** LIVE (Beta v0.7.0-beta.1). It replaces the v0.6 cards, the progress bars and the Done/To go/Waiting block.
 - **What you see:** "Your classes", with one squircle card per class and subject. Each card shows:
   - class, subject and a **type pill** (CW/HW/Test) on the title row;
   - the topic;
@@ -91,7 +91,7 @@ House rules that apply to every feature:
 - **Tour:** "All your classes, one card each. Tap one to start marking."
 
 ### F-OV-02 Tap a card to open its checklist
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **What you see:** Tapping anywhere on the card opens Checklist on that class *and that exact session*.
 - **Rules:** The open action carries both the class and the session. It never falls back to the last-opened date.
 - **Code (planned):** `store.openSession(classKey, sessionId)`
@@ -99,7 +99,7 @@ House rules that apply to every feature:
 - **Mock:** `docs/mockups/v07j/checklist-landing-phone-night.png`
 
 ### F-OV-03 Squircle card shape
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **Rules:**
   - Each corner is a superellipse drawn as an SVG path, about 26px; no `border-radius`.
   - The same path draws the fill, the 1px outline and the tap highlight, so they always line up.
@@ -107,7 +107,7 @@ House rules that apply to every feature:
 - **Code (planned):** `src/screens/Squircle.tsx`
 
 ### F-OV-04 Week path for one class (corner button)
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **What you see:** A small path icon (44×44 tap area) in each card's top-right corner. It opens a sheet showing a thin line through that class's sessions:
   - today is a blue node;
   - past and upcoming sessions are quieter;
@@ -126,7 +126,7 @@ House rules that apply to every feature:
 - **Tour:** "Tap the little path to see this class's week, and scroll for older weeks."
 
 ### F-OV-05 + New date
-- **Status:** v0.7.0 (building), from the v0.7b lock.
+- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.7b lock.
 - **What you see:** A quiet "+ New date" action. It opens the date sheet (F-DT-01), already set to the class's next class day.
 - **Rules:**
   - It never makes two sessions with the same label (CW/HW/Test) on the same day; it shows the collision note instead (F-DT-05).
@@ -155,12 +155,12 @@ House rules that apply to every feature:
 - **Tour:** "Tap a box when a copy comes in."
 
 ### F-CL-02 Date header and calendar button
-- **Status:** v0.7.0 (building), from the v0.7d lock.
+- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.7d lock.
 - **What you see:** The subject as a heading, "HW · Wednesday 4 November" under it, and a calendar button that opens the date sheet (F-DT-01).
 - **Mock:** `docs/mockups/v07d/late-blue-phone-night.png`
 
 ### F-CL-03 Split counter: Done | To go
-- **Status:** v0.7.0 (building), from the v0.6.1 lock.
+- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.6.1 lock.
 - **What you see:** One curved pill split in two, "14 Done ⌄" and "10 To go ⌄". Each half is a button that opens a tidy names panel with "Show all N".
 - **Rules:** Done plus To go always equals the number of active pupils for that session.
 - **Mock:** `docs/mockups/v061/qo2-phone-night.png`, `qo3-phone-night.png`
@@ -236,7 +236,7 @@ House rules that apply to every feature:
 - **Code:** `src/data/share.ts`
 
 ### F-CL-12 One-time gesture hints
-- **Status:** v0.7.0 (building), from the v0.7d lock.
+- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.7d lock.
 - **Rules:**
   - Each hint shows once per device and is dismissible: swipe to tick, A–Z grip, quick overview swipe, and the week path.
   - There is no permanent help text.
@@ -248,7 +248,7 @@ House rules that apply to every feature:
 ## 4. Late submissions and back-date (v0.7d lock)
 
 ### F-LT-01 Late rule
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **Rules:**
   - A copy is **late** if it is marked after **midnight IST at the end of the session's scheduled day**.
   - This is re-checked whenever dates, ticks or sync change, because a scheduled date can move.
@@ -257,7 +257,7 @@ House rules that apply to every feature:
 - **Tests:** V07-LT-01..06
 
 ### F-LT-02 Mode pill: "Marking late submissions" / "Marking on back-date"
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **What you see:** A small pill above the dock. It appears **only** when the open session's due time has passed.
 - **How to use it:** Tap the pill to switch between "Marking late submissions" (the default) and "Marking on back-date".
 - **Rules:**
@@ -266,16 +266,16 @@ House rules that apply to every feature:
 - **Mock:** `docs/mockups/v07d/late-blue-phone-night.png`, `back-blue-phone-night.png`, `quick-blue-phone-night.png`
 
 ### F-LT-03 Late Submission toast
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **What you see:** A "Late Submission" toast that can be swiped away whenever you tick in late mode.
 
 ### F-LT-04 Amber notch on late ticks
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **What you see:** A small amber corner notch on a blue tick that was marked late.
 - **Rules:** The notch appears only on ticks, never on cards (F-OV-01).
 
 ### F-LT-05 Mark on back-date
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **Rules:**
   - In back-date mode, a tick is recorded as marked on the scheduled day, so it is **not late**.
   - Use it when the copy was handed in on time but you didn't mark it before the due date.
@@ -286,7 +286,7 @@ House rules that apply to every feature:
 ## 5. Dates (v0.7f/g lock)
 
 ### F-DT-01 Reschedule sheet (was Change date)
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **What you see:**
   - A short sheet with the existing-date chip strip; the calendar is the last chip.
   - The quiet line "14 ticks · Letters M & N ✎".
@@ -299,7 +299,7 @@ House rules that apply to every feature:
 - **Mock:** `docs/mockups/v07g/untouched-phone-night.png`, `edited-*`, `topic-editing-*`, `cross-year-*`, `collision-*`; `docs/mockups/v07f/*`
 
 ### F-DT-02 Wheels: Month | Date | Day
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **Rules:**
   - Every wheel spins.
   - Spinning the **Day** wheel moves to that weekday in the same week (Monday to Sunday).
@@ -309,7 +309,7 @@ House rules that apply to every feature:
 - **Tests:** V07-DL-01..06
 
 ### F-DT-03 Year pill
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **Rules:** The pill is quiet for the current year and accented for any other year. Tap it to change the year.
 
 ### F-DT-04 Existing-date chips
@@ -325,7 +325,7 @@ House rules that apply to every feature:
 - **How to use it:** Tap the topic line to edit it in place. Saving it is a separate action from moving the date.
 
 ### F-DT-07 Old-date look
-- **Status:** v0.7.0 (building)
+- **Status:** LIVE (Beta v0.7.0-beta.1)
 - **Rules:** Opening a past date uses a clearly different look (amber is locked for old dates), so it's obvious this is old data.
 
 ---

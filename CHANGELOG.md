@@ -1,4 +1,14 @@
 # Changelog
+## 0.7.0-beta.1 — 2026-11-08
+Steve t88u GO, t111u release. Beta only, test copy only.
+- Overview first: squircle card per class, subject and type (pill), with topic, date and "N to go"; tap a card to open its checklist, corner path icon opens that class's week path (scrolls into older weeks, heading follows the week in view).
+- Checklist: heading with class, subject, type and date; Done | To go split counter; "Pending only" toggle in the bar; blue ticks; quiet save (no "waiting to save" text).
+- Dates sheet (calendar button): date chips (amber for past dates), Reschedule (Month | Date | Day wheels, year pill, editable topic, live chip, collision note, Cancel, Undo) and + New date (next class day picked for you, no duplicate of the same type on a day).
+- Late submissions: ticks after midnight IST at the end of the scheduled day get an amber notch and a swipeable "Late Submission" toast; a mode pill switches to "Marking on back-date" for copies set but unmarked before due.
+- One-time hints (swipe-tick, A–Z grip, quick look, week path); ✕ is remembered.
+- Icons and strings moved to src/ui/icons.tsx.
+- Known: reschedules, new dates, topics and late marks are kept on this device until bridge 0.51.0-dl; CW/HW/Test label chips dropped (each card is one type).
+- Tests: 145 app.
 ## 0.6.0-beta.1 — 2026-11-04
 Steve t169u. Beta only.
 - Weeks (the wide many-date grid that read as a "week view" on desktop) is now a switch in the ⋮ view menu, OFF by default, remembered on this device. Off: desktop shows 3 dates, phone 2. On: up to 9 dates with a thin line where a new week starts, on desktop and phone held sideways only (phone upright always 2). ⋮ now opens this small view menu (Weeks · Quick overview · More…) instead of jumping straight to More.
