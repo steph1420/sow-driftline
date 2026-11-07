@@ -11,8 +11,8 @@ import { shareText } from '../data/share'
 import { isPhone, shareTargets } from '../data/shareTargets'
 const CHIP = { today: 'Today', upcoming: 'Upcoming', last: 'Last', none: '' } as const
 function useFocus(classKey: string) {
-  const data = useApp((s) => s.data)
-  const c = toChecklist(data, classKey); const a = pickAnchor(c.columns.map((x) => x.date), todayIso()); const col = c.columns[a.index]
+  const data = useApp((s) => s.data); const sub = useApp((s) => s.subject)
+  const c = toChecklist(data, classKey, sub); const a = pickAnchor(c.columns.map((x) => x.date), todayIso()); const col = c.columns[a.index]
   const left = col ? toGo(c, col.sessionId) : 0
   return { c, a, col, left, done: c.pupils.length - left, missing: col ? c.pupils.filter((p) => !c.ticked(col.sessionId, p.roll)) : [] }
 }

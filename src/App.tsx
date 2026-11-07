@@ -17,7 +17,7 @@ const FLAVOR = typeof __APP_FLAVOR__ === 'undefined' ? 'stable' : __APP_FLAVOR__
 
 export function App() {
   const tab = useApp((s) => s.tab); const side = useApp((s) => s.side)
-  const data = useApp((s) => s.data); const cls = useApp((s) => s.currentClass); const jump = useApp((s) => s.jump); const source = useApp((s) => s.source); const tick = useApp((s) => s.tick); const dev = useApp((s) => s.dev); const view = useApp((s) => s.view); const focus = useApp((s) => s.focus)
+  const data = useApp((s) => s.data); const cls = useApp((s) => s.currentClass); const jump = useApp((s) => s.jump); const source = useApp((s) => s.source); const tick = useApp((s) => s.tick); const dev = useApp((s) => s.dev); const view = useApp((s) => s.view); const focus = useApp((s) => s.focus); const subject = useApp((s) => s.subject); const pending = useApp((s) => s.pending)
   const [land, setLand] = useState(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight)
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth >= CONFIG.layout.desktopMinWidthPx)
   useEffect(() => { void useApp.getState().refresh(); const r = () => { setWide(window.innerWidth >= CONFIG.layout.desktopMinWidthPx); setLand(window.innerWidth > window.innerHeight) }; window.addEventListener('resize', r); return () => window.removeEventListener('resize', r) }, [])
@@ -36,7 +36,7 @@ export function App() {
     <>
       {tab !== 'overview' && <Bar />}{/* v0.7j: Overview is all classes, so no class bar */}
       <main className="sow-main">
-        {tab === 'checklist' && <Checklist state={data} classKey={cls} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} focusSessionId={focus} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateColsFor({ layout: wide ? 'desktop' : 'phone', landscape: land, weeks: view.weeks })} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
+        {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} focusSessionId={focus} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateColsFor({ layout: wide ? 'desktop' : 'phone', landscape: land, weeks: view.weeks })} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
         {tab === 'overview' && <Overview />}
         {tab === 'more' && <More />}
         <p className="sow-foot">Driftline · {FLAVOR === 'beta' ? 'Beta' : 'Stable'} · v{VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>

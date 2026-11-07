@@ -11,15 +11,20 @@ import { extendTarget, rollsBetween } from './paint'
 type Side = 'right' | 'left'
 type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number
   onTick?: (sessionId: string, roll: number) => void; onTickMany?: (sessionId: string, rolls: number[], value: boolean) => void
-  railSide?: Side; railBubble?: boolean; onRailSide?: (s: Side) => void; swipe?: boolean; dateCols?: number; focusSessionId?: string | null }
+  railSide?: Side; railBubble?: boolean; onRailSide?: (s: Side) => void; swipe?: boolean; dateCols?: number; focusSessionId?: string | null; subjectKey?: string | null; pendingOnly?: boolean }
 type Paint = { sid: string; start: number; value: boolean; y0: number; engaged: boolean; armed: boolean; rolls: number[] }
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
-export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols, focusSessionId = null }: Props) {
-  const c = useMemo(() => toChecklist(state, classKey), [state, classKey])
-  const a0 = pickAnchor(c.columns.map((x) => x.date), today)
-  const fi = focusSessionId ? c.columns.findIndex((x) => x.sessionId === focusSessionId) : -1 // v0.7j: opened from a class card
-  const anchor = fi < 0 ? a0 : { index: fi, kind: (c.columns[fi]!.date === today ? 'today' : c.columns[fi]!.date > today ? 'upcoming' : 'last') as typeof a0.kind }
+export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols, focusSessionId = null, subjectKey = null, pendingOnly = false }: Props) {
+  const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
+  const a0 = pickAnchor(c0.columns.map((x) => x.date), today)
+  const fi = focusSessionId ? c0.columns.findIndex((x) => x.sessionId === focusSessionId) : -1 // v0.7j: opened from a class card
+  const anchor = fi < 0 ? a0 : { index: fi, kind: (c0.columns[fi]!.date === today ? 'today' : c0.columns[fi]!.date > today ? 'upcoming' : 'last') as typeof a0.kind }
   const [end, setEnd] = useState(anchor.index)
+  // S4b "Pending only": rows still to come in for the focused date. The set is fixed when switched on (or the date changes), so a row doesn't vanish mid-tap.
+  const fsid = c0.columns[anchor.index]?.sessionId ?? ''
+  const [keep, setKeep] = useState<Set<number> | null>(null)
+  useEffect(() => { setKeep(pendingOnly && fsid ? new Set(c0.pupils.filter((p) => !c0.ticked(fsid, p.roll)).map((p) => p.roll)) : null) }, [pendingOnly, fsid, classKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const c = useMemo(() => (keep ? { ...c0, pupils: c0.pupils.filter((p) => keep.has(p.roll)) } : c0), [c0, keep])
   const [sel, setSel] = useState<number | null>(null)
   const [flash, setFlash] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
@@ -61,7 +66,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
     if (m) go(c.pupils.findIndex((p) => p.roll === m.roll))
   }
   const dup = new Set(names.filter((n, i) => names.indexOf(n) !== i)) // Q-DUP-1: roll tells twins apart
-  const left = toGo(c, focus.sessionId); const done = c.pupils.length - left
+  const left = toGo(c0, focus.sessionId); const done = c0.pupils.length - left
   const f = fmtDay(focus.date)
   const order = c.pupils.map((p) => p.roll)
   const rects = () => c.pupils.map((p, i) => { const b = rows.current[i]!.getBoundingClientRect(); return { roll: p.roll, top: b.top, bottom: b.bottom } })
@@ -89,17 +94,17 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
       <div className="dl-card">
         <div className="sow-glance">
           <div><div className="dl-eyebrow">{[c.subject, focus.kind, `${f.dow} ${f.dm}`].filter(Boolean).join(' · ')}</div>
-            <div className="dl-headline">{anchor.kind === 'today' ? <><span className="dl-num">{done}</span> of {c.pupils.length} done</> : anchor.kind === 'upcoming' ? `Next up ${f.dow} ${f.dm}` : `Last was ${f.dow} ${f.dm}`}</div></div>
+            <div className="dl-headline">{anchor.kind === 'today' ? <><span className="dl-num">{done}</span> of {c0.pupils.length} done</> : anchor.kind === 'upcoming' ? `Next up ${f.dow} ${f.dm}` : `Last was ${f.dow} ${f.dm}`}</div></div>
           <span className="sow-sp" />
           {left > 0 ? <span className="dl-chip dl-tone--accent">{left} to go</span> : <span className="dl-chip dl-tone--positive">All done</span>}
         </div>
-        <div className="sow-prog"><i style={{ width: `${c.pupils.length ? (done / c.pupils.length) * 100 : 0}%` }} /></div>
+        <div className="sow-prog"><i style={{ width: `${c0.pupils.length ? (done / c0.pupils.length) * 100 : 0}%` }} /></div>
       </div>
       <button className="sow-search" aria-label="Search names" onClick={() => setPill('')}><span aria-hidden>⌕</span><span>Find a name</span>{layout === 'desktop' && <kbd className="sow-kbd">just type</kbd>}</button>
       <div className={`sow-grid ${layout}${swipe && onTickMany ? ' swipe' : ''}`}>
         {cols[0]! > 0 && <button className="sow-more" onClick={() => setEnd(Math.max(cols.length - 1, end - 1))}>← {cols[0]} earlier date{cols[0] === 1 ? '' : 's'}</button>}
         <table onKeyDown={keyGrid}>
-          <thead><tr><th className="n">{c.pupils.length} pupils</th>
+          <thead><tr><th className="n">{keep ? `${c.pupils.length} pending` : `${c.pupils.length} pupils`}</th>
             {cols.map((i) => { const s = c.columns[i]!; const d = fmtDay(s.date); return <th key={s.sessionId} className={`${i === anchor.index ? 'today' : ''}${weekStart(i) ? ' wk' : ''}`}>{s.kind ? `${s.kind} · ` : ''}{d.dow}<b>{d.dm}</b></th> })}</tr></thead>
           <tbody>{c.pupils.map((p, r) => (
             <tr key={p.roll} ref={(el) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}>
@@ -112,7 +117,6 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
                   : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? '✓' : ''}</span>}</td> })}
             </tr>))}</tbody>
         </table>
-        {end < c.columns.length - 1 && <button className="sow-more" onClick={() => setEnd(end + 1)}>later date →</button>}
       </div>
       <AzRail names={names} onJump={go} side={railSide} bubble={railBubble} onSide={onRailSide} />
       {pill != null && <div className="sow-qs" role="search">

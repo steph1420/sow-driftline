@@ -26,13 +26,14 @@ export function classesOf(s: SheetState): { classKey: string; subject: string }[
   for (const p of s.roster) if (!seen.has(p.classKey)) seen.set(p.classKey, '')
   return [...seen].map(([classKey, subject]) => ({ classKey, subject }))
 }
-export function toChecklist(s: SheetState, classKey: string): Checklist {
+/** v0.7.0 S4b: with subjectKey, one card = one class + subject + type (only that subject's dates). */
+export function toChecklist(s: SheetState, classKey: string, subjectKey?: string | null): Checklist {
   const kind = new Map(s.subjects.map((x) => [x.subjectKey, x.kind]))
   const pupils = s.roster.filter((p) => p.classKey === classKey && p.status === 'Active').sort((a, b) => a.roll - b.roll)
-  const columns = s.sessions.filter((x) => x.classKey === classKey && x.date).map((x) => ({ ...x, kind: kind.get(x.subjectKey) ?? '' }))
+  const columns = s.sessions.filter((x) => x.classKey === classKey && x.date && (!subjectKey || x.subjectKey === subjectKey)).map((x) => ({ ...x, kind: kind.get(x.subjectKey) ?? '' }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.subjectKey.localeCompare(b.subjectKey))
-  const on = new Set(s.ticks.filter((t) => t.classKey === classKey && t.set).map((t) => `${t.sessionId}|${t.roll}`))
-  return { classKey, subject: s.subjects.find((x) => x.classKey === classKey)?.subject ?? '', pupils, columns, ticked: (id, r) => on.has(`${id}|${r}`) }
+  const on = new Set(s.ticks.filter((t) => t.classKey === classKey && t.set && (!subjectKey || t.subjectKey === subjectKey)).map((t) => `${t.sessionId}|${t.roll}`))
+  return { classKey, subject: s.subjects.find((x) => x.classKey === classKey && (!subjectKey || x.subjectKey === subjectKey))?.subject ?? '', pupils, columns, ticked: (id, r) => on.has(`${id}|${r}`) }
 }
 export const toGo = (c: Checklist, sessionId: string) => c.pupils.filter((p) => !c.ticked(sessionId, p.roll)).length
 export const letterIndex = (names: string[], L: string) => names.findIndex((n) => n.trim().toUpperCase().startsWith(L.toUpperCase()))

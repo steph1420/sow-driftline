@@ -20,10 +20,11 @@ describe('shell', () => {
     expect(tabs).toEqual(['Overview', 'Checklist', 'More'])
   })
   // D1 changed D0-SHL-03: demo has dates, so the checklist grid shows; the empty state is covered in D1-UI-03.
-  it('D0-SHL-03/D1-SHL-03 Checklist shows the read-only grid with a Today/Upcoming/Last chip', () => {
+  // v0.7.0 S4b changed D0-SHL-03: Steve (t101u) swapped the Today/Upcoming/Last chip for a "Pending only" pill.
+  it('D0-SHL-03/D1-SHL-03 Checklist shows the grid with a Pending only pill', () => {
     render(<App />)
     expect(screen.getByRole('table')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /jump to (today|upcoming|last)/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Pending only' }).getAttribute('aria-pressed')).toBe('false')
   })
   it('D0-SHL-04 tapping a dock tab switches screen', () => {
     render(<App />)

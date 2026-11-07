@@ -20,7 +20,7 @@ export type Side = 'night' | 'day' | 'system'
 export type ClassInfo = { classKey: string; label: string; subject: string }
 type State = {
   tab: Tab; side: Side; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
-  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; openSession: (classKey: string, sessionId: string) => void
+  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; openSession: (classKey: string, sessionId: string) => void
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
   view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
@@ -58,16 +58,21 @@ function loadSide(): Side {
   try { const v = JSON.parse(localStorage.getItem(PREFS) || '{}').side; return v === 'night' || v === 'day' ? v : 'system' } catch { return 'system' }
 }
 export const labelOf = (k: string) => (k === 'demo' ? 'KG-A' : k.replace(/^KG[-_ ]?([A-Z])\b.*/i, 'KG-$1'))
-function withData(data: SheetState, prev?: string) {
+export const firstSubject = (d: SheetState, k: string) => d.subjects.find((x) => x.classKey === k && x.active)?.subjectKey ?? ''
+function withData(data: SheetState, prev?: string, prevSubject?: string) {
   const classes = classesOf(data).map((c) => ({ ...c, label: labelOf(c.classKey) }))
-  return { data, classes, currentClass: classes.some((c) => c.classKey === prev) ? prev! : classes[0]?.classKey ?? '' }
+  const currentClass = classes.some((c) => c.classKey === prev) ? prev! : classes[0]?.classKey ?? ''
+  const keep = prevSubject && data.subjects.some((x) => x.subjectKey === prevSubject && x.classKey === currentClass)
+  return { data, classes, currentClass, subject: keep ? prevSubject! : firstSubject(data, currentClass) }
 }
-const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab }),
   setSide: (side) => { localStorage.setItem(PREFS, JSON.stringify({ side })); set({ side }) },
-  setClass: (currentClass) => set({ currentClass, focus: null }),
+  setClass: (currentClass) => set({ currentClass, subject: firstSubject(get().data, currentClass), focus: null }),
+  setSubject: (subjectKey) => { const x = get().data.subjects.find((y) => y.subjectKey === subjectKey); if (x) set({ currentClass: x.classKey, subject: subjectKey, focus: null, jump: get().jump + 1 }) },
+  setPending: (pending) => set({ pending }),
   jumpToAnchor: () => set({ focus: null, jump: get().jump + 1 }),
   tick: (sessionId, roll) => {
     const d = get().data; const se = d.sessions.find((x) => x.sessionId === sessionId); if (!se) return
@@ -97,9 +102,9 @@ export const useApp = create<State>((set, get) => ({
   },
   setView: (v) => { const view = { ...get().view, ...v }; localStorage.setItem(VIEW, JSON.stringify(view)); set({ view }) },
   setQuick: (quick) => set({ quick }),
-  openClass: (k) => set({ currentClass: k, tab: 'checklist', quick: false, focus: null, jump: get().jump + 1 }),
+  openClass: (k) => set({ currentClass: k, subject: firstSubject(get().data, k), tab: 'checklist', quick: false, focus: null, jump: get().jump + 1 }),
   /** v0.7j: a class card opens that class on Checklist at that card's session. */
-  openSession: (classKey, sessionId) => set({ currentClass: classKey, tab: 'checklist', quick: false, focus: sessionId, jump: get().jump + 1 }),
+  openSession: (classKey, sessionId) => set({ currentClass: classKey, subject: get().data.sessions.find((x) => x.sessionId === sessionId)?.subjectKey ?? firstSubject(get().data, classKey), tab: 'checklist', quick: false, focus: sessionId, jump: get().jump + 1 }),
   setDev: (d) => { const dev = { ...get().dev, ...d }; localStorage.setItem(DEV, JSON.stringify(dev)); set({ dev }) },
   setToken: (t) => localStorage.setItem(TOKEN, t),
   unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); engine = null; set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(demoBase(), demoOps())) }) },
@@ -111,7 +116,7 @@ export const useApp = create<State>((set, get) => ({
     try {
       let data = await rs.pull()
       if (paired) { data = eng().adoptPull(data); void eng().flush() }
-      set({ source: paired ? 'copy' : 'demo', status: 'ok', pulledAt: nowIso(), save: paired ? eng().status() : 'demo', waiting: paired ? eng().waiting() : 0, ...flags(), ...withData(data, get().currentClass) })
+      set({ source: paired ? 'copy' : 'demo', status: 'ok', pulledAt: nowIso(), save: paired ? eng().status() : 'demo', waiting: paired ? eng().waiting() : 0, ...flags(), ...withData(data, get().currentClass, get().subject) })
       get().snapshotNow(paired ? 'Opened' : 'Opened (demo)'); syncLoop(paired)
     }
     catch (e) { set({ status: 'error', error: e instanceof Error ? e.message : String(e) }) }
@@ -122,13 +127,13 @@ export const useApp = create<State>((set, get) => ({
 const flags = () => { const h = hist(); return { canUndo: h.canUndo(), canRedo: h.canRedo(), snaps: listSnapshots(localStorage, snapKey()) } }
 function eng() {
   if (!engine) engine = createEngine({ storage: localStorage, key: storageKey('outbox'), lock: webLock, channel: broadcast(storageKey('tabs')), graceMs: CONFIG.timing.pendingGraceMs, retryMs: CONFIG.timing.saveRetryMs,
-    push: copyWriter(bridgeUrl(), token), onState: (f) => useApp.setState((s) => withData(f(s.data), s.currentClass)), onStatus: (save, waiting) => useApp.setState({ save, waiting }) })
+    push: copyWriter(bridgeUrl(), token), onState: (f) => useApp.setState((s) => withData(f(s.data), s.currentClass, s.subject)), onStatus: (save, waiting) => useApp.setState({ save, waiting }) })
   return engine
 }
 /** One write path: copy → engine (queue, other tabs, auto-save); demo → on device only. */
 function write(op: Op) {
   if (useApp.getState().source === 'copy' && token()) eng().local(op)
-  else { const l = demoOps().filter((x) => !(x.sessionId === op.sessionId && x.roll === op.roll)); l.push(op); localStorage.setItem(demoTicksKey(), JSON.stringify(l)); useApp.setState((s) => withData(applyOps(s.data, [op]), s.currentClass)) }
+  else { const l = demoOps().filter((x) => !(x.sessionId === op.sessionId && x.roll === op.roll)); l.push(op); localStorage.setItem(demoTicksKey(), JSON.stringify(l)); useApp.setState((s) => withData(applyOps(s.data, [op]), s.currentClass, s.subject)) }
   useApp.setState(flags())
 }
 if (typeof window !== 'undefined') {

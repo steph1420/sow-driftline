@@ -166,3 +166,7 @@
 .sow-sq__when { color: var(--dl-color-text-muted); font-size: var(--dl-type-caption-size); }
 .sow-sq__go { color: var(--dl-color-text); font-size: var(--dl-type-footnote-size); }
 .sow-sq__in { color: var(--dl-color-accent); font-size: var(--dl-type-footnote-size); }
+
+/* v0.7.0 S4b: Pending only pill (replaces the Today/Upcoming/Last chip) */
+.sow-pend { background: transparent; }
+.sow-pend.on { background: var(--dl-color-accent); color: var(--dl-color-on-accent); }

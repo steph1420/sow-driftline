@@ -177,3 +177,24 @@ describe('S4 Overview cards (F-OV)', () => {
     useApp.getState().setClass('KG-B'); expect(useApp.getState().focus).toBeNull()
   })
 })
+
+// v0.7.0 S4b (t101u): one card = one class + subject + type; Pending only pill; no "later date" link
+describe('S4b one subject per checklist + Pending only', () => {
+  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
+  const load = async () => { cleanup(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
+    history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' })); return useApp }
+  it('S4b-01 a card\'s checklist shows only that subject and type', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: /open KG-C Phonics Test on checklist/i }))
+    expect(useApp.getState().subject).toBe('KG-C_PHO_TEST')
+    const heads = screen.getAllByRole('columnheader').slice(1).map((h) => h.textContent)
+    expect(heads.length).toBeGreaterThan(0); for (const h of heads) expect(h).toMatch(/^Test · /)
+  })
+  it('S4b-02 Pending only shows just the unticked names for the focused date, and no "later date" link', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: /open KG-A English HW on checklist/i }))
+    const all = screen.getAllByRole('row').length
+    fireEvent.click(screen.getByRole('button', { name: 'Pending only' })); expect(useApp.getState().pending).toBe(true)
+    expect(screen.getAllByRole('row').length).toBe(10 + 1) // 10 to go + header row
+    expect(screen.getAllByRole('row').length).toBeLessThan(all)
+    expect(screen.queryByText(/later date/)).toBeNull()
+  })
+})
