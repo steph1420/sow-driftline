@@ -5,6 +5,7 @@ import { CONFIG } from '../config'
 import { labelOf, useApp } from '../store/store'
 import { overviewCards, type Card } from '../data/overview'
 import { addDays } from '../data/dial'
+import { WeekPath } from './WeekPath'
 import { fmtDay, pickAnchor, toChecklist, toGo } from '../data/model'
 import { todayIso } from '../data/today'
 import { shareText } from '../data/share'
@@ -61,27 +62,32 @@ export function Summary({ classKey, label, onClose }: { classKey: string; label:
     {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--positive" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
   </div>)
 }
-/** v0.7j Overview: one squircle card per class + subject + type; tap opens Checklist on that session. */
-function ClassCard({ c, today }: { c: Card; today: string }) {
+/** v0.7j Overview: one squircle card per class + subject + type; tap opens Checklist on that session, the corner path opens its week path. */
+const PathIcon = () => <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="6" cy="18" r="2.2" /><circle cx="18" cy="6" r="2.2" /><path d="M8 17.5c4 0 3-5 6-6.5s2-3 2.3-3.4" /></svg>
+function ClassCard({ c, today, onPath }: { c: Card; today: string; onPath: () => void }) {
   const open = useApp((s) => s.openSession); const f = c.date ? dayMon(c.date) : null
   const when = !c.date ? 'No dates yet' : c.date === today ? 'Today' : c.date === addDays(today, 1) ? 'Tomorrow' : ''
   return (
-    <button className="sow-sq" aria-label={`Open ${c.label} ${c.subject} ${c.kind} on Checklist`} disabled={!c.sessionId} onClick={() => c.sessionId && open(c.classKey, c.sessionId)}>
-      <span className="sow-sq__top"><b className="sow-sq__cls">{c.label}</b><span className="sow-sq__sub">{c.subject}</span><span className="sow-sq__pill">{c.kind}</span></span>
-      <span className="sow-sq__topic">{c.topic || (c.date ? 'No topic yet' : '')}</span>
-      <span className="sow-sq__foot"><span className="sow-sq__when">{f ? [when, `${f.dow}, ${f.dm}`].filter(Boolean).join(' · ') : when}</span>
-        {c.sessionId && (c.toGo > 0 ? <span className="sow-sq__go">{c.toGo} to go ›</span> : <span className="sow-sq__in">✓ All in</span>)}</span>
-    </button>)
+    <div className="sow-sq">
+      <button className="sow-sq__main" aria-label={`Open ${c.label} ${c.subject} ${c.kind} on Checklist`} disabled={!c.sessionId} onClick={() => c.sessionId && open(c.classKey, c.sessionId)}>
+        <span className="sow-sq__top"><b className="sow-sq__cls">{c.label}</b><span className="sow-sq__sub">{c.subject}</span><span className="sow-sq__pill">{c.kind}</span></span>
+        <span className="sow-sq__topic">{c.topic || (c.date ? 'No topic yet' : '')}</span>
+        <span className="sow-sq__foot"><span className="sow-sq__when">{f ? [when, `${f.dow}, ${f.dm}`].filter(Boolean).join(' · ') : when}</span>
+          {c.sessionId && (c.toGo > 0 ? <span className="sow-sq__go">{c.toGo} to go ›</span> : <span className="sow-sq__in">✓ All in</span>)}</span>
+      </button>
+      {c.date && <button className="sow-sq__path" aria-label={`Week path, ${c.label} ${c.subject} ${c.kind}`} onClick={onPath}><PathIcon /></button>}
+    </div>)
 }
 export function Overview() {
-  const data = useApp((s) => s.data); const today = todayIso()
+  const data = useApp((s) => s.data); const today = todayIso(); const [path, setPath] = useState<string | null>(null)
   const cards = overviewCards(data, today).map((c) => ({ ...c, label: labelOf(c.classKey) }))
   return (<div className="sow-ov">
     <div className="dl-muted sow-ov__date">{new Date(today + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     <h1 className="sow-ov__title">Your classes</h1>
     <p className="dl-muted sow-ov__hint">Tap a class to open its checklist</p>
-    <div className="sow-sqs">{cards.map((c) => <ClassCard key={c.subjectKey} c={c} today={today} />)}</div>
+    <div className="sow-sqs">{cards.map((c) => <ClassCard key={c.subjectKey} c={c} today={today} onPath={() => setPath(c.subjectKey)} />)}</div>
     {!cards.length && <p className="dl-muted">No classes yet.</p>}
+    {path && <WeekPath subjectKey={path} today={today} onClose={() => setPath(null)} />}
   </div>)
 }
 /** Pull-up quick overview on Checklist: swipe up on the grabber, ⇧O, or ⋮ › Quick overview. */

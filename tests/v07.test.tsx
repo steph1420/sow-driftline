@@ -198,3 +198,29 @@ describe('S4b one subject per checklist + Pending only', () => {
     expect(screen.queryByText(/later date/)).toBeNull()
   })
 })
+
+// v0.7.0 S5 (step 4): week path sheet (F-OV-04)
+describe('S5 week path', () => {
+  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
+  const load = async () => { cleanup(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
+    history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' })); return useApp }
+  it('S5-01 the corner path opens the sheet without opening the checklist', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
+    expect(useApp.getState().tab).toBe('overview'); expect(screen.getByRole('dialog', { name: /Week path, KG-A English HW/ })).toBeTruthy()
+    expect(document.querySelector('.sow-wp__week')?.textContent).toBe('This week · 2–8 Nov')
+  })
+  it('S5-02 shows only that subject, newest week first, today marked', async () => {
+    await load(); fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
+    const secs = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'))
+    expect(secs[0]).toMatch(/^Next week/); expect(secs[1]).toMatch(/^This week/); expect(secs[2]).toMatch(/^Last week/)
+    expect(document.querySelector('.sow-wp__stop.today .sow-wp__day')?.textContent).toBe('Today · Wed, 4 Nov')
+    for (const k of document.querySelectorAll('.sow-wp__kind')) expect(k.textContent).toBe('HW')
+  })
+  it('S5-03 tapping a stop opens that session on Checklist and closes the sheet; Esc closes', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
+    fireEvent.keyDown(document.body, { key: 'Escape' }); expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Mon, 2 Nov on Checklist' }))
+    expect(useApp.getState().tab).toBe('checklist'); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02')
+  })
+})
