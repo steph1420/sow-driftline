@@ -285,7 +285,7 @@ House rules that apply to every feature:
 
 ## 5. Dates (v0.7f/g lock)
 
-### F-DT-01 Change date sheet
+### F-DT-01 Reschedule sheet (was Change date)
 - **Status:** v0.7.0 (building)
 - **What you see:**
   - A short sheet with the existing-date chip strip; the calendar is the last chip.
@@ -418,7 +418,7 @@ Night, Day or System.
 | Read | `ping`, `pull`, `pairClaim`, `devicesList` |
 | Write | `push`, `deviceRevoke`, `deviceRename` |
 
-The bridge's `push` also accepts `structs` of kind `rename` (moves a session and its ticks) and `delete`. v0.7 adds struct writes for Change date. Adding a date and saving a topic need a bridge update: see `docs/v0.7.0-plan.md` §Bridge.
+The bridge's `push` also accepts `structs` of kind `rename` (moves a session and its ticks) and `delete`. v0.7 adds struct writes for Reschedule. Adding a date and saving a topic need a bridge update: see `docs/v0.7.0-plan.md` §Bridge.
 
 ### Storage keys
 All keys are `storageKey(name)`:
@@ -450,6 +450,6 @@ Add these to the address: `?demo`, `?today=YYYY-MM-DD`, `?side=night|day`.
 7. F-CL-05 A–Z
 8. F-CL-06 Find a name
 9. F-LT-02 Late pill
-10. F-DT-01 Change date
+10. F-DT-01 Reschedule
 11. F-CL-10 Quick overview
 12. F-SY-02 Status dot

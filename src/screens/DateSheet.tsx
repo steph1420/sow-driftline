@@ -1,5 +1,5 @@
 // v0.7.0 S6–S8: the date sheet. Chips of this class's existing dates (F-DT-04, tap = open it, no data change),
-// Change date (S7, F-DT-01..06: wheels, year pill, topic, live dashed chip, button dim until a change, collision note, Cancel)
+// Reschedule (was Change date) (S7, F-DT-01..06: wheels, year pill, topic, live dashed chip, button dim until a change, collision note, Cancel)
 // and + New date (S8, F-OV-05: next class day picked, no duplicate on the same day).
 import { useEffect, useRef, useState } from 'react'
 import { CONFIG } from '../config'
@@ -36,10 +36,10 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
   }
   return (<>
     <button className="sow-scrim" aria-label="Close dates" onClick={onClose} />
-    <div className={`sow-sheet sow-ds${mode !== 'pick' ? ' editing' : ''}`} role="dialog" aria-label={mode === 'edit' ? 'Change date' : mode === 'new' ? 'New date' : 'Dates'}>
+    <div className={`sow-sheet sow-ds${mode !== 'pick' ? ' editing' : ''}`} role="dialog" aria-label={mode === 'edit' ? 'Reschedule' : mode === 'new' ? 'New date' : 'Dates'}>
       <button className="sow-sheet__handle" aria-label="Close (swipe down)" onClick={onClose}
         onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && e.clientY - y0.current > CONFIG.timing.sheetOpenDragPx) { y0.current = null; onClose() } }} onPointerUp={() => { y0.current = null }}><span className="sow-sheet__grip" /></button>
-      <div className="sow-wp__head"><h2 className="sow-wp__title">{mode === 'edit' ? 'Change date' : mode === 'new' ? 'New date' : 'Dates'}</h2><button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
+      <div className="sow-wp__head"><h2 className="sow-wp__title">{mode === 'edit' ? 'Reschedule' : mode === 'new' ? 'New date' : 'Dates'}</h2><button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
       {mode !== 'new' && <div className="sow-ds__strip" ref={strip} role="listbox" aria-label="Existing dates">
         {columns.map((c) => { const on = c.sessionId === current; const shown = on && mode === 'edit' ? date : c.date; const d = chipDay(shown)
           return <button key={c.sessionId} role="option" aria-selected={on} aria-current={on} className={`sow-ds__chip${on ? ' on' : ''}${on && moved ? ' live' : ''}${shown < today ? ' old' : ''}`} aria-label={`${c.kind} ${d.dow} ${d.dm}${shown === today ? ', today' : ''}`}
@@ -47,7 +47,7 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
             <small>{shown === today ? `${c.kind} · Today` : `${c.kind} · ${d.dow}`}</small><b>{d.dm}</b></button> })}
       </div>}
       {mode === 'pick' && <div className="sow-ds__acts">
-        <button className="sow-ds__act" onClick={() => open('edit')}><Icon name="calendar" /><span>Change date</span></button>
+        <button className="sow-ds__act" onClick={() => open('edit')}><Icon name="calendar" /><span>Reschedule</span></button>
         <button className="sow-ds__act" onClick={() => open('new')}><span aria-hidden>＋</span><span>New date</span></button></div>}
       {mode === 'edit' && <div className="sow-ds__line">
         <span>{ticks} {ticks === 1 ? 'tick' : 'ticks'} · </span>

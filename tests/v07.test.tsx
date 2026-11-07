@@ -263,7 +263,7 @@ describe('S7–S10 dates, late and hints', () => {
   const load = async (sub = /open KG-A English HW on checklist/i) => { cleanup(); localStorage.clear(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
     history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
     fireEvent.click(screen.getByRole('button', { name: sub })); return useApp }
-  const openChange = () => { fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'Change date' })) }
+  const openChange = () => { fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'Reschedule' })) }
   const sid = 'KG-A_ENG_HW|2026-11-04'
   it('S7-01 the button is dim until something changes; the Day wheel moves within the week', async () => {
     await load(); openChange(); const go = () => screen.getByRole('button', { name: /^Move (to|date)/ }) as HTMLButtonElement
