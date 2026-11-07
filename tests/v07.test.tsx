@@ -224,3 +224,35 @@ describe('S5 week path', () => {
     expect(useApp.getState().tab).toBe('checklist'); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02')
   })
 })
+
+// v0.7.0 S6 (step 5): checklist heading + date picking (F-CL-02/03, F-DT-04/07)
+describe('S6 checklist heading and dates', () => {
+  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
+  const load = async () => { cleanup(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
+    history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
+    fireEvent.click(screen.getByRole('button', { name: /open KG-A English HW on checklist/i })); return useApp }
+  it('S6-01 subject heading and "HW · Wednesday 4 November"', async () => {
+    await load(); expect(screen.getByRole('heading', { name: 'English' })).toBeTruthy()
+    expect(document.querySelector('.sow-clhead__sub')?.textContent).toBe('HW · Wednesday 4 November')
+    expect(screen.getByLabelText('14 done')).toBeTruthy(); expect(screen.getByLabelText('10 to go')).toBeTruthy()
+  })
+  it('S6-02 the calendar opens the existing dates; picking one switches the date and changes no data', async () => {
+    const useApp = await load(); const before = JSON.stringify(useApp.getState().data)
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }))
+    const opts = screen.getAllByRole('option'); expect(opts.length).toBe(15)
+    for (const o of opts) expect(o.getAttribute('aria-label')).toMatch(/^HW /)
+    fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    expect(screen.queryByRole('dialog')).toBeNull(); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02')
+    expect(document.querySelector('.sow-clhead__sub')?.textContent).toMatch(/^HW · Monday 2 November/)
+    expect(JSON.stringify(useApp.getState().data)).toBe(before)
+  })
+  it('S6-03 a past date gets the amber look; today does not', async () => {
+    await load(); expect(document.querySelector('.sow-clhead.old')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    expect(document.querySelector('.sow-clhead.old')).toBeTruthy(); expect(screen.getByText('Past date')).toBeTruthy()
+  })
+  it('S6-04 tapping To go opens the quick overview on the still-to-come list for that date', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByLabelText('10 to go'))
+    expect(useApp.getState().quick).toBe(true); expect(screen.getByText('Still to come in')).toBeTruthy()
+  })
+})

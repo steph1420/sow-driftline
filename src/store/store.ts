@@ -20,7 +20,7 @@ export type Side = 'night' | 'day' | 'system'
 export type ClassInfo = { classKey: string; label: string; subject: string }
 type State = {
   tab: Tab; side: Side; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
-  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; openSession: (classKey: string, sessionId: string) => void
+  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; quickHalf: 'done' | 'go' | null; openQuick: (half: 'done' | 'go' | null) => void; openSession: (classKey: string, sessionId: string) => void
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
   view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
@@ -65,7 +65,7 @@ function withData(data: SheetState, prev?: string, prevSubject?: string) {
   const keep = prevSubject && data.subjects.some((x) => x.subjectKey === prevSubject && x.classKey === currentClass)
   return { data, classes, currentClass, subject: keep ? prevSubject! : firstSubject(data, currentClass) }
 }
-const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+const initial = () => ({ tab: 'checklist' as Tab, side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, quickHalf: null as 'done' | 'go' | null, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab }),
@@ -73,6 +73,8 @@ export const useApp = create<State>((set, get) => ({
   setClass: (currentClass) => set({ currentClass, subject: firstSubject(get().data, currentClass), focus: null }),
   setSubject: (subjectKey) => { const x = get().data.subjects.find((y) => y.subjectKey === subjectKey); if (x) set({ currentClass: x.classKey, subject: subjectKey, focus: null, jump: get().jump + 1 }) },
   setPending: (pending) => set({ pending }),
+  pickSession: (focus) => set({ focus, jump: get().jump + 1 }),
+  openQuick: (quickHalf) => set({ quick: true, quickHalf }),
   jumpToAnchor: () => set({ focus: null, jump: get().jump + 1 }),
   tick: (sessionId, roll) => {
     const d = get().data; const se = d.sessions.find((x) => x.sessionId === sessionId); if (!se) return
@@ -101,7 +103,7 @@ export const useApp = create<State>((set, get) => ({
     localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh()
   },
   setView: (v) => { const view = { ...get().view, ...v }; localStorage.setItem(VIEW, JSON.stringify(view)); set({ view }) },
-  setQuick: (quick) => set({ quick }),
+  setQuick: (quick) => set(quick ? { quick } : { quick, quickHalf: null }),
   openClass: (k) => set({ currentClass: k, subject: firstSubject(get().data, k), tab: 'checklist', quick: false, focus: null, jump: get().jump + 1 }),
   /** v0.7j: a class card opens that class on Checklist at that card's session. */
   openSession: (classKey, sessionId) => set({ currentClass: classKey, subject: get().data.sessions.find((x) => x.sessionId === sessionId)?.subjectKey ?? firstSubject(get().data, classKey), tab: 'checklist', quick: false, focus: sessionId, jump: get().jump + 1 }),

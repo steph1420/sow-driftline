@@ -28,8 +28,9 @@ describe('D1 model', () => {
   it('D1-CHIP-02 Upcoming when today has no column but a later one exists', () => expect(pickAnchor(['2026-11-02', '2026-11-05'], '2026-11-04')).toEqual({ kind: 'upcoming', index: 1 }))
   it('D1-CHIP-03 Last when all dates are past', () => expect(pickAnchor(['2026-11-01', '2026-11-02'], '2026-11-04')).toEqual({ kind: 'last', index: 1 }))
   it('D1-CHIP-04 none when no dates', () => expect(pickAnchor([], '2026-11-04')).toEqual({ kind: 'none', index: -1 }))
-  it('D1-COL-01 phone portrait shows max 2 columns ending at the anchor', () => {
-    expect(visibleCols(5, 3, 'phone')).toEqual([2, 3])
+  // v0.7.0 S6 changed D1-COL-01: phone portrait is the v0.7d single-date list.
+  it('D1-COL-01 phone portrait shows 1 column, the anchor', () => {
+    expect(visibleCols(5, 3, 'phone')).toEqual([3])
     expect(visibleCols(1, 0, 'phone')).toEqual([0])
     expect(visibleCols(12, 11, 'desktop').length).toBe(9)
   })
@@ -83,7 +84,7 @@ describe('D1 checklist UI', () => {
   it('D1-UI-02 soft "N to go" and read-only ticks without onTick', async () => {
     const { Checklist } = await import('../src/screens/Checklist')
     render(<Checklist state={st} classKey="A" today="2026-11-03" layout="phone" />)
-    expect(screen.getByText(/2 to go/)).toBeTruthy()
+    expect(screen.getByLabelText('2 to go')).toBeTruthy() // v0.7.0 S6: split counter Done | To go
     expect(document.querySelectorAll('button.t').length).toBe(0)
   })
   it('D1-UI-03 a class with no dates shows the calm empty state', async () => {

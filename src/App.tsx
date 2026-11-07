@@ -36,7 +36,7 @@ export function App() {
     <>
       {tab !== 'overview' && <Bar />}{/* v0.7j: Overview is all classes, so no class bar */}
       <main className="sow-main">
-        {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} focusSessionId={focus} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateColsFor({ layout: wide ? 'desktop' : 'phone', landscape: land, weeks: view.weeks })} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
+        {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} onHalf={useApp.getState().openQuick} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} focusSessionId={focus} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateColsFor({ layout: wide ? 'desktop' : 'phone', landscape: land, weeks: view.weeks })} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
         {tab === 'overview' && <Overview />}
         {tab === 'more' && <More />}
         <p className="sow-foot">Driftline · {FLAVOR === 'beta' ? 'Beta' : 'Stable'} · v{VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>

@@ -7,8 +7,9 @@ beforeEach(async () => { localStorage.clear(); const { useApp } = await import('
 describe('V06 Weeks view toggle', () => {
   it('V06-WK-01 date columns: phone portrait 2; desktop calm 3 with Weeks off; Weeks on = wide (desktop or phone landscape only)', async () => {
     const { dateColsFor } = await import('../src/data/model')
-    expect(dateColsFor({ layout: 'phone', landscape: false, weeks: true })).toBe(2)
-    expect(dateColsFor({ layout: 'phone', landscape: true, weeks: false })).toBe(2)
+    // v0.7.0 S6 changed V06-WK-01: phone portrait = 1 date (v0.7d single-date list)
+    expect(dateColsFor({ layout: 'phone', landscape: false, weeks: true })).toBe(1)
+    expect(dateColsFor({ layout: 'phone', landscape: true, weeks: false })).toBe(1)
     expect(dateColsFor({ layout: 'phone', landscape: true, weeks: true })).toBe(9)
     expect(dateColsFor({ layout: 'desktop', landscape: true, weeks: false })).toBe(3)
     expect(dateColsFor({ layout: 'desktop', landscape: true, weeks: true })).toBe(9)

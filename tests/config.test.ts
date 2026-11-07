@@ -15,7 +15,7 @@ describe('config', () => {
     expect(CONFIG.timing.panelSettleMs).toBe(120)
   })
   it('D0-CFG-03 locked layout (r4, R13 A)', () => {
-    expect(CONFIG.layout.phoneMaxDateCols).toBe(2)
+    expect(CONFIG.layout.phoneMaxDateCols).toBe(1) // v0.7.0 S6: v0.7d single-date phone list
     expect(CONFIG.layout.phoneNameShare).toBe(0.5)
     expect(CONFIG.layout.headerHeightPx).toBeLessThanOrEqual(56)
   })

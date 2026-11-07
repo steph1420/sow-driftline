@@ -12,17 +12,18 @@ import { shareText } from '../data/share'
 import { isPhone, shareTargets } from '../data/shareTargets'
 const CHIP = { today: 'Today', upcoming: 'Upcoming', last: 'Last', none: '' } as const
 function useFocus(classKey: string) {
-  const data = useApp((s) => s.data); const sub = useApp((s) => s.subject)
-  const c = toChecklist(data, classKey, sub); const a = pickAnchor(c.columns.map((x) => x.date), todayIso()); const col = c.columns[a.index]
+  const data = useApp((s) => s.data); const sub = useApp((s) => s.subject); const fs = useApp((s) => s.focus)
+  const c = toChecklist(data, classKey, sub); const a0 = pickAnchor(c.columns.map((x) => x.date), todayIso()); const fi = fs ? c.columns.findIndex((x) => x.sessionId === fs) : -1 // follows the date open on Checklist
+  const t = todayIso(); const a = fi < 0 ? a0 : { index: fi, kind: (c.columns[fi]!.date === t ? 'today' : c.columns[fi]!.date > t ? 'upcoming' : 'last') as typeof a0.kind }; const col = c.columns[a.index]
   const left = col ? toGo(c, col.sessionId) : 0
   return { c, a, col, left, done: c.pupils.length - left, missing: col ? c.pupils.filter((p) => !c.ticked(col.sessionId, p.roll)) : [] }
 }
 const dayMon = (iso: string) => { const d = new Date(iso + 'T00:00:00'); return { dow: d.toLocaleDateString('en-GB', { weekday: 'short' }), dm: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) } } // Wed, 4 Nov
 const longDay = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '')
 /** v0.6.1 quick overview (mocks v061/qo*): curved Done | To go split counter; each half opens its names panel. */
-export function Summary({ classKey, label, onClose }: { classKey: string; label: string; onClose?: () => void }) {
+export function Summary({ classKey, label, onClose, half: initialHalf = null }: { classKey: string; label: string; onClose?: () => void; half?: 'done' | 'go' | null }) {
   const { c, a, col, left, done, missing } = useFocus(classKey)
-  const [panel, setPanel] = useState<'done' | 'go' | null>(null); const [all, setAll] = useState(false); const [targets, setTargets] = useState(false); const [msg, setMsg] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null)
+  const [panel, setPanel] = useState<'done' | 'go' | null>(initialHalf); const [all, setAll] = useState(false); const [targets, setTargets] = useState(false); const [msg, setMsg] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null)
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), CONFIG.timing.nameToastMs); return () => clearTimeout(t) }, [toast])
   useEffect(() => { setAll(false) }, [panel])
   if (!col) return <div className="dl-card"><h2 className="dl-title2">No dates yet</h2></div>
@@ -92,7 +93,7 @@ export function Overview() {
 }
 /** Pull-up quick overview on Checklist: swipe up on the grabber, ⇧O, or ⋮ › Quick overview. */
 export function QuickSheet() {
-  const open = useApp((s) => s.quick); const setQuick = useApp((s) => s.setQuick); const cur = useApp((s) => s.currentClass); const classes = useApp((s) => s.classes)
+  const open = useApp((s) => s.quick); const setQuick = useApp((s) => s.setQuick); const cur = useApp((s) => s.currentClass); const classes = useApp((s) => s.classes); const qh = useApp((s) => s.quickHalf)
   const y0 = useRef<number | null>(null)
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && useApp.getState().quick) setQuick(false) }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [setQuick])
   const label = classes.find((c) => c.classKey === cur)?.label ?? ''
@@ -102,6 +103,6 @@ export function QuickSheet() {
     {open && <><button className="sow-scrim" aria-label="Close quick overview" onClick={() => setQuick(false)} />
       <div className="sow-sheet" role="dialog" aria-label="Quick overview">
         <button className="sow-sheet__handle" aria-label="Close (swipe down)" onClick={() => setQuick(false)}
-          onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && e.clientY - y0.current > CONFIG.timing.sheetOpenDragPx) { y0.current = null; setQuick(false) } }} onPointerUp={() => { y0.current = null }}><span className="sow-sheet__grip" /></button>{cur && <Summary classKey={cur} label={label} onClose={() => setQuick(false)} />}</div></>}
+          onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && e.clientY - y0.current > CONFIG.timing.sheetOpenDragPx) { y0.current = null; setQuick(false) } }} onPointerUp={() => { y0.current = null }}><span className="sow-sheet__grip" /></button>{cur && <Summary classKey={cur} label={label} half={qh} onClose={() => setQuick(false)} />}</div></>}
   </>)
 }
