@@ -138,3 +138,4 @@
 .sow-blob.mail i { background: var(--dl-color-accent); }
 .sow-blob.sms i { background: color-mix(in srgb, var(--dl-color-text-muted) 70%, var(--dl-color-bg)); }
 .sow-blob i.txt { font-size: var(--dl-type-caption-size); font-weight: 800; letter-spacing: .04em; }
+.sow-blob.more i { background: var(--dl-color-track); color: var(--dl-color-text); }

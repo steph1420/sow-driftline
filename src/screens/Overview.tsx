@@ -6,6 +6,7 @@ import { useApp } from '../store/store'
 import { fmtDay, pickAnchor, toChecklist, toGo } from '../data/model'
 import { todayIso } from '../data/today'
 import { shareText } from '../data/share'
+import { isPhone, shareTargets } from '../data/shareTargets'
 const CHIP = { today: 'Today', upcoming: 'Upcoming', last: 'Last', none: '' } as const
 function useFocus(classKey: string) {
   const data = useApp((s) => s.data)
@@ -40,8 +41,9 @@ export function Summary({ classKey, label, onClose }: { classKey: string; label:
   const t = encodeURIComponent(text); const subj = encodeURIComponent(`${label} · ${c.subject} · ${longDay(col.date)}`)
   const copy = async () => { try { await navigator.clipboard?.writeText(text) } catch { /* ignore */ } setToast('List copied') }
   /** Keep has no web link that takes text: phones get the system share sheet (Keep is in it); desktop copies and opens Keep. */
-  const keep = async () => { if (navigator.share) { try { await navigator.share({ text }) } catch { /* cancelled */ } return }
-    await copy(); setToast('List copied, paste it into a new note'); window.open('https://keep.google.com/', '_blank', 'noopener') }
+  const keep = async () => { await copy(); setToast('List copied, paste it into a new note'); window.open('https://keep.google.com/', '_blank', 'noopener') }
+  const more = async () => { try { await navigator.share?.({ text }) } catch { /* cancelled */ } }
+  const list4 = shareTargets({ phone: isPhone(), canShare: typeof navigator !== 'undefined' && !!navigator.share })
   const half = (k: 'done' | 'go', n: number, word: string) => (
     <button className={`sow-half ${k}${panel === k ? ' on' : ''}`} aria-expanded={panel === k} aria-label={`${n} ${word}`} onClick={() => setPanel(panel === k ? null : k)}>
       <b className="dl-num">{n}</b><span>{word === 'done' ? 'Done' : 'To go'} <i aria-hidden>{panel === k ? '⌃' : '⌄'}</i></span></button>)
@@ -54,11 +56,12 @@ export function Summary({ classKey, label, onClose }: { classKey: string; label:
       {list.length ? <ul>{shown.map((p) => <li key={p.roll}><span className={panel === 'done' ? 'sow-okdot' : 'sow-ring'} aria-hidden>{panel === 'done' ? '✓' : ''}</span>{p.name}</li>)}</ul>
         : <p className="dl-muted sow-note">{panel === 'done' ? 'None yet' : 'Everyone is in'}</p>}
       {list.length > shown.length && <button className="sow-more" onClick={() => setAll(true)}>Show all {list.length}</button>}</div>}
-    {targets && <div className="sow-targets" role="group" aria-label="Share to">
-      <a className="sow-blob wa" href={`https://wa.me/?text=${t}`} target="_blank" rel="noopener" aria-label="WhatsApp"><i aria-hidden>✆</i><span>WhatsApp</span></a>
-      <button className="sow-blob keep" aria-label="Keep" onClick={keep}><i aria-hidden>✎</i><span>Keep</span></button>
-      <a className="sow-blob mail" href={`mailto:?subject=${subj}&body=${t}`} aria-label="Mail"><i aria-hidden>✉</i><span>Mail</span></a>
-      <a className="sow-blob sms" href={`sms:?&body=${t}`} aria-label="Messages"><i aria-hidden className="txt">SMS</i><span>Messages</span></a></div>}
+    {targets && <div className="sow-targets" role="group" aria-label="Share to" style={{ gridTemplateColumns: `repeat(${list4.length}, 1fr)` }}>{list4.map((k) =>
+      k === 'whatsapp' ? <a key={k} className="sow-blob wa" href={`https://wa.me/?text=${t}`} target="_blank" rel="noopener" aria-label="WhatsApp"><i aria-hidden>✆</i><span>WhatsApp</span></a>
+      : k === 'keep' ? <button key={k} className="sow-blob keep" aria-label="Keep" onClick={keep}><i aria-hidden>✎</i><span>Keep</span></button>
+      : k === 'mail' ? <a key={k} className="sow-blob mail" href={`mailto:?subject=${subj}&body=${t}`} aria-label="Mail"><i aria-hidden>✉</i><span>Mail</span></a>
+      : k === 'sms' ? <a key={k} className="sow-blob sms" href={`sms:?&body=${t}`} aria-label="Messages"><i aria-hidden className="txt">SMS</i><span>Messages</span></a>
+      : <button key={k} className="sow-blob more" aria-label="More apps" onClick={more}><i aria-hidden>⋯</i><span>More</span></button>)}</div>}
     <div className="sow-pair sow-sharebar"><button className="dl-btn dl-btn--secondary" onClick={copy}>Copy</button>
       <button className="dl-btn dl-btn--primary" aria-expanded={targets} onClick={() => setTargets(!targets)}>Share</button></div>
     {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--positive" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
