@@ -55,7 +55,7 @@ describe('V06 quick overview sheet', () => {
     const { App } = await import('../src/App'); render(<App />)
     fireEvent.keyDown(document.body, { key: 'O', shiftKey: true })
     const d = screen.getByRole('dialog', { name: /quick overview/i })
-    expect(d.textContent).toMatch(/to go|All done/i); expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy()
+    expect(d.textContent).toMatch(/to go|All done/i); expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy() // v0.6.1 lock: Share only (Copy dropped)
     fireEvent.keyDown(document.body, { key: 'Escape' }); expect(screen.queryByRole('dialog')).toBeNull()
   })
   it('V06-QO-02 swipe up on the grabber opens it', async () => {

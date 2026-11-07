@@ -93,3 +93,29 @@ describe('V07-S2 quiet save state', () => {
     expect(container.querySelector('.sow-dot')!.getAttribute('aria-label')).toBeTruthy()
   })
 })
+
+// S3 (v0.6.1 lock, mocks v061/qo*): split Done | To go counter, names panel, ✕ close, no Waiting box.
+import { screen as scrS3, fireEvent as feS3, within as wS3 } from '@testing-library/react'
+describe('V07-S3 quick overview', () => {
+  const open = () => { cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); renderS2(<AppS2 />); feS3.keyDown(document.body, { key: 'O', shiftKey: true }); return scrS3.getByRole('dialog', { name: /quick overview/i }) }
+  it('V07-S3-01 ✕ closes the sheet', () => {
+    const d = open(); feS3.click(wS3(d).getByRole('button', { name: 'Close' })); expect(scrS3.queryByRole('dialog')).toBeNull()
+  })
+  it('V07-S3-02 split counter: Done and To go halves, collapsed by default', () => {
+    const d = open(); const done = wS3(d).getByRole('button', { name: /^\d+ done/i }); const go = wS3(d).getByRole('button', { name: /^\d+ to go/i })
+    expect(done.getAttribute('aria-expanded')).toBe('false'); expect(go.getAttribute('aria-expanded')).toBe('false')
+    expect(d.textContent).not.toMatch(/still to come in/i)
+  })
+  it('V07-S3-03 tapping To go opens "Still to come in"; tapping Done swaps to the Done list; tapping again closes', () => {
+    const d = open(); const go = wS3(d).getByRole('button', { name: /^\d+ to go/i }); const done = wS3(d).getByRole('button', { name: /^\d+ done/i })
+    feS3.click(go); expect(go.getAttribute('aria-expanded')).toBe('true'); expect(d.textContent).toMatch(/still to come in/i)
+    feS3.click(done); expect(done.getAttribute('aria-expanded')).toBe('true'); expect(go.getAttribute('aria-expanded')).toBe('false'); expect(d.textContent).toMatch(/^.*DONE|Done/)
+    feS3.click(done); expect(done.getAttribute('aria-expanded')).toBe('false')
+  })
+  it('V07-S3-04 list shows 5 names then "Show all N"', () => {
+    const d = open(); const go = wS3(d).getByRole('button', { name: /^(\d+) to go/i }); const n = Number(go.getAttribute('aria-label')!.match(/^\d+/)![0])
+    feS3.click(go); expect(d.querySelectorAll('.sow-names li').length).toBe(Math.min(5, n))
+    if (n > 5) { feS3.click(wS3(d).getByRole('button', { name: `Show all ${n}` })); expect(d.querySelectorAll('.sow-names li').length).toBe(n) }
+  })
+  it('V07-S3-05 no Waiting box', () => { const d = open(); expect(d.textContent).not.toMatch(/waiting/i) })
+})

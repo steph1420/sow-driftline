@@ -1,5 +1,5 @@
 // Overview (r4 M4 + /sow/ v0.47): per-class cards → tap opens that class on Checklist at that date.
-// Summary = Done / To go / Waiting, "Still to come in" (progressive), Share footer (Copy · Share).
+// Summary (v0.6.1) = curved Done | To go split counter with names panels, Share.
 import { useEffect, useRef, useState } from 'react'
 import { CONFIG } from '../config'
 import { useApp } from '../store/store'
@@ -25,29 +25,32 @@ function ClassCard({ classKey, label, subject }: { classKey: string; label: stri
       <div className="sow-prog"><i style={{ width: `${c.pupils.length ? (done / c.pupils.length) * 100 : 0}%` }} /></div>
     </button>)
 }
-export function Summary({ classKey, label }: { classKey: string; label: string }) {
-  const { c, col, left, done, missing } = useFocus(classKey); const waiting = useApp((s) => s.waiting)
-  const [all, setAll] = useState(false); const [toast, setToast] = useState<string | null>(null)
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), CONFIG.timing.nameToastMs); return () => clearTimeout(t) }, [toast])
+const longDay = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '')
+/** v0.6.1 quick overview (mocks v061/qo*): curved Done | To go split counter; each half opens its names panel. */
+export function Summary({ classKey, label, onClose }: { classKey: string; label: string; onClose?: () => void }) {
+  const { c, a, col, left, done, missing } = useFocus(classKey)
+  const [panel, setPanel] = useState<'done' | 'go' | null>(null); const [all, setAll] = useState(false)
+  useEffect(() => { setAll(false) }, [panel])
   if (!col) return <div className="dl-card"><h2 className="dl-title2">No dates yet</h2></div>
-  const f = fmtDay(col.date); const text = shareText({ label, date: col.date, names: missing.map((p) => p.name) })
-  const shown = all ? missing : missing.slice(0, CONFIG.timing.stillToComeShown)
-  const copy = async () => { try { await navigator.clipboard?.writeText(text) } catch { /* ignore */ } setToast('List copied') }
+  const sub = [c.subject, longDay(col.date)].filter(Boolean).join(' · ')
+  const text = shareText({ label, date: col.date, names: missing.map((p) => p.name) })
+  const doneList = c.pupils.filter((p) => c.ticked(col.sessionId, p.roll))
+  const list = panel === 'done' ? doneList : missing; const shown = all ? list : list.slice(0, CONFIG.timing.stillToComeShown)
   const share = async () => { if (navigator.share) { try { await navigator.share({ text }) } catch { /* cancelled */ } } else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener') }
-  return (<>
-    <div className="dl-card"><div className="dl-eyebrow">{col.kind ? `${col.kind} · ` : ''}{f.dow} {f.dm} · {label}</div><h2 className="dl-title2">{c.subject || 'Class'}</h2>
-      <div className="sow-stats">
-        <div className="sow-stat pos"><span>Done</span><b className="dl-num">{done}</b><small>of {c.pupils.length}</small></div>
-        <div className="sow-stat acc"><span>To go</span><b className="dl-num">{left}</b><small>not yet in</small></div>
-        <div className="sow-stat warn"><span>Waiting</span><b className="dl-num">{waiting}</b><small>to save</small></div>
-      </div></div>
-    {missing.length > 0 && <div className="dl-card"><div className="dl-eyebrow">Still to come in</div><h3 className="dl-headline">{col.kind ? `${col.kind} · ` : ''}{f.dow} {f.dm}</h3>
-      <div className="sow-snaps">{shown.map((p) => <div key={p.roll} className="dl-row"><span className="sow-ring" aria-hidden />{p.name}</div>)}</div>
-      {missing.length > shown.length && <button className="sow-more" onClick={() => setAll(true)}>Show all {missing.length}</button>}</div>}
-    <div className="dl-card sow-sharef"><div className="dl-eyebrow">Share</div><h3 className="dl-headline">Send the list</h3>
-      <div className="sow-pair"><button className="dl-btn dl-btn--secondary" onClick={copy}>Copy</button><button className="dl-btn dl-btn--primary" onClick={share}>Share</button></div></div>
-    {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--positive" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
-  </>)
+  const half = (k: 'done' | 'go', n: number, word: string) => (
+    <button className={`sow-half ${k}${panel === k ? ' on' : ''}`} aria-expanded={panel === k} aria-label={`${n} ${word}`} onClick={() => setPanel(panel === k ? null : k)}>
+      <b className="dl-num">{n}</b><span>{word === 'done' ? 'Done' : 'To go'} <i aria-hidden>{panel === k ? '⌃' : '⌄'}</i></span></button>)
+  return (<div className="sow-sum">
+    <div className="sow-sum__head"><div><h2 className="dl-headline">{label}{CHIP[a.kind] ? ` · ${CHIP[a.kind]}` : ''}</h2><div className="dl-muted sow-note">{sub}</div></div>
+      {onClose && <button className="sow-x" aria-label="Close" onClick={onClose}>✕</button>}</div>
+    <div className="sow-prog"><i style={{ width: `${c.pupils.length ? (done / c.pupils.length) * 100 : 0}%` }} /></div>
+    <div className="sow-split">{half('done', done, 'done')}{half('go', left, 'to go')}</div>
+    {panel && <div className="sow-names"><div className="dl-eyebrow">{panel === 'done' ? 'Done' : 'Still to come in'}</div><div className="dl-muted sow-note">{sub}</div>
+      {list.length ? <ul>{shown.map((p) => <li key={p.roll}><span className={panel === 'done' ? 'sow-okdot' : 'sow-ring'} aria-hidden>{panel === 'done' ? '✓' : ''}</span>{p.name}</li>)}</ul>
+        : <p className="dl-muted sow-note">{panel === 'done' ? 'None yet' : 'Everyone is in'}</p>}
+      {list.length > shown.length && <button className="sow-more" onClick={() => setAll(true)}>Show all {list.length}</button>}</div>}
+    <button className="dl-btn dl-btn--primary sow-share" onClick={share}>Share</button>
+  </div>)
 }
 export function Overview() {
   const classes = useApp((s) => s.classes); const cur = useApp((s) => s.currentClass)
@@ -70,6 +73,6 @@ export function QuickSheet() {
     {open && <><button className="sow-scrim" aria-label="Close quick overview" onClick={() => setQuick(false)} />
       <div className="sow-sheet" role="dialog" aria-label="Quick overview">
         <button className="sow-sheet__handle" aria-label="Close (swipe down)" onClick={() => setQuick(false)}
-          onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && e.clientY - y0.current > CONFIG.timing.sheetOpenDragPx) { y0.current = null; setQuick(false) } }} onPointerUp={() => { y0.current = null }}><span className="sow-sheet__grip" /></button>{cur && <Summary classKey={cur} label={label} />}</div></>}
+          onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && e.clientY - y0.current > CONFIG.timing.sheetOpenDragPx) { y0.current = null; setQuick(false) } }} onPointerUp={() => { y0.current = null }}><span className="sow-sheet__grip" /></button>{cur && <Summary classKey={cur} label={label} onClose={() => setQuick(false)} />}</div></>}
   </>)
 }
