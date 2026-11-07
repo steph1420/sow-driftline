@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { labelOf, sheetLabel, useApp } from '../store/store'
+import { GLYPH } from '../ui/icons'
 export function Bar() {
   const s = useApp()
   const [open, setOpen] = useState(false); const [menu, setMenu] = useState(false)
@@ -9,14 +10,14 @@ export function Bar() {
   return (
     <header className="sow-bar">
       <button className="sow-pill" aria-label={`Switch class, ${cls.label} ${sub?.subject ?? cls.subject} ${sub?.kind ?? ''}`.trim()} onClick={() => setOpen(!open)}>
-        <span className="dl-logo" aria-hidden>{cls.label.slice(-1)}</span>{cls.label} <small>{[sub?.subject ?? cls.subject, sub?.kind].filter(Boolean).join(' ')} ⌄</small>
+        <span className="dl-logo" aria-hidden>{cls.label.slice(-1)}</span>{cls.label} <small>{[sub?.subject ?? cls.subject, sub?.kind].filter(Boolean).join(' ')} {GLYPH.down}</small>
         <span className={`sow-dot ${s.source === 'copy' ? s.save : ''}`} aria-label={dot} title={dot} />
       </button>
       <span className="sow-sp" />
       {s.tab === 'checklist' && <button className={`dl-chip dl-chip--btn dl-tone--accent sow-chip sow-pend${s.pending ? ' on' : ''}`} aria-pressed={s.pending} onClick={() => s.setPending(!s.pending)}>Pending only</button>}
-      <button className="sow-ib" aria-label="Undo" disabled={!s.canUndo} onClick={s.undo}>↶</button>
-      <button className="sow-ib" aria-label="Redo" disabled={!s.canRedo} onClick={s.redo}>↷</button>
-      <button className="sow-ib" aria-label="More options" aria-expanded={menu} onClick={() => setMenu(!menu)}>⋮</button>
+      <button className="sow-ib" aria-label="Undo" disabled={!s.canUndo} onClick={s.undo}>{GLYPH.undo}</button>
+      <button className="sow-ib" aria-label="Redo" disabled={!s.canRedo} onClick={s.redo}>{GLYPH.redo}</button>
+      <button className="sow-ib" aria-label="More options" aria-expanded={menu} onClick={() => setMenu(!menu)}>{GLYPH.menu}</button>
       {menu && <div className="dl-card sow-menu sow-menu--end" role="menu">
         <button role="switch" aria-checked={s.view.weeks} className="dl-row dl-row--btn" onClick={() => s.setView({ weeks: !s.view.weeks })}>
           <span>Weeks<small className="sow-note dl-muted"> · many dates, desktop &amp; phone sideways</small></span><span className="sow-sp" /><span className={`sow-switch${s.view.weeks ? ' on' : ''}`} aria-hidden /></button>

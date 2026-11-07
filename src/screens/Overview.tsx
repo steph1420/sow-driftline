@@ -10,6 +10,7 @@ import { fmtDay, pickAnchor, toChecklist, toGo } from '../data/model'
 import { todayIso } from '../data/today'
 import { shareText } from '../data/share'
 import { isPhone, shareTargets } from '../data/shareTargets'
+import { GLYPH, Icon } from '../ui/icons'
 const CHIP = { today: 'Today', upcoming: 'Upcoming', last: 'Last', none: '' } as const
 function useFocus(classKey: string) {
   const data = useApp((s) => s.data); const sub = useApp((s) => s.subject); const fs = useApp((s) => s.focus)
@@ -39,14 +40,14 @@ export function Summary({ classKey, label, onClose, half: initialHalf = null }: 
   const list4 = shareTargets({ phone: isPhone(), canShare: typeof navigator !== 'undefined' && !!navigator.share })
   const half = (k: 'done' | 'go', n: number, word: string) => (
     <button className={`sow-half ${k}${panel === k ? ' on' : ''}`} aria-expanded={panel === k} aria-label={`${n} ${word}`} onClick={() => setPanel(panel === k ? null : k)}>
-      <b className="dl-num">{n}</b><span>{word === 'done' ? 'Done' : 'To go'} <i aria-hidden>{panel === k ? '⌃' : '⌄'}</i></span></button>)
+      <b className="dl-num">{n}</b><span>{word === 'done' ? 'Done' : 'To go'} <i aria-hidden>{panel === k ? GLYPH.up : GLYPH.down}</i></span></button>)
   return (<div className="sow-sum">
     <div className="sow-sum__head"><div><h2 className="dl-headline">{label}{CHIP[a.kind] ? ` · ${CHIP[a.kind]}` : ''}</h2><div className="dl-muted sow-note">{sub}</div></div>
-      {onClose && <button className="sow-x" aria-label="Close" onClick={onClose}>✕</button>}</div>
+      {onClose && <button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button>}</div>
     <div className="sow-prog"><i style={{ width: `${c.pupils.length ? (done / c.pupils.length) * 100 : 0}%` }} /></div>
     <div className="sow-split">{half('done', done, 'done')}{half('go', left, 'to go')}</div>
     {panel && <div className="sow-names"><div className="dl-eyebrow">{panel === 'done' ? 'Done' : 'Still to come in'}</div><div className="dl-muted sow-note">{sub}</div>
-      {list.length ? <ul>{shown.map((p) => <li key={p.roll}><span className={panel === 'done' ? 'sow-okdot' : 'sow-ring'} aria-hidden>{panel === 'done' ? '✓' : ''}</span>{p.name}</li>)}</ul>
+      {list.length ? <ul>{shown.map((p) => <li key={p.roll}><span className={panel === 'done' ? 'sow-okdot' : 'sow-ring'} aria-hidden>{panel === 'done' ? GLYPH.tick : ''}</span>{p.name}</li>)}</ul>
         : <p className="dl-muted sow-note">{panel === 'done' ? 'None yet' : 'Everyone is in'}</p>}
       {list.length > shown.length && <button className="sow-more" onClick={() => setAll(true)}>Show all {list.length}</button>}</div>}
     {targets && <div className="sow-msg"><div className="sow-msg__head"><span className="dl-eyebrow">Message</span><span className="sow-sp" />
@@ -54,7 +55,7 @@ export function Summary({ classKey, label, onClose, half: initialHalf = null }: 
       <textarea aria-label="Message to share" value={text} rows={Math.min(7, text.split('\n').length + 1)} onChange={(e) => setMsg(e.target.value)} /></div>}
     {targets && <div className="sow-targets" role="group" aria-label="Share to" style={{ gridTemplateColumns: `repeat(${list4.length}, 1fr)` }}>{list4.map((k) =>
       k === 'whatsapp' ? <a key={k} className="sow-blob wa" href={`https://wa.me/?text=${t}`} target="_blank" rel="noopener" aria-label="WhatsApp"><i aria-hidden>✆</i><span>WhatsApp</span></a>
-      : k === 'keep' ? <button key={k} className="sow-blob keep" aria-label="Keep" onClick={keep}><i aria-hidden>✎</i><span>Keep</span></button>
+      : k === 'keep' ? <button key={k} className="sow-blob keep" aria-label="Keep" onClick={keep}><i aria-hidden>{GLYPH.edit}</i><span>Keep</span></button>
       : k === 'mail' ? <a key={k} className="sow-blob mail" href={`mailto:?subject=${subj}&body=${t}`} aria-label="Mail"><i aria-hidden>✉</i><span>Mail</span></a>
       : k === 'sms' ? <a key={k} className="sow-blob sms" href={`sms:?&body=${t}`} aria-label="Messages"><i aria-hidden className="txt">SMS</i><span>Messages</span></a>
       : <button key={k} className="sow-blob more" aria-label="More apps" onClick={more}><i aria-hidden>⋯</i><span>More</span></button>)}</div>}
@@ -64,7 +65,6 @@ export function Summary({ classKey, label, onClose, half: initialHalf = null }: 
   </div>)
 }
 /** v0.7j Overview: one squircle card per class + subject + type; tap opens Checklist on that session, the corner path opens its week path. */
-const PathIcon = () => <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="6" cy="18" r="2.2" /><circle cx="18" cy="6" r="2.2" /><path d="M8 17.5c4 0 3-5 6-6.5s2-3 2.3-3.4" /></svg>
 function ClassCard({ c, today, onPath }: { c: Card; today: string; onPath: () => void }) {
   const open = useApp((s) => s.openSession); const f = c.date ? dayMon(c.date) : null
   const when = !c.date ? 'No dates yet' : c.date === today ? 'Today' : c.date === addDays(today, 1) ? 'Tomorrow' : ''
@@ -74,9 +74,9 @@ function ClassCard({ c, today, onPath }: { c: Card; today: string; onPath: () =>
         <span className="sow-sq__top"><b className="sow-sq__cls">{c.label}</b><span className="sow-sq__sub">{c.subject}</span><span className="sow-sq__pill">{c.kind}</span></span>
         <span className="sow-sq__topic">{c.topic || (c.date ? 'No topic yet' : '')}</span>
         <span className="sow-sq__foot"><span className="sow-sq__when">{f ? [when, `${f.dow}, ${f.dm}`].filter(Boolean).join(' · ') : when}</span>
-          {c.sessionId && (c.toGo > 0 ? <span className="sow-sq__go">{c.toGo} to go ›</span> : <span className="sow-sq__in">✓ All in</span>)}</span>
+          {c.sessionId && (c.toGo > 0 ? <span className="sow-sq__go">{c.toGo} to go {GLYPH.next}</span> : <span className="sow-sq__in">{GLYPH.tick} All in</span>)}</span>
       </button>
-      {c.date && <button className="sow-sq__path" aria-label={`Week path, ${c.label} ${c.subject} ${c.kind}`} onClick={onPath}><PathIcon /></button>}
+      {c.date && <button className="sow-sq__path" aria-label={`Week path, ${c.label} ${c.subject} ${c.kind}`} onClick={onPath}><Icon name="path" /></button>}
     </div>)
 }
 export function Overview() {

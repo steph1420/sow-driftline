@@ -10,8 +10,8 @@ import { extendTarget, rollsBetween } from './paint'
 
 type Side = 'right' | 'left'
 import { DateSheet } from './DateSheet'
+import { GLYPH, Icon } from '../ui/icons'
 const longDate = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '')
-const CalIcon = () => <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
 
 type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number
   onTick?: (sessionId: string, roll: number) => void; onTickMany?: (sessionId: string, rolls: number[], value: boolean) => void
@@ -101,13 +101,13 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
       <div className={`sow-clhead${old ? ' old' : ''}`}>
         <div className="sow-clhead__txt"><h2 className="sow-clhead__title">{c.subject || 'Checklist'}</h2>
           <div className="sow-clhead__sub">{[focus.kind, longDate(focus.date)].filter(Boolean).join(' · ')}{old && <span className="sow-oldtag">Past date</span>}</div></div>
-        <button className="sow-cal" aria-label="Pick a date" aria-expanded={dates} onClick={() => setDates(true)}><CalIcon /></button>
+        <button className="sow-cal" aria-label="Pick a date" aria-expanded={dates} onClick={() => setDates(true)}><Icon name="calendar" /></button>
       </div>
       <div className={`sow-split sow-split--cl${old ? ' old' : ''}`}>
-        <button className="sow-half" aria-label={`${done} done`} onClick={() => onHalf?.('done')}><b className="dl-num">{done}</b><span>Done <i aria-hidden>⌄</i></span></button>
-        <button className="sow-half" aria-label={`${left} to go`} onClick={() => onHalf?.('go')}><b className="dl-num">{left}</b><span>To go <i aria-hidden>⌄</i></span></button>
+        <button className="sow-half" aria-label={`${done} done`} onClick={() => onHalf?.('done')}><b className="dl-num">{done}</b><span>Done <i aria-hidden>{GLYPH.down}</i></span></button>
+        <button className="sow-half" aria-label={`${left} to go`} onClick={() => onHalf?.('go')}><b className="dl-num">{left}</b><span>To go <i aria-hidden>{GLYPH.down}</i></span></button>
       </div>
-      <button className="sow-search" aria-label="Search names" onClick={() => setPill('')}><span aria-hidden>⌕</span><span>Find a name</span>{layout === 'desktop' && <kbd className="sow-kbd">just type</kbd>}</button>
+      <button className="sow-search" aria-label="Search names" onClick={() => setPill('')}><span aria-hidden>{GLYPH.search}</span><span>Find a name</span>{layout === 'desktop' && <kbd className="sow-kbd">just type</kbd>}</button>
       <div className={`sow-grid ${layout}${swipe && onTickMany ? ' swipe' : ''}${one ? ' one' : ''}`}>
         <table onKeyDown={keyGrid}>
           <thead><tr><th className="n">{one ? <span className="sow-yc">{keep ? 'Still to come in' : 'Your class'}</span> : null}{keep ? `${c.pupils.length} pending` : `${c.pupils.length} pupils`}</th>
@@ -119,14 +119,14 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
                 const pv = painted && painted.sid === s.sessionId && painted.rolls.includes(p.roll); const on = pv ? painted!.value : real
                 return <td key={s.sessionId} className={`${i === anchor.index ? 'today' : ''}${weekStart(i) ? ' wk' : ''}`}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}${pv ? ' paint' : ''}`} data-r={r} data-c={ci} aria-pressed={real} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${real ? 'done' : 'not yet'}`}
                     onPointerDown={(e) => down(e, s.sessionId, p.roll, real)} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { paint.current = null; setPainted(null) }}
-                    onClick={() => { if (eatClick.current) { eatClick.current = false; return } onTick(s.sessionId, p.roll) }}>{on ? '✓' : ''}</button>
-                  : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? '✓' : ''}</span>}</td> })}
+                    onClick={() => { if (eatClick.current) { eatClick.current = false; return } onTick(s.sessionId, p.roll) }}>{on ? GLYPH.tick : ''}</button>
+                  : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? GLYPH.tick : ''}</span>}</td> })}
             </tr>))}</tbody>
         </table>
       </div>
       <AzRail names={names} onJump={go} side={railSide} bubble={railBubble} onSide={onRailSide} />
       {pill != null && <div className="sow-qs" role="search">
-        <span aria-hidden>⌕</span>
+        <span aria-hidden>{GLYPH.search}</span>
         <input type="search" autoFocus aria-label="Find a name" value={pill} placeholder="Type a name, initials or roll"
           onChange={(e) => { setPill(e.target.value); if (e.target.value.trim()) find(e.target.value.trim()) }}
           onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); setPill(null) } }} onBlur={() => setPill(null)} />

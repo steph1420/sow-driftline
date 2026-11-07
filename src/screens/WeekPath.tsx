@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CONFIG } from '../config'
 import { labelOf, useApp } from '../store/store'
 import { weekPath } from '../data/overview'
+import { GLYPH } from '../ui/icons'
 const day = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/^(\w+) /, '$1, ')
 export function WeekPath({ subjectKey, today, onClose }: { subjectKey: string; today: string; onClose: () => void }) {
   const data = useApp((s) => s.data); const open = useApp((s) => s.openSession)
@@ -23,7 +24,7 @@ export function WeekPath({ subjectKey, today, onClose }: { subjectKey: string; t
       <button className="sow-sheet__handle" aria-label="Close (swipe down)" onClick={onClose}
         onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && e.clientY - y0.current > CONFIG.timing.sheetOpenDragPx) { y0.current = null; onClose() } }} onPointerUp={() => { y0.current = null }}><span className="sow-sheet__grip" /></button>
       <div className="sow-wp__head"><div><h2 className="sow-wp__title">{labelOf(sub.classKey)} · {sub.subject} {sub.kind}</h2><div className="dl-muted sow-wp__week" aria-live="polite">{head}</div></div>
-        <button className="sow-x" aria-label="Close" onClick={onClose}>✕</button></div>
+        <button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
       <div className="sow-wp__list" ref={list} onScroll={onScroll}>
         {weeks.map((w, wi) => <section key={w.start} ref={(el) => { secs.current[wi] = el }} aria-label={w.title}>
           {wi > 0 && wi !== thisWeek && <div className="sow-wp__div">{w.title}</div>}
@@ -31,7 +32,7 @@ export function WeekPath({ subjectKey, today, onClose }: { subjectKey: string; t
             <div className="sow-wp__day">{s.when === 'today' ? `Today · ${day(s.date)}` : day(s.date)}</div>
             <button className="sow-wp__card" aria-label={`Open ${day(s.date)} on Checklist`} onClick={() => { open(sub.classKey, s.sessionId); onClose() }}>
               <span className="sow-wp__kind">{s.kind}</span><span className="sow-wp__topic">{s.topic || 'No topic yet'}</span>
-              <span className="sow-wp__foot">{s.toGo > 0 ? <span>{s.toGo} to go</span> : <span className="sow-wp__in">✓ All in</span>}<span aria-hidden>→</span></span>
+              <span className="sow-wp__foot">{s.toGo > 0 ? <span>{s.toGo} to go</span> : <span className="sow-wp__in">{GLYPH.tick} All in</span>}<span aria-hidden>{GLYPH.go}</span></span>
             </button></div>)}
         </section>)}
       </div>
