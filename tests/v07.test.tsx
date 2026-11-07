@@ -127,18 +127,26 @@ describe('V07-S3b share targets', () => {
     const d = open(); expect(wS3(d).getByRole('button', { name: 'Copy' })).toBeTruthy()
     expect(wS3(d).queryByRole('link', { name: /whatsapp/i })).toBeNull()
   })
-  it('V07-S3b-02 computer without a share sheet: WhatsApp, Keep, Mail only (no Messages, no More)', () => {
+  it('V07-S3b-02 computer without a share sheet: WhatsApp, Keep only (no Mail, Messages or More)', () => {
     const d = open(); feS3.click(wS3(d).getByRole('button', { name: 'Share' }))
     const wa = wS3(d).getByRole('link', { name: /whatsapp/i }) as HTMLAnchorElement
     expect(wa.href).toMatch(/^https:\/\/wa\.me\/\?text=/)
-    expect((wS3(d).getByRole('link', { name: /mail/i }) as HTMLAnchorElement).href).toMatch(/^mailto:\?subject=.*&body=/)
+    expect(wS3(d).queryByRole('link', { name: /^mail$/i })).toBeNull()
     expect(wS3(d).getByRole('button', { name: /keep/i })).toBeTruthy()
     expect(wS3(d).queryByRole('link', { name: /messages/i })).toBeNull(); expect(wS3(d).queryByRole('button', { name: /more/i })).toBeNull()
   })
   it('V07-S3b-03 (t96u) targets per device', async () => {
     const { shareTargets } = await import('../src/data/shareTargets')
-    expect(shareTargets({ phone: true, canShare: true })).toEqual(['whatsapp', 'mail', 'sms', 'more'])
-    expect(shareTargets({ phone: false, canShare: false })).toEqual(['whatsapp', 'keep', 'mail'])
-    expect(shareTargets({ phone: false, canShare: true })).toEqual(['whatsapp', 'keep', 'mail', 'more'])
+    expect(shareTargets({ phone: true, canShare: true })).toEqual(['whatsapp', 'keep', 'sms', 'more'])
+    expect(shareTargets({ phone: false, canShare: false })).toEqual(['whatsapp', 'keep'])
+    expect(shareTargets({ phone: false, canShare: true })).toEqual(['whatsapp', 'keep', 'more'])
+  })
+  it('V07-S3b-04 (t98u) editable message: prefilled, edits flow to the targets, Reset restores', () => {
+    const d = open(); feS3.click(wS3(d).getByRole('button', { name: 'Share' }))
+    const box = wS3(d).getByRole('textbox', { name: 'Message to share' }) as HTMLTextAreaElement
+    expect(box.value).toMatch(/^KG-A • .* • not set\/found \(\d+\):/); expect(wS3(d).queryByRole('button', { name: 'Reset' })).toBeNull()
+    feS3.change(box, { target: { value: 'Hello class' } })
+    expect((wS3(d).getByRole('link', { name: /whatsapp/i }) as HTMLAnchorElement).href).toBe('https://wa.me/?text=Hello%20class')
+    feS3.click(wS3(d).getByRole('button', { name: 'Reset' })); expect(box.value).toMatch(/not set\/found/)
   })
 })

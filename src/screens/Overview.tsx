@@ -30,12 +30,12 @@ const longDay = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString(
 /** v0.6.1 quick overview (mocks v061/qo*): curved Done | To go split counter; each half opens its names panel. */
 export function Summary({ classKey, label, onClose }: { classKey: string; label: string; onClose?: () => void }) {
   const { c, a, col, left, done, missing } = useFocus(classKey)
-  const [panel, setPanel] = useState<'done' | 'go' | null>(null); const [all, setAll] = useState(false); const [targets, setTargets] = useState(false); const [toast, setToast] = useState<string | null>(null)
+  const [panel, setPanel] = useState<'done' | 'go' | null>(null); const [all, setAll] = useState(false); const [targets, setTargets] = useState(false); const [msg, setMsg] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null)
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), CONFIG.timing.nameToastMs); return () => clearTimeout(t) }, [toast])
   useEffect(() => { setAll(false) }, [panel])
   if (!col) return <div className="dl-card"><h2 className="dl-title2">No dates yet</h2></div>
   const sub = [c.subject, longDay(col.date)].filter(Boolean).join(' · ')
-  const text = shareText({ label, date: col.date, names: missing.map((p) => p.name) })
+  const base = shareText({ label, date: col.date, names: missing.map((p) => p.name) }); const text = msg ?? base
   const doneList = c.pupils.filter((p) => c.ticked(col.sessionId, p.roll))
   const list = panel === 'done' ? doneList : missing; const shown = all ? list : list.slice(0, CONFIG.timing.stillToComeShown)
   const t = encodeURIComponent(text); const subj = encodeURIComponent(`${label} · ${c.subject} · ${longDay(col.date)}`)
@@ -56,6 +56,9 @@ export function Summary({ classKey, label, onClose }: { classKey: string; label:
       {list.length ? <ul>{shown.map((p) => <li key={p.roll}><span className={panel === 'done' ? 'sow-okdot' : 'sow-ring'} aria-hidden>{panel === 'done' ? '✓' : ''}</span>{p.name}</li>)}</ul>
         : <p className="dl-muted sow-note">{panel === 'done' ? 'None yet' : 'Everyone is in'}</p>}
       {list.length > shown.length && <button className="sow-more" onClick={() => setAll(true)}>Show all {list.length}</button>}</div>}
+    {targets && <div className="sow-msg"><div className="sow-msg__head"><span className="dl-eyebrow">Message</span><span className="sow-sp" />
+        {msg != null && msg !== base && <button className="sow-link" onClick={() => setMsg(null)}>Reset</button>}</div>
+      <textarea aria-label="Message to share" value={text} rows={Math.min(7, text.split('\n').length + 1)} onChange={(e) => setMsg(e.target.value)} /></div>}
     {targets && <div className="sow-targets" role="group" aria-label="Share to" style={{ gridTemplateColumns: `repeat(${list4.length}, 1fr)` }}>{list4.map((k) =>
       k === 'whatsapp' ? <a key={k} className="sow-blob wa" href={`https://wa.me/?text=${t}`} target="_blank" rel="noopener" aria-label="WhatsApp"><i aria-hidden>✆</i><span>WhatsApp</span></a>
       : k === 'keep' ? <button key={k} className="sow-blob keep" aria-label="Keep" onClick={keep}><i aria-hidden>✎</i><span>Keep</span></button>

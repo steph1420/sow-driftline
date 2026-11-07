@@ -139,3 +139,9 @@
 .sow-blob.sms i { background: color-mix(in srgb, var(--dl-color-text-muted) 70%, var(--dl-color-bg)); }
 .sow-blob i.txt { font-size: var(--dl-type-caption-size); font-weight: 800; letter-spacing: .04em; }
 .sow-blob.more i { background: var(--dl-color-track); color: var(--dl-color-text); }
+/* t98u: editable share preview */
+.sow-msg { display: flex; flex-direction: column; gap: var(--dl-space-1); }
+.sow-msg__head { display: flex; align-items: center; padding: 0 var(--dl-space-1); }
+.sow-msg textarea { width: 100%; box-sizing: border-box; resize: none; border: 0; border-radius: var(--dl-radius-lg); padding: var(--dl-space-3); background: var(--dl-color-track); color: var(--dl-color-text); font: inherit; font-size: var(--dl-type-callout-size); line-height: 1.45; box-shadow: inset 0 0 0 1px var(--dl-color-hairline); outline: none; } /* token-ok: 1px hairline; line-height as body */
+.sow-msg textarea:focus { box-shadow: inset 0 0 0 1.5px var(--dl-color-accent); } /* token-ok: focus ring */
+.sow-link { background: none; border: 0; color: var(--dl-color-accent); font: inherit; font-size: var(--dl-type-footnote-size); cursor: pointer; min-height: var(--dl-space-8); }
