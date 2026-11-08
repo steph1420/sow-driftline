@@ -1,14 +1,21 @@
-// v0.8 F-CL-12 (Q2e-share): share sheet stacked over the quick overview. Editable message (Reset brings the list back),
-// Copy plus the targets that work on this device (t95u–t99u: Keep, not Mail).
+// v0.8 F-CL-12 (Q2e-share): share sheet for one date, stacked over the quick overview or the Overview. Editable message
+// (Reset brings the list back), Copy plus the targets that work on this device (t95u–t99u: Keep, not Mail).
 import { useEffect, useState, type ReactElement } from 'react'
 import { CONFIG } from '../config'
+import { labelOf, useApp } from '../store/store'
+import { dateLabel, dayLabel, toChecklist } from '../data/model'
+import { shareText } from '../data/share'
 import { isPhone, shareTargets, type Target } from '../data/shareTargets'
 import { GLYPH, Icon } from '../ui/icons'
 import { Sheet } from '../ui/Sheet'
 
-type Props = { date: string; what: string; text: string; mailSubject: string; onClose: () => void }
+type Props = { subjectKey: string; sessionId: string; onClose: () => void }
 
-export function ShareSheet({ date, what, text: base, mailSubject, onClose }: Props) {
+export function ShareSheet({ subjectKey, sessionId, onClose }: Props) {
+  const data = useApp((s) => s.data); const sub = data.subjects.find((x) => x.subjectKey === subjectKey); const classKey = sub?.classKey ?? ''
+  const c = toChecklist(data, classKey, subjectKey); const date = c.columns.find((x) => x.sessionId === sessionId)?.date ?? ''
+  const what = [labelOf(classKey), sub?.subject, sub?.kind].filter(Boolean).join(' '); const mailSubject = `${what} · ${dateLabel(date)}`
+  const base = shareText({ label: labelOf(classKey), date, names: c.pupils.filter((p) => !c.ticked(sessionId, p.roll)).map((p) => p.name) })
   const [msg, setMsg] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null)
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), CONFIG.timing.nameToastMs); return () => clearTimeout(t) }, [toast])
   const text = msg ?? base; const body = encodeURIComponent(text)
@@ -25,8 +32,8 @@ export function ShareSheet({ date, what, text: base, mailSubject, onClose }: Pro
     more: () => <button key="more" className="sow-blob more" aria-label="More apps" onClick={more}><i aria-hidden>{GLYPH.moreDots}</i><span>More</span></button>,
   }
   return (
-    <Sheet label={`Share · ${date} · ${what}`} onClose={onClose} className="sow-share">
-      <div className="sow-sheet__head"><h2 className="sow-sheet__title">Share · {date} <span>· {what}</span></h2>
+    <Sheet label={`Share · ${dayLabel(date)} · ${what}`} onClose={onClose} className="sow-share">
+      <div className="sow-sheet__head"><h2 className="sow-sheet__title">Share · {dayLabel(date)} <span>· {what}</span></h2>
         <button className="sow-x" aria-label="Close share" onClick={onClose}>{GLYPH.close}</button></div>
       <div className="sow-share__box">
         <textarea aria-label="Message to share" value={text} rows={8} onChange={(e) => setMsg(e.target.value)} />

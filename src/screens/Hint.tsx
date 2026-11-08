@@ -5,7 +5,7 @@ export const HINTS: Record<string, string> = {
   swipe: 'Swipe sideways on a box to tick it',
   grip: 'Hold the A–Z strip and slide to jump to a name',
   quick: 'Swipe up from the bottom for a quick look',
-  path: 'Tap the little path to see this class’s week',
+  hold: 'Press and hold a class for Share, All dates and more',
 }
 export function Hint({ ids }: { ids: string[] }) {
   const seen = useApp((s) => s.hints); const id = ids.find((x) => !seen.includes(x)); if (!id) return null

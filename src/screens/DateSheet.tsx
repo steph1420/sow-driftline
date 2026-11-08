@@ -37,7 +37,7 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
   }
   return (
     <Sheet label={mode === 'edit' ? 'Reschedule' : 'New date'} scrimLabel="Close dates" onClose={onClose} className="sow-ds editing">
-      <div className="sow-wp__head"><h2 className="sow-wp__title">{mode === 'edit' ? 'Reschedule' : 'New date'}</h2><button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
+      <div className="sow-sheet__head"><h2 className="sow-sheet__title">{mode === 'edit' ? 'Reschedule' : 'New date'}</h2><button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
       {mode === 'edit' && <div className="sow-ds__strip" ref={strip}><div className="sow-ds__opts" role="listbox" aria-label="Existing dates">
         {columns.map((c) => { const on = c.sessionId === current; const shown = on ? date : c.date; const d = chipDay(shown)
           return <button key={c.sessionId} role="option" aria-selected={on} aria-current={on} className={`sow-ds__chip${on ? ' on' : ''}${on && moved ? ' live' : ''}${shown < today ? ' old' : ''}`} aria-label={`${c.kind} ${d.dow} ${d.dm}${shown === today ? ', today' : ''}`}

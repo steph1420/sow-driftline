@@ -26,13 +26,13 @@ describe('V06 Weeks view toggle', () => {
 })
 
 describe('V06 Overview', () => {
-  // v0.7.0 S4 changed V06-OV-01: v0.7j cards are per class + subject + type, say "to go ›"/"✓ All in", and have no progress bar.
-  it('V06-OV-01 one card per class subject with the date line and soft "N to go", no progress bar', async () => {
+  // v0.8 P4 changed V06-OV-01 (O2g): cards are per class + subject + type with done/total (or a dash) and the topic, no progress bar.
+  it('V06-OV-01 one card per class subject with done/total and the topic, no progress bar', async () => {
     const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
     render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
     const cards = screen.getAllByRole('button', { name: /open .* on checklist/i })
     expect(cards.length).toBe(useApp.getState().data.subjects.filter((x) => x.active).length)
-    expect(cards[0]!.textContent).toMatch(/Today|Next|Last/); expect(cards[0]!.textContent).toMatch(/\d+ to go|All in/)
+    expect(cards[0]!.textContent).toMatch(/\d+\/\d+|—/)
     expect(cards[0]!.querySelector('.sow-prog')).toBeNull()
   })
   it('V06-OV-02 tapping a class card opens that class on Checklist at that date', async () => {

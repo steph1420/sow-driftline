@@ -45,4 +45,8 @@ export function focusColumn(c: Checklist, today: string, focusSessionId: string 
 export const toGo = (c: Checklist, sessionId: string) => c.pupils.filter((p) => !c.ticked(sessionId, p.roll)).length
 export const letterIndex = (names: string[], L: string) => names.findIndex((n) => n.trim().toUpperCase().startsWith(L.toUpperCase()))
 export function searchIndex(names: string[], q: string) { const s = q.trim().toLowerCase(); return s ? names.findIndex((n) => n.toLowerCase().includes(s)) : -1 }
+/** "Wed 4" (chips, pills, card dates). */
+export const dayLabel = (iso: string) => `${fmtDay(iso).dow} ${Number(iso.slice(8, 10))}`
+/** "Wed 4 Nov" (labels for screen readers, headers). */
+export const dateLabel = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')
 export function fmtDay(iso: string) { const d = new Date(iso + 'T00:00:00'); return { dow: d.toLocaleDateString('en-GB', { weekday: 'short' }), dm: `${d.getDate()}/${d.getMonth() + 1}` } }

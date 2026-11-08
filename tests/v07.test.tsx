@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { dueEndMs, isLate, pillVisible, modeOnOpen } from '../src/data/late'
 import { spinMonth, spinDate, spinDay, setYear } from '../src/data/dial'
-import { overviewCards, weekPath, collides, nextClassDay } from '../src/data/overview'
+import { overviewCards, allDates, collides, nextClassDay } from '../src/data/overview'
 import type { SheetState } from '../src/data/contract'
 
 const IST = (s: string) => Date.parse(s + '+05:30')
@@ -52,23 +52,30 @@ const st: SheetState = { ok: true, schema: 1,
   ],
   ticks: [{ tickId: 'a3|1', sessionId: 'a3', subjectKey: 'A_ENG_HW', classKey: 'A', roll: 1, set: true, updatedAt: '' }],
 }
-describe('v0.7j Overview (F-OV-01/02)', () => {
-  const cards = () => overviewCards(st, '2026-11-04')
+// v0.8 changed the Overview data (O2g cards, O2e All dates); the week path went (F-OV-08).
+describe('v0.8 Overview cards (F-OV-01/02)', () => {
+  const cards = () => overviewCards(st, '2026-11-04'); const card = (k: string) => cards().find((c) => c.subjectKey === k)!
   it('V07-OV-01 one card per class+subject+type, every class shown', () => expect(cards().map((c) => c.subjectKey).sort()).toEqual(['A_ENG_HW', 'A_PHO_CW', 'B_ENG_CW', 'C_ENG_HW']))
-  it('V07-OV-02 current session = today, else earliest future, else latest past', () => {
-    const by = Object.fromEntries(cards().map((c) => [c.subjectKey, c.sessionId]))
-    expect(by).toEqual({ A_ENG_HW: 'a3', B_ENG_CW: 'b1', C_ENG_HW: 'c1', A_PHO_CW: 'p1' })
+  it('V07-OV-02 a card shows today and the dates still to come this week, else the next one', () => {
+    expect(card('A_ENG_HW').dates.map((d) => d.sessionId)).toEqual(['a3', 'a4']); expect(card('A_PHO_CW').dates.map((d) => d.sessionId)).toEqual(['p1'])
+    expect(card('C_ENG_HW').dates).toEqual([])
   })
-  it('V07-OV-03 card carries type, date, topic and to-go only', () => { const a = cards().find((c) => c.subjectKey === 'A_ENG_HW')!; expect([a.kind, a.date, a.topic, a.toGo, a.total]).toEqual(['HW', '2026-11-04', 'M & N', 2, 3]) })
+  it('V07-OV-03 the first date carries done/left and topic; tapping opens it (else the latest date)', () => {
+    const a = card('A_ENG_HW'); expect([a.kind, a.dates[0]!.topic, a.dates[0]!.done, a.dates[0]!.left, a.total, a.open]).toEqual(['HW', 'M & N', 1, 2, 3, 'a3'])
+    expect(card('C_ENG_HW').open).toBe('c1')
+  })
   it('V07-OV-04 today first, then a stable order', () => { const k = cards().map((c) => c.subjectKey); expect(k.slice(0, 2).sort()).toEqual(['A_ENG_HW', 'B_ENG_CW']); expect(overviewCards(st, '2026-11-04').map((c) => c.subjectKey)).toEqual(k) })
-  it('V07-OV-05 a class with no dates still appears, with no session', () => { const s2 = { ...st, subjects: [...st.subjects, { subjectKey: 'D_ENG_CW', classKey: 'D', subject: 'English', kind: 'CW', active: true }] }; const d = overviewCards(s2, '2026-11-04').find((c) => c.subjectKey === 'D_ENG_CW')!; expect(d.sessionId).toBeNull() })
+  it('V07-OV-05 a class with no dates still appears, with nothing to open', () => { const s2 = { ...st, subjects: [...st.subjects, { subjectKey: 'D_ENG_CW', classKey: 'D', subject: 'English', kind: 'CW', active: true }] }; const d = overviewCards(s2, '2026-11-04').find((c) => c.subjectKey === 'D_ENG_CW')!; expect(d.open).toBeNull(); expect(d.dates).toEqual([]) })
+  it('V07-OV-06 amber dot when an older date still has copies to come in', () => { expect(card('A_ENG_HW').pastOpen).toBe(true); expect(card('B_ENG_CW').pastOpen).toBe(false) })
 })
-describe('v0.7j week path (F-OV-04)', () => {
-  const w = () => weekPath(st, 'A_ENG_HW', '2026-11-04')
-  it('V07-WP-01 only that class+subject', () => expect(w().flatMap((x) => x.stops).every((s) => s.sessionId.startsWith('a'))).toBe(true))
-  it('V07-WP-02 newest week first (this week, then older), Mon→Fri inside', () => { expect(w().map((x) => x.start)).toEqual(['2026-11-02', '2026-10-26']); expect(w()[0]!.stops.map((s) => s.date)).toEqual(['2026-11-02', '2026-11-04', '2026-11-06']) })
-  it('V07-WP-03 today/past/future marks', () => expect(w()[0]!.stops.map((s) => s.when)).toEqual(['past', 'today', 'future']))
-  it('V07-WP-04 week titles: This week · Last week · date range', () => expect(w().map((x) => x.title)).toEqual(['This week · 2–8 Nov', 'Last week · 26 Oct – 1 Nov']))
+describe('v0.8 All dates (F-OV-04, O2e)', () => {
+  const m = () => allDates(st, 'A_ENG_HW', '2026-11-04')
+  it('AD-01 only that class+subject, newest first', () => expect(m().flatMap((x) => x.weeks.flatMap((w) => w.rows.map((r) => r.sessionId)))).toEqual(['a4', 'a3', 'a2', 'a1']))
+  it('AD-02 months by the week\'s Monday, weeks titled with This week', () => {
+    expect(m().map((x) => x.title)).toEqual(['November 2026', 'October 2026'])
+    expect(m().map((x) => x.weeks.map((w) => w.title))).toEqual([['This week · 2–8 Nov'], ['26 Oct – 1 Nov']])
+  })
+  it('AD-03 today/past/future marks', () => expect(m()[0]!.weeks[0]!.rows.map((r) => r.when)).toEqual(['future', 'today', 'past']))
 })
 describe('v0.7 dates (F-DT-05, F-OV-05)', () => {
   it('V07-DT-01 same label same day collides; other label does not', () => { expect(collides(st, 'A_ENG_HW', '2026-11-06')).toBe(true); expect(collides(st, 'A_PHO_CW', '2026-11-06')).toBe(false) })
@@ -118,20 +125,15 @@ describe('V07-S3 quick overview', () => {
   })
 })
 
-// v0.7.0 S4 (step 3): v0.7j Overview cards
+// v0.7.0 S4 (step 3). v0.8 changed S4: O2g cards (title, count, dates row); see tests/v08.test.tsx V08-P4-*.
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 describe('S4 Overview cards (F-OV)', () => {
   afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
   const load = async () => { cleanup(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
     history.replaceState(null, '', '/?demo=school'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' })); return useApp }
-  it('S4-01 page header: date eyebrow, "Your classes", hint', async () => {
-    await load(); expect(screen.getByRole('heading', { name: 'Your classes' })).toBeTruthy(); expect(screen.getByText('Tap a class to open its checklist')).toBeTruthy()
-  })
-  it('S4-02 one squircle per class subject type with a type pill and topic, no progress or late chips', async () => {
-    await load(); const cards = screen.getAllByRole('button', { name: /open .* on checklist/i })
-    expect(cards.length).toBe(6)
-    for (const c of cards) { expect(c.querySelector('.sow-sq__pill')?.textContent).toMatch(/^(CW|HW|Test)$/); expect(c.querySelector('.sow-prog')).toBeNull(); expect(c.textContent).not.toMatch(/late/i) }
+  it('S4-02 one card per class subject type', async () => {
+    await load(); expect(screen.getAllByRole('button', { name: /open .* on checklist/i }).length).toBe(6)
   })
   it('S4-03 tapping a card opens Checklist focused on that card\'s session', async () => {
     const useApp = await load(); const card = screen.getByRole('button', { name: /open KG-C Phonics Test on checklist/i })
@@ -163,32 +165,6 @@ describe('S4b one subject per checklist + Pending only', () => {
     expect(screen.getAllByRole('row').length).toBe(10 + 1) // 10 to go + header row
     expect(screen.getAllByRole('row').length).toBeLessThan(all)
     expect(screen.queryByText(/later date/)).toBeNull()
-  })
-})
-
-// v0.7.0 S5 (step 4): week path sheet (F-OV-04)
-describe('S5 week path', () => {
-  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
-  const load = async () => { cleanup(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
-    history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' })); return useApp }
-  it('S5-01 the corner path opens the sheet without opening the checklist', async () => {
-    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
-    expect(useApp.getState().tab).toBe('overview'); expect(screen.getByRole('dialog', { name: /Week path, KG-A English HW/ })).toBeTruthy()
-    expect(document.querySelector('.sow-wp__week')?.textContent).toBe('This week · 2–8 Nov')
-  })
-  it('S5-02 shows only that subject, newest week first, today marked', async () => {
-    await load(); fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
-    const secs = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'))
-    expect(secs[0]).toMatch(/^Next week/); expect(secs[1]).toMatch(/^This week/); expect(secs[2]).toMatch(/^Last week/)
-    expect(document.querySelector('.sow-wp__stop.today .sow-wp__day')?.textContent).toBe('Today · Wed, 4 Nov')
-    for (const k of document.querySelectorAll('.sow-wp__kind')) expect(k.textContent).toBe('HW')
-  })
-  it('S5-03 tapping a stop opens that session on Checklist and closes the sheet; Esc closes', async () => {
-    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
-    fireEvent.keyDown(document.body, { key: 'Escape' }); expect(screen.queryByRole('dialog')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Week path, KG-A English HW' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Open Mon, 2 Nov on Checklist' }))
-    expect(useApp.getState().tab).toBe('checklist'); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02')
   })
 })
 
