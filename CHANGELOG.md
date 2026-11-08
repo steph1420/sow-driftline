@@ -1,4 +1,15 @@
 # Changelog
+## 0.8.0-beta.1 (2026-11-09)
+Steve t79u BUILD GO, t80u clean code; locks L-20261108b (G5d, dial3) and locked-20261108c. Beta only, demo/test copy only.
+- Checklist chrome (G5d): two-line class chip with the topic, search magnifier and ⋮ in the bar; a second row with Pending · 1|2 · bare undo/redo.
+- Glass column tabs: "14/24" over a "Wed 4 ⌄" chip on each date column, amber for past dates, a soft contained glow on the focused one. Tap the count for the still-to-come names; tap the chip for the date sheet.
+- 84 px tick columns on the phone, no column tint, a faint header glow fading by row 3, a fading divider.
+- Search sits behind the magnifier: a thin row with "n of 24" and ✕ (still ranks and jumps, never hides names).
+- The date sheet opens straight on Reschedule with the Month | Date | Day dials showing; the year is centred above the headings; ＋ New is the last chip in the strip.
+- Removed: subject heading, calendar button, Done | To go split counter, old search pill; Dates on phone moved out of the ⋮ menu.
+- Tests: 161 app (V08-P1-01..07, V08-P2-01..05 new; S6, S7 openChange, S4b-01, PC-02, D1-UI-02, V05-QS-03 changed for the new UI).
+- Rollback: set BETA_REF back to v0.7.0-beta.4 in sow-driftline-beta (backup branches backup/pre-v0.8.0-p1, backup/pre-v0.8.0-p2).
+
 ## 0.7.0-beta.4 (2026-11-08)
 - The ⋮ menu and class menu are solid again, so the content behind them no longer shows through (t123u).
 - Includes beta.3: sideways swipe, Dates on phone 1|2, date heading on phone.

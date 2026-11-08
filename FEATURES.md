@@ -23,18 +23,18 @@ House rules that apply to every feature:
 ## 1. Shell and navigation
 
 ### F-SH-01 Top bar
-- **Status:** LIVE. Redesigned in v0.6.1/v0.7 (back arrow on Checklist, class pill, Undo/Redo, ⋮).
-- **What you see:** A slim 56px bar with the class pill (class letter and subject ⌄), the Today/Upcoming/Last chip, Undo ↶, Redo ↷ and the ⋮ menu.
+- **Status:** LIVE (Beta v0.8.0-beta.1), G5d look (L-20261108b).
+- **What you see:** A slim bar with the two-line class chip ("KG-A English · HW", topic under it, ⌄, save dot), a search magnifier and ⋮. Under it on Checklist: Pending · 1|2 (phone) · bare Undo ↶ / Redo ↷.
 - **How to use it:**
-  - Tap the class pill to switch class.
-  - Tap the date chip to jump the grid back to that date.
-  - ⋮ opens the view menu.
+  - Tap the class chip to switch class / subject.
+  - Tap the magnifier to search names (F-CL-06).
+  - ⋮ opens the view menu (Weeks · Quick overview · More…).
 - **Rules:**
-  - The chip comes from `pickAnchor`: today's date if there is one, else the next upcoming date, else the last date.
-  - In v0.7 the sheet chooses the date, and the bar chip is replaced by the date header (F-CL-02).
-- **Code:** `src/shell/Bar.tsx`
-- **Tests:** `tests/shell.test.tsx`, `tests/d1.test.tsx`
-- **Mock:** `docs/mockups/v061/menu-phone-night.png`
+  - The topic is the checklist's focused date (`focusColumn`: the picked date, else today → next → last).
+  - Dates on phone 1|2 is remembered on this device (default 1).
+- **Code:** `src/shell/Bar.tsx`, `src/screens/ChecklistControls.tsx`
+- **Tests:** `tests/shell.test.tsx`, `tests/v08.test.tsx` (V08-P1-01/02)
+- **Mock:** `docs/mockups/v08/G5d-slim.png`
 - **Tour:** "This is your class. Tap it to switch."
 
 ### F-SH-02 Dock
@@ -127,7 +127,7 @@ House rules that apply to every feature:
 
 ### F-OV-05 + New date
 - **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.7b lock.
-- **What you see:** A quiet "+ New date" action. It opens the date sheet (F-DT-01), already set to the class's next class day.
+- **What you see:** "＋ New", the last chip in the date sheet strip (v0.8.0-beta.1). It opens New date, already set to the class's next class day; Cancel goes back to Reschedule.
 - **Rules:**
   - It never makes two sessions with the same label (CW/HW/Test) on the same day; it shows the collision note instead (F-DT-05).
   - Classes come from the sheet; nothing is hard-coded.
@@ -154,16 +154,18 @@ House rules that apply to every feature:
 - **Mock:** `docs/mockups/v07d/late-blue-phone-night.png`, `checklist-desktop-night.png`
 - **Tour:** "Tap a box when a copy comes in."
 
-### F-CL-02 Date header and calendar button
-- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.7d lock.
-- **What you see:** The subject as a heading, "HW · Wednesday 4 November" under it, and a calendar button that opens the date sheet (F-DT-01).
-- **Mock:** `docs/mockups/v07d/late-blue-phone-night.png`
+### F-CL-02 Glass column tabs (replaced the date header, calendar button and split counter)
+- **Status:** LIVE (Beta v0.8.0-beta.1), G5d lock.
+- **What you see:** Above each date column, a glass tab: "14/24" over a day + date chip "Wed 4 ⌄". Past dates are amber; the focused date has a soft contained blue glow.
+- **How to use it:** Tap the count for the still-to-come names of that date (quick overview). Tap the chip to open the date sheet (F-DT-01).
+- **Code:** `src/screens/ColumnTab.tsx`, `Checklist.tsx`
+- **Tests:** `tests/v08.test.tsx` (V08-P1-03/06), `tests/v07.test.tsx` (S6)
+- **Mock:** `docs/mockups/v08/G5d-slim.png`
 
-### F-CL-03 Split counter: Done | To go
-- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.6.1 lock.
-- **What you see:** One curved pill split in two, "14 Done ⌄" and "10 To go ⌄". Each half is a button that opens a tidy names panel with "Show all N".
-- **Rules:** Done plus To go always equals the number of active pupils for that session.
-- **Mock:** `docs/mockups/v061/qo2-phone-night.png`, `qo3-phone-night.png`
+### F-CL-03 Slim columns and header glow
+- **Status:** LIVE (Beta v0.8.0-beta.1), G5d lock.
+- **What you see:** 84 px tick columns on the phone (names get the rest), no column tint, a faint header glow that fades by row 3, and a fading divider under the tabs.
+- **Tests:** `tests/v08.test.tsx` (V08-P1-07)
 
 ### F-CL-04 Swipe to tick
 - **Status:** LIVE
@@ -185,15 +187,15 @@ House rules that apply to every feature:
 - **Tests:** `tests/rail.test.tsx`
 
 ### F-CL-06 Find a name (quick search)
-- **Status:** LIVE
-- **How to use it:** Tap "Find a name", press `/`, or (on desktop) just start typing.
+- **Status:** LIVE; v0.8.0-beta.1 moved it behind the bar magnifier (thin row with "n of 24" and ✕).
+- **How to use it:** Tap the magnifier, press `/`, or (on desktop) just start typing.
 - **Rules:**
   - Matches are ranked in this order: roll number, first name, other word, several words, initials, part of a name, letters in order, one typo.
   - It ranks names but never hides any.
   - A single letter jumps like the A–Z rail.
   - The found name is centred and flashes.
   - Esc or Enter closes the search.
-- **Code:** `src/data/quickSearch.ts`, `src/screens/scroll.ts`
+- **Code:** `src/data/quickSearch.ts`, `src/screens/SearchRow.tsx`, `src/screens/scroll.ts`
 - **Tests:** `tests/quickSearch.test.ts`, `tests/v05.test.tsx`
 
 ### F-CL-07 Name toast and twins
@@ -286,17 +288,17 @@ House rules that apply to every feature:
 ## 5. Dates (v0.7f/g lock)
 
 ### F-DT-01 Reschedule sheet (was Change date)
-- **Status:** LIVE (Beta v0.7.0-beta.1)
+- **Status:** LIVE (Beta v0.8.0-beta.1): opens from a column's date chip, dials always showing (dial3).
 - **What you see:**
-  - A short sheet with the existing-date chip strip; the calendar is the last chip.
+  - A short sheet with the existing-date chip strip (tap one to open that date until something has changed); "＋ New" is the last chip.
   - The quiet line "14 ticks · Letters M & N ✎".
-  - Three wheels in the order **Month | Date | Day**, a small year pill, and Cancel next to the action button.
+  - Three wheels in the order **Month | Date | Day**, the year "2026 ⌄" centred above the headings, and Cancel next to the action button.
 - **Rules:**
   - The button stays dim until something changes. Then it reads "Move to Fri 6 Nov" or "Save topic".
   - Tapping outside the sheet cancels it.
   - The edited chip updates live and has a dashed outline.
   - Ticks move with the date, and a toast appears after saving.
-- **Mock:** `docs/mockups/v07g/untouched-phone-night.png`, `edited-*`, `topic-editing-*`, `cross-year-*`, `collision-*`; `docs/mockups/v07f/*`
+- **Mock:** `docs/mockups/v08/G5d-datepanel-dial3.png`; older `docs/mockups/v07g/untouched-phone-night.png`, `edited-*`, `topic-editing-*`, `cross-year-*`, `collision-*`; `docs/mockups/v07f/*`
 
 ### F-DT-02 Wheels: Month | Date | Day
 - **Status:** LIVE (Beta v0.7.0-beta.1)
