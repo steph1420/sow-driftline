@@ -14,10 +14,11 @@ describe('shell', () => {
     expect(screen.getByRole('button', { name: 'More options' })).toBeTruthy()
   })
   // v0.7.0 S4 changed D0-SHL-02: v0.7j puts Overview first in the dock (the app still lands on Checklist).
-  it('D0-SHL-02 dock has exactly Overview, Checklist, More', () => {
+  // v0.8 changed D0-SHL-02/04: More became Settings (S1).
+  it('D0-SHL-02 dock has exactly Overview, Checklist, Settings', () => {
     render(<App />)
     const tabs = screen.getAllByRole('tab').map((t) => t.getAttribute('aria-label'))
-    expect(tabs).toEqual(['Overview', 'Checklist', 'More'])
+    expect(tabs).toEqual(['Overview', 'Checklist', 'Settings'])
   })
   // D1 changed D0-SHL-03: demo has dates, so the checklist grid shows; the empty state is covered in D1-UI-03.
   // v0.7.0 S4b changed D0-SHL-03: Steve (t101u) swapped the Today/Upcoming/Last chip for a "Pending only" pill.
@@ -28,7 +29,7 @@ describe('shell', () => {
   })
   it('D0-SHL-04 tapping a dock tab switches screen', () => {
     render(<App />)
-    fireEvent.click(screen.getByRole('tab', { name: 'More' }))
-    expect(screen.getByRole('heading', { name: 'More' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy()
   })
 })

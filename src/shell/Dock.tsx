@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { useApp, type Tab } from '../store/store'
 import { GLYPH } from '../ui/icons'
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview', icon: GLYPH.overview }, { id: 'checklist', label: 'Checklist', icon: GLYPH.tick }, { id: 'more', label: 'More', icon: GLYPH.moreDots },
+  { id: 'overview', label: 'Overview', icon: GLYPH.overview }, { id: 'checklist', label: 'Checklist', icon: GLYPH.tick }, { id: 'settings', label: 'Settings', icon: GLYPH.settings },
 ]
 export function Dock() {
   const tab = useApp((s) => s.tab); const setTab = useApp((s) => s.setTab); const reduce = useReducedMotion()

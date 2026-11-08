@@ -20,9 +20,10 @@ describe('store', () => {
     expect(localStorage.getItem('sow-driftline:copyToken:v1')).toBeNull()
     expect(useApp.getState().source).toBe('demo')
   })
+  // v0.8 changed D0-STO-02: More became Settings (S1).
   it('D0-STO-02 switches tabs', () => {
-    useApp.getState().setTab('more')
-    expect(useApp.getState().tab).toBe('more')
+    useApp.getState().setTab('settings')
+    expect(useApp.getState().tab).toBe('settings')
   })
   it('D0-STO-03 saves prefs only under the sow-driftline namespace', () => {
     useApp.getState().setSide('day')

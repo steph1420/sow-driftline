@@ -51,8 +51,8 @@ describe('V06 Overview', () => {
     const { useApp } = await import('../src/store/store'); localStorage.clear(); useApp.getState().reset()
     const { App } = await import('../src/App'); render(<App />)
     expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true')
-    fireEvent.click(screen.getByRole('tab', { name: 'More' })); cleanup(); useApp.getState().reset(); render(<App />)
-    expect(screen.getByRole('tab', { name: 'More' }).getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' })); cleanup(); useApp.getState().reset(); render(<App />) // v0.8: More became Settings
+    expect(screen.getByRole('tab', { name: 'Settings' }).getAttribute('aria-selected')).toBe('true')
   })
 })
 

@@ -109,8 +109,9 @@ describe('V05 keyboard', () => {
 })
 
 describe('V05 channel + devices', () => {
-  it('V05-CH-01 More has a Stable/Beta switch pointing at the two sites', async () => {
-    const { channelUrl } = await import('../src/screens/More')
+  // v0.8 changed V05-CH-01: the switch lives in Settings › Developer options; channelUrl moved to config.
+  it('V05-CH-01 the Stable/Beta switch points at the two sites', async () => {
+    const { channelUrl } = await import('../src/config')
     expect(channelUrl('stable', 'https://steph1420.github.io')).toBe('https://steph1420.github.io/sow-driftline/')
     expect(channelUrl('beta', 'https://steph1420.github.io')).toBe('https://steph1420.github.io/sow-driftline-beta/')
   })

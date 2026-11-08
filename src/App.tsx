@@ -6,18 +6,14 @@ import { Overview } from './screens/Overview'
 import { QuickOverview } from './screens/QuickOverview'
 import { dateColsFor } from './data/model'
 import { Checklist } from './screens/Checklist'
-import { More } from './screens/More'
+import { Settings } from './screens/settings/Settings'
 import { todayIso } from './data/today'
-import { CONFIG } from './config'
+import { APP_VERSION, CONFIG, FLAVOR_LABEL } from './config'
+import { themeFor } from './shell/theme'
 import { isMod, isTypingTarget } from './screens/keyboard'
 
-declare const __APP_VERSION__: string
-declare const __APP_FLAVOR__: string
-const VERSION = typeof __APP_VERSION__ === 'undefined' ? 'test' : __APP_VERSION__
-const FLAVOR = typeof __APP_FLAVOR__ === 'undefined' ? 'stable' : __APP_FLAVOR__
-
 export function App() {
-  const tab = useApp((s) => s.tab); const side = useApp((s) => s.side)
+  const tab = useApp((s) => s.tab); const side = useApp((s) => s.side); const contrast = useApp((s) => s.contrast)
   const data = useApp((s) => s.data); const cls = useApp((s) => s.currentClass); const jump = useApp((s) => s.jump); const source = useApp((s) => s.source); const tick = useApp((s) => s.tick); const dev = useApp((s) => s.dev); const view = useApp((s) => s.view); const focus = useApp((s) => s.focus); const subject = useApp((s) => s.subject); const pending = useApp((s) => s.pending)
   const [land, setLand] = useState(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight)
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth >= CONFIG.layout.desktopMinWidthPx)
@@ -30,18 +26,18 @@ export function App() {
   }, [])
   useEffect(() => {
     const mq = window.matchMedia?.('(prefers-color-scheme: light)')
-    const apply = () => { document.documentElement.dataset.theme = `utopian-${side === 'system' ? (mq?.matches ? 'day' : 'night') : side}` }
+    const apply = () => { document.documentElement.dataset.theme = themeFor(side, contrast, !!mq?.matches) }
     apply(); mq?.addEventListener?.('change', apply); return () => mq?.removeEventListener?.('change', apply)
-  }, [side])
+  }, [side, contrast])
   const layout = wide ? 'desktop' : 'phone'; const dateCols = dateColsFor({ layout, landscape: land, weeks: view.weeks, phoneCols: view.phoneCols })
   return (
     <>
-      {tab !== 'overview' && <Bar />}{/* v0.7j: Overview is all classes, so no class bar */}
+      {tab === 'checklist' && <Bar />}{/* the class bar belongs to Checklist only (v0.7j Overview, v0.8 S1 Settings) */}
       <main className="sow-main">
         {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} onQuick={() => useApp.getState().setQuick(true)} today={todayIso()} layout={layout} jump={jump} focusSessionId={focus} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateCols} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
         {tab === 'overview' && <Overview />}
-        {tab === 'more' && <More />}
-        <p className="sow-foot">Driftline · {FLAVOR === 'beta' ? 'Beta' : 'Stable'} · v{VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>
+        {tab === 'settings' && <Settings />}
+        <p className="sow-foot">Driftline · {FLAVOR_LABEL} · v{APP_VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>
       </main>
       {tab === 'checklist' && <QuickOverview layout={layout} dateCols={dateCols} />}
       <Dock />

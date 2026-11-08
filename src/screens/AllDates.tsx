@@ -4,6 +4,7 @@ import { useApp } from '../store/store'
 import { allDates, type Card, type OvDate } from '../data/overview'
 import { dateLabel, dayLabel } from '../data/model'
 import { GLYPH, Icon } from '../ui/icons'
+import { PageHead } from '../ui/PageHead'
 
 type Props = { card: Card; today: string; onBack: () => void; onOpen: (sessionId: string) => void; onAdd: () => void; onShare: () => void }
 const count = (d: OvDate, total: number) => (d.when === 'future' ? '—' : d.left === 0 ? `${total} ${GLYPH.tick}` : `${d.done}/${total}`)
@@ -12,12 +13,10 @@ const said = (d: OvDate, total: number) => `${dateLabel(d.date)}${d.when === 'to
 export function AllDates({ card, today, onBack, onOpen, onAdd, onShare }: Props) {
   const data = useApp((s) => s.data); const months = allDates(data, card.subjectKey, today)
   return (<div className="sow-ad">
-    <header className="sow-ad__head">
-      <button className="sow-ib sow-bare" aria-label="Back to Overview" onClick={onBack}>{GLYPH.back}</button>
-      <div className="sow-ad__titles"><h1 className="sow-ad__title">{card.label} · {card.subject} {card.kind}</h1><span className="sow-ad__sub">All dates · newest first</span></div>
-      <button className="sow-ad__add" onClick={onAdd}>{GLYPH.plus} Add date</button>
+    <PageHead title={`${card.label} · ${card.subject} ${card.kind}`} sub="All dates · newest first" backLabel="Back to Overview" onBack={onBack}>
+      <button className="sow-page__action" onClick={onAdd}>{GLYPH.plus} Add date</button>
       {card.open && <button className="sow-ib sow-bare" aria-label="Share" onClick={onShare}><Icon name="share" /></button>}
-    </header>
+    </PageHead>
     <div className="dl-card sow-ad__list">{months.map((m) => <section key={m.key} aria-label={m.title}>
       <h2 className="sow-ad__month">{m.title}</h2>
       {m.weeks.map((w) => <div key={w.start}><div className="sow-ad__week">{w.title}</div>

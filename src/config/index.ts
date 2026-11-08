@@ -1,7 +1,12 @@
 // One config module (06 rule 6). Every timing/layout number lives here; Developer options will override later.
 declare const __APP_FLAVOR__: string
+declare const __APP_VERSION__: string
 export type Flavor = 'stable' | 'beta'
 export const FLAVOR: Flavor = typeof __APP_FLAVOR__ !== 'undefined' && __APP_FLAVOR__ === 'beta' ? 'beta' : 'stable'
+export const APP_VERSION = typeof __APP_VERSION__ === 'undefined' ? 'test' : __APP_VERSION__
+export const FLAVOR_LABEL = FLAVOR === 'beta' ? 'Beta' : 'Stable'
+/** v0.5 release channel switch: Stable and Beta live side by side on the same origin. */
+export const channelUrl = (ch: Flavor, origin = location.origin) => `${origin}/${ch === 'beta' ? 'sow-driftline-beta' : 'sow-driftline'}/`
 /** v0.5: Beta and Stable share the github.io origin, so they must never share keys (token, outbox, tabs channel). */
 export const namespaceFor = (f: Flavor) => (f === 'beta' ? 'sow-driftline-beta' : 'sow-driftline')
 export const CONFIG = {

@@ -17,11 +17,14 @@ import { History } from '../sync/history'
 import { createPoller } from '../sync/poller'
 import { listSnapshots, restoreOps, takeSnapshot, type Snapshot } from '../sync/snapshots'
 
-export type Tab = 'checklist' | 'overview' | 'more'
+export type Tab = 'checklist' | 'overview' | 'settings'
 export type Side = 'night' | 'day' | 'system'
+export type Contrast = 'standard' | 'high'
+/** F-SH-06: a new version is waiting; `apply` reloads into it (only ever on the teacher's tap). */
+export type Update = { ready: boolean; apply: (() => void) | null; checkedAt: number | null }
 export type ClassInfo = { classKey: string; label: string; subject: string }
 type State = {
-  tab: Tab; side: Side; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
+  tab: Tab; side: Side; contrast: Contrast; setContrast: (c: Contrast) => void; update: Update; setUpdate: (u: Partial<Update>) => void; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
   data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; find: string | null; setFind: (q: string | null) => void; openedAt: number; openSession: (classKey: string, sessionId: string) => void
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
   view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
@@ -50,7 +53,7 @@ const nowIso = () => { lastMs = Math.max(Date.now(), lastMs + 1); return new Dat
 const loadDev = (): Dev => { try { return { railSide: 'right', railBubble: true, swipeTick: true, ...JSON.parse(localStorage.getItem(DEV) || '{}') } } catch { return { railSide: 'right', railBubble: true, swipeTick: true } } }
 const EDITS = () => storageKey(`edits-${src()}${wantsSchool() ? '-school' : ''}`); const MARKS = () => storageKey(`marks-${src()}${wantsSchool() ? '-school' : ''}`); const HINTS = storageKey('hints')
 const LASTTAB = storageKey('lastTab')
-const loadTab = (): Tab => { try { const v = localStorage.getItem(LASTTAB); return v === 'checklist' || v === 'overview' || v === 'more' ? v : 'overview' } catch { return 'overview' } }
+const loadTab = (): Tab => { try { const v = localStorage.getItem(LASTTAB); return v === 'checklist' || v === 'overview' ? v : v === 'settings' || v === 'more' /* v0.8: More became Settings */ ? 'settings' : 'overview' } catch { return 'overview' } }
 const loadJson = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d } catch { return d } }
 const loadEdits = (): SessionEdit[] => loadJson(EDITS(), [] as SessionEdit[]); const loadMarks = (): Marks => loadJson(MARKS(), {} as Marks)
 /** Undo order across ticks and date edits (in memory). */
@@ -69,10 +72,13 @@ function syncLoop(on: boolean) {
 }
 const forceDemo = () => typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo')
 const token = () => (forceDemo() ? null : localStorage.getItem(TOKEN))
-function loadSide(): Side {
-  const u = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('side') : null; if (u === 'night' || u === 'day') return u // stills
-  try { const v = JSON.parse(localStorage.getItem(PREFS) || '{}').side; return v === 'night' || v === 'day' ? v : 'system' } catch { return 'system' }
+type Prefs = { side: Side; contrast: Contrast }
+function loadPrefs(): Prefs {
+  const p = loadJson<Partial<Prefs>>(PREFS, {}); const u = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('side') : null
+  const side = u === 'night' || u === 'day' ? u /* stills */ : p.side === 'night' || p.side === 'day' ? p.side : 'system'
+  return { side, contrast: p.contrast === 'high' ? 'high' : 'standard' }
 }
+const savePrefs = (p: Partial<Prefs>) => { const s = useApp.getState(); localStorage.setItem(PREFS, JSON.stringify({ side: s.side, contrast: s.contrast, ...p })) }
 export const labelOf = (k: string) => (k === 'demo' ? 'KG-A' : k.replace(/^KG[-_ ]?([A-Z])\b.*/i, 'KG-$1'))
 export const firstSubject = (d: SheetState, k: string) => d.subjects.find((x) => x.classKey === k && x.active)?.subjectKey ?? ''
 function withData(raw: SheetState, prev?: string, prevSubject?: string) {
@@ -83,11 +89,13 @@ function withData(raw: SheetState, prev?: string, prevSubject?: string) {
   return { data, classes, currentClass, subject: keep ? prevSubject! : firstSubject(data, currentClass) }
 }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, hints: loadJson(HINTS, [] as string[]), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, hints: loadJson(HINTS, [] as string[]), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
-  setSide: (side) => { localStorage.setItem(PREFS, JSON.stringify({ side })); set({ side }) },
+  setSide: (side) => { savePrefs({ side }); set({ side }) },
+  setContrast: (contrast) => { savePrefs({ contrast }); set({ contrast }) },
+  setUpdate: (u) => set({ update: { ...get().update, ...u } }),
   setClass: (currentClass) => set({ currentClass, subject: firstSubject(get().data, currentClass), focus: null, find: null }),
   setSubject: (subjectKey) => { const x = get().data.subjects.find((y) => y.subjectKey === subjectKey); if (x) set({ currentClass: x.classKey, subject: subjectKey, focus: null, jump: get().jump + 1 }) },
   setPending: (pending) => set({ pending }),
