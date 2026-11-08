@@ -59,3 +59,32 @@ describe('P1 checklist chrome (G5d)', () => {
     for (const sel of ['.sow-tab__n', '.sow-tab__d']) expect(new RegExp(`\\${sel} \\{[^}]*min-height: var\\(--dl-hit-min\\)`).test(css)).toBe(true)
   })
 })
+
+describe('P2 date sheet from the column chip (dial3)', () => {
+  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/'); phone(1024) })
+  const chip = () => fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' }))
+  it('V08-P2-01 the chip opens Reschedule with the strip, topic line and dials already showing; the action is dim', async () => {
+    await open(); chip()
+    expect(screen.getByRole('dialog', { name: 'Reschedule' })).toBeTruthy(); expect(screen.getByRole('listbox', { name: 'Existing dates' })).toBeTruthy()
+    for (const n of ['Month', 'Date', 'Day']) expect(screen.getByRole('spinbutton', { name: n })).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Move date' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('V08-P2-02 tapping another date in the strip opens it and changes no data', async () => {
+    const useApp = await open(); const before = JSON.stringify(useApp.getState().data); chip()
+    fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    expect(screen.queryByRole('dialog')).toBeNull(); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02'); expect(JSON.stringify(useApp.getState().data)).toBe(before)
+  })
+  it('V08-P2-03 once a dial has moved, the strip stops switching dates', async () => {
+    const useApp = await open(); chip(); fireEvent.click(screen.getByRole('button', { name: 'Day Thu' }))
+    fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' })); expect(screen.getByRole('dialog')).toBeTruthy(); expect(useApp.getState().focus).not.toBe('KG-A_ENG_HW|2026-11-02')
+  })
+  it('V08-P2-04 ＋ New date at the end of the strip opens New date; Cancel goes back to Reschedule', async () => {
+    await open(); chip(); fireEvent.click(screen.getByRole('button', { name: 'New date' }))
+    expect(screen.getByRole('dialog', { name: 'New date' })).toBeTruthy(); fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('dialog', { name: 'Reschedule' })).toBeTruthy()
+  })
+  it('V08-P2-05 the year sits centred above the headings', () => {
+    const css = readFileSync('src/shell/shell.css', 'utf8')
+    expect(/\.sow-wh__top \{[^}]*justify-content: center/.test(css)).toBe(true)
+  })
+})
