@@ -33,13 +33,13 @@ type State = {
   marks: Marks; markMode: MarkMode; setMarkMode: (m: MarkMode) => void; lateToast: number; hints: string[]; dismissHint: (id: string) => void
   setToken: (t: string) => void; unpair: () => void; pair: (code: string) => Promise<void>; refresh: () => Promise<void>; reset: () => void
 }
-export type View = { weeks: boolean }
+export type View = { weeks: boolean; phoneCols: 1 | 2 } // t122u: phoneCols
 export type Marks = Record<string, { at: string; back?: boolean }>
 export type Dev = { railSide: 'right' | 'left'; railBubble: boolean; swipeTick: boolean }
 const PREFS = storageKey('prefs'); const TOKEN = storageKey('copyToken'); const BRIDGE = storageKey('copyBridge'); const DEV = storageKey('dev')
 const demoTicksKey = () => storageKey(wantsSchool() ? 'demoTicksSchool' : 'demoTicks')
 const demoBase = () => (wantsSchool() ? schoolState(todayIso()) : DEMO_STATE); const VIEW = storageKey('view')
-const loadView = (): View => { try { return { weeks: false, ...JSON.parse(localStorage.getItem(VIEW) || '{}') } } catch { return { weeks: false } } }; const DEVNAME = storageKey('deviceName')
+const loadView = (): View => { try { return { weeks: false, phoneCols: 1, ...JSON.parse(localStorage.getItem(VIEW) || '{}') } } catch { return { weeks: false, phoneCols: 1 } } }; const DEVNAME = storageKey('deviceName')
 const guessName = () => { const u = typeof navigator !== 'undefined' ? navigator.userAgent : ''; return /iPad/.test(u) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android phone' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows PC' : 'This device' }
 const src = () => (token() ? 'copy' : 'demo') as 'copy' | 'demo'
 const hist = () => new History(localStorage, storageKey(`undo-${src()}`))

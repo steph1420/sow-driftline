@@ -2,7 +2,7 @@
 import { useApp } from '../store/store'
 import { GLYPH } from '../ui/icons'
 export const HINTS: Record<string, string> = {
-  swipe: 'Swipe down the ticks to mark several',
+  swipe: 'Swipe sideways on a box to tick it',
   grip: 'Hold the A–Z strip and slide to jump to a name',
   quick: 'Swipe up from the bottom for a quick look',
   path: 'Tap the little path to see this class’s week',

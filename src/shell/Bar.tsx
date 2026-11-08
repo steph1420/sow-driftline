@@ -21,6 +21,8 @@ export function Bar() {
       {menu && <div className="dl-card sow-menu sow-menu--end" role="menu">
         <button role="switch" aria-checked={s.view.weeks} className="dl-row dl-row--btn" onClick={() => s.setView({ weeks: !s.view.weeks })}>
           <span>Weeks<small className="sow-note dl-muted"> · many dates, desktop &amp; phone sideways</small></span><span className="sow-sp" /><span className={`sow-switch${s.view.weeks ? ' on' : ''}`} aria-hidden /></button>
+        <div className="dl-row sow-pcols" role="group" aria-label="Dates on phone">{/* t122u */}<span>Dates on phone</span><span className="sow-sp" />
+          {([1, 2] as const).map((n) => <button key={n} className={`dl-chip dl-chip--btn sow-chip${s.view.phoneCols === n ? ' on' : ''}`} aria-pressed={s.view.phoneCols === n} onClick={() => s.setView({ phoneCols: n })}>{n}</button>)}</div>
         <button role="menuitem" className="dl-row dl-row--btn" onClick={() => { setMenu(false); s.setTab('checklist'); s.setQuick(true) }}>Quick overview <span className="sow-sp" /><kbd className="sow-kbd">⇧O</kbd></button>
         <button role="menuitem" className="dl-row dl-row--btn" onClick={() => { setMenu(false); s.setTab('more') }}>More…</button>
       </div>}

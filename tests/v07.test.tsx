@@ -317,7 +317,32 @@ describe('S7–S10 dates, late and hints', () => {
   })
   it('S10-01 hints show one at a time and each ✕ is remembered', async () => {
     const useApp = await load(); const h = () => document.querySelector('.sow-hint span')?.textContent
-    expect(h()).toMatch(/Swipe down the ticks/); fireEvent.click(screen.getByRole('button', { name: 'Got it, hide this hint' }))
+    expect(h()).toMatch(/Swipe sideways/); fireEvent.click(screen.getByRole('button', { name: 'Got it, hide this hint' }))
     expect(h()).toMatch(/A–Z strip/); useApp.getState().reset(); expect(useApp.getState().hints).toEqual(['swipe'])
+  })
+})
+
+// t122u: Dates on phone 1 | 2, date heading visible above the ticks
+describe('t122u phone columns', () => {
+  it('PC-01 dateColsFor honours phoneCols on the phone only', async () => {
+    const { dateColsFor } = await import('../src/data/model')
+    expect(dateColsFor({ layout: 'phone', landscape: false, weeks: false, phoneCols: 2 })).toBe(2)
+    expect(dateColsFor({ layout: 'phone', landscape: false, weeks: false })).toBe(1)
+    expect(dateColsFor({ layout: 'desktop', landscape: true, weeks: false, phoneCols: 2 })).toBe(3)
+  })
+  it('PC-02 the ⋮ menu switches Dates on phone to 2 and it is remembered', async () => {
+    const { useApp } = await import('../src/store/store'); const { App } = await import('../src/App')
+    const { render: r, screen: sc, fireEvent: fe, cleanup: cl } = await import('@testing-library/react')
+    cl(); localStorage.clear(); useApp.getState().reset(); useApp.getState().setTab('checklist'); r(<App />)
+    fe.click(sc.getByRole('button', { name: 'More options' }))
+    fe.click(sc.getByRole('group', { name: 'Dates on phone' }).querySelectorAll('button')[1]!)
+    expect(useApp.getState().view.phoneCols).toBe(2); useApp.getState().reset(); expect(useApp.getState().view.phoneCols).toBe(2)
+  })
+  it('PC-03 with one date the column heading still shows the date', async () => {
+    const { useApp } = await import('../src/store/store'); const { App } = await import('../src/App')
+    const { render: r, cleanup: cl } = await import('@testing-library/react')
+    cl(); localStorage.clear(); useApp.getState().reset(); useApp.getState().setTab('checklist'); r(<App />)
+    const th = Array.from(document.querySelectorAll('thead th')).slice(1)
+    expect(th.length).toBeGreaterThan(0); expect(th[0]!.querySelector('.sow-sr')).toBeNull(); expect(th[0]!.textContent).toMatch(/\d+\/\d+/)
   })
 })

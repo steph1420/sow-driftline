@@ -10,9 +10,10 @@ export function pickAnchor(dates: string[], today: string): { kind: AnchorKind; 
 }
 export type Layout = 'phone' | 'desktop'
 /** v0.6 (t169u): Weeks = the wide many-date grid. Off by default; only desktop + phone landscape. */
-export function dateColsFor(o: { layout: Layout; landscape: boolean; weeks: boolean }): number {
+// t122u: phone upright shows 1 or 2 date columns, Steve's choice (default 1)
+export function dateColsFor(o: { layout: Layout; landscape: boolean; weeks: boolean; phoneCols?: 1 | 2 }): number {
   if (o.weeks && (o.layout === 'desktop' || o.landscape)) return CONFIG.layout.desktopDateCols
-  return o.layout === 'desktop' ? CONFIG.layout.desktopCalmDateCols : CONFIG.layout.phoneMaxDateCols
+  return o.layout === 'desktop' ? CONFIG.layout.desktopCalmDateCols : (o.phoneCols ?? CONFIG.layout.phoneMaxDateCols)
 }
 export function visibleCols(total: number, end: number, layout: Layout, cols?: number): number[] {
   const n = cols ?? (layout === 'phone' ? CONFIG.layout.phoneMaxDateCols : CONFIG.layout.desktopDateCols)

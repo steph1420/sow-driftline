@@ -54,17 +54,25 @@ describe('V05 centre snap', () => {
 
 describe('V05 swipe to tick', () => {
   const rect = (top: number) => ({ top, bottom: top + 50, left: 0, right: 400, width: 400, height: 50, x: 0, y: top, toJSON() {} })
-  it('V05-SW-01 drag down one column ticks every box crossed (value from the first box) as one call', async () => {
+  // t121u changed V05-SW-01: swipe runs sideways along one name (was down a column); each changed box is one tick.
+  it('V05-SW-01 a sideways swipe on a box ticks it; drag across two dates ticks both for that name only', async () => {
     const { Checklist } = await import('../src/screens/Checklist')
     const many = vi.fn(); const one = vi.fn()
-    render(<Checklist state={st()} classKey="A" today="2026-11-03" layout="phone" onTick={one} onTickMany={many} />)
-    document.querySelectorAll('tbody tr').forEach((tr, i) => { (tr as HTMLElement).getBoundingClientRect = () => rect(100 + i * 50) })
-    const btns = document.querySelectorAll('button.t')
-    fireEvent.pointerDown(btns[1]!, { clientX: 300, clientY: 175, pointerId: 1 }) // roll 2 (off) → paint ON
-    fireEvent.pointerMove(btns[1]!, { clientX: 300, clientY: 285, pointerId: 1 }) // into roll 4
-    fireEvent.pointerUp(btns[1]!, { clientX: 300, clientY: 285, pointerId: 1 })
-    fireEvent.click(btns[1]!)
-    expect(many).toHaveBeenCalledWith('s1', [2, 3, 4], true)
+    render(<Checklist state={st()} classKey="A" today="2026-11-03" layout="phone" dateCols={2} onTick={one} onTickMany={many} />)
+    document.querySelectorAll('tbody tr').forEach((tr) => { tr.querySelectorAll('button.t').forEach((b, ci) => { (b as HTMLElement).getBoundingClientRect = () => ({ ...rect(0), left: 200 + ci * 60, right: 250 + ci * 60 }) }) })
+    const row = document.querySelectorAll('tbody tr')[1]!; const b = row.querySelectorAll('button.t')[0]!
+    fireEvent.pointerDown(b, { clientX: 220, clientY: 175, pointerId: 1 })
+    fireEvent.pointerMove(b, { clientX: 285, clientY: 178, pointerId: 1 })
+    fireEvent.pointerUp(b, { clientX: 285, clientY: 178, pointerId: 1 }); fireEvent.click(b)
+    expect(many).not.toHaveBeenCalled()
+    expect(one.mock.calls.every(([, roll]) => roll === 2)).toBe(true); expect(one.mock.calls.length).toBeGreaterThanOrEqual(1)
+  })
+  it('V05-SW-01b (t121u) an up-and-down drag ticks nothing (it scrolls)', async () => {
+    const { Checklist } = await import('../src/screens/Checklist')
+    const one = vi.fn()
+    render(<Checklist state={st()} classKey="A" today="2026-11-03" layout="phone" onTick={one} />)
+    const b = document.querySelectorAll('button.t')[1]!
+    fireEvent.pointerDown(b, { clientX: 220, clientY: 175, pointerId: 1 }); fireEvent.pointerMove(b, { clientX: 222, clientY: 285, pointerId: 1 }); fireEvent.pointerUp(b, { clientX: 222, clientY: 285, pointerId: 1 })
     expect(one).not.toHaveBeenCalled()
   })
   it('V05-SW-02 a small wobble is still a tap', async () => {

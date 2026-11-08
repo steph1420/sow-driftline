@@ -76,7 +76,7 @@
 .sow-kbd { margin-left: auto; font-size: var(--dl-type-caption-size); color: var(--dl-color-text-faint); }
 .sow-qs { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--sow-bar-height) + var(--dl-space-3)); z-index: var(--dl-z-sheet); display: flex; align-items: center; gap: var(--dl-space-2); min-height: var(--dl-hit-comfortable); width: min(calc(100% - var(--dl-space-16)), calc(var(--dl-space-16) * 6)); padding: 0 var(--dl-space-4); border-radius: var(--dl-radius-pill); background: var(--dl-color-surface-solid); box-shadow: inset 0 0 0 1px var(--dl-color-accent), var(--dl-color-shadow); color: var(--dl-color-accent); } /* token-ok: 1px ring */
 .sow-qs input { flex: 1; border: 0; outline: none; background: transparent; color: var(--dl-color-text); font: inherit; font-size: var(--dl-type-headline-size); min-height: var(--dl-hit-min); }
-.sow-grid.swipe button.t { touch-action: none; }
+.sow-grid.swipe button.t { touch-action: pan-y; } /* t121u: sideways swipe ticks, up-and-down scrolls */
 .sow-grid button.t.paint { outline: 2px solid var(--dl-color-accent); outline-offset: 2px; } /* token-ok: focus-style ring */
 .sow-grid tr.flash td.n { animation: sow-flash var(--dl-motion-slow, 1.2s) ease-out; color: var(--dl-color-accent); }
 @keyframes sow-flash { from { background: var(--dl-chip-accent-bg); } to { background: transparent; } }
@@ -273,3 +273,8 @@
 .sow-mode ~ .sow-hint { display: none; }
 .sow-ov .sow-hint { position: static; width: auto; margin: 0 0 var(--dl-space-3); max-width: none; justify-content: space-between; }
 .sow-hint__x { min-width: var(--dl-hit-min); min-height: var(--dl-hit-min); border: 0; background: none; color: var(--dl-color-text-muted); font: inherit; cursor: pointer; border-radius: var(--dl-radius-pill); }
+
+/* t122u: Dates on phone 1 | 2 */
+.sow-pcols { display: flex; align-items: center; gap: var(--dl-space-2); }
+.sow-pcols .sow-chip { min-width: var(--dl-hit-min); justify-content: center; }
+.sow-pcols .sow-chip.on { background: var(--dl-color-accent-fill); color: var(--dl-color-on-accent); }

@@ -1,4 +1,10 @@
 # Changelog
+## 0.7.0-beta.3 — 2026-11-08
+Steve t119u–t122u. Beta only.
+- Swipe to tick now runs sideways along one name's row: on the phone with one date it ticks that box; across two dates it ticks that name on both. Up-and-down just scrolls.
+- ⋮ menu: "Dates on phone 1 | 2", remembered on this device (default 1).
+- The date heading (e.g. "HW · Wed 4/11") shows above the tick column on the phone too.
+- Tests: 149 app (V05-SW-01 changed for the new direction).
 ## 0.7.0-beta.2 — 2026-11-08
 Steve t112u/t113u. Beta only.
 - The app opens on Overview the first time, then reopens on the last tab used on this device.
