@@ -22,7 +22,13 @@ type Props = { state: SheetState; classKey: string; today: string; layout: Layou
   onTick?: (sessionId: string, roll: number) => void; onTickMany?: (sessionId: string, rolls: number[], value: boolean) => void
   railSide?: Side; railBubble?: boolean; onRailSide?: (s: Side) => void; swipe?: boolean; dateCols?: number; focusSessionId?: string | null; subjectKey?: string | null; pendingOnly?: boolean; onPick?: (sessionId: string) => void; onQuick?: () => void }
 // t119u/t121u: swipe is sideways along one name's row (was down a column); up-and-down scrolls
-type Paint = { roll: number; r: number; start: number; value: boolean; x0: number; y0: number; engaged: boolean; sids: string[] }
+type Paint = { roll: number; r: number; start: number; to: number; value: boolean; x0: number; y0: number; engaged: boolean; sids: string[] }
+/** The box under x; past either end it is the end box, in a gap it stays where it was (B-P10-SWIPE overshoot). */
+function boxAt(btns: HTMLElement[], x: number, was: number): number {
+  const r = btns.map((b) => b.getBoundingClientRect()); const at = r.findIndex((q) => x >= q.left && x <= q.right)
+  if (at >= 0 || !r.length) return at >= 0 ? at : was
+  return x < r[0]!.left ? 0 : x > r[r.length - 1]!.right ? r.length - 1 : was
+}
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
 export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols, focusSessionId = null, subjectKey = null, pendingOnly = false, onPick, onQuick }: Props) {
   const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
@@ -87,15 +93,14 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const colSids = cols.map((i) => c.columns[i]!.sessionId)
   const down = (e: React.PointerEvent, sid: string, roll: number, on: boolean) => {
     if (!swipe || !onTick) return
-    paint.current = { roll, r: c.pupils.findIndex((p) => p.roll === roll), start: colSids.indexOf(sid), value: !on, x0: e.clientX, y0: e.clientY, engaged: false, sids: [sid] }
+    paint.current = { roll, r: c.pupils.findIndex((p) => p.roll === roll), start: colSids.indexOf(sid), to: colSids.indexOf(sid), value: !on, x0: e.clientX, y0: e.clientY, engaged: false, sids: [sid] }
   }
   const move = (e: React.PointerEvent) => {
     const p = paint.current; if (!p) return
     const dx = Math.abs(e.clientX - p.x0), dy = Math.abs(e.clientY - p.y0)
-    if (!p.engaged) { if (dy > dx && dy >= CONFIG.timing.swipeEngagePx) { paint.current = null; return } if (dx < CONFIG.timing.swipeEngagePx) return; p.engaged = true; (e.currentTarget as Element).releasePointerCapture?.(e.pointerId) }
+    if (!p.engaged) { if (dy > dx && dy >= CONFIG.timing.swipeEngagePx) { paint.current = null; return } if (dx < CONFIG.timing.swipeEngagePx) return; p.engaged = true; (e.currentTarget as Element).setPointerCapture?.(e.pointerId) } // keep the pointer: the finger usually ends off the box (B-P10-SWIPE)
     const btns = Array.from(rows.current[p.r]?.querySelectorAll('button.t') ?? []) as HTMLElement[]
-    const at = btns.findIndex((b) => { const q = b.getBoundingClientRect(); return e.clientX >= q.left && e.clientX <= q.right })
-    const to = at < 0 ? p.start : at; const [lo, hi] = to < p.start ? [to, p.start] : [p.start, to]
+    p.to = boxAt(btns, e.clientX, p.to); const [lo, hi] = p.to < p.start ? [p.to, p.start] : [p.start, p.to]
     p.sids = colSids.slice(lo, hi + 1); setPainted({ roll: p.roll, sids: p.sids, value: p.value })
   }
   const up = () => {

@@ -68,6 +68,29 @@ describe('V05 swipe to tick', () => {
     expect(many).not.toHaveBeenCalled()
     expect(one.mock.calls.every(([, roll]) => roll === 2)).toBe(true); expect(one.mock.calls.length).toBeGreaterThanOrEqual(1)
   })
+  it('BK-SW-01 (P10) once a swipe engages, the box keeps the pointer, so a swipe that ends off the box still ticks', async () => {
+    const { Checklist } = await import('../src/screens/Checklist')
+    const one = vi.fn()
+    render(<Checklist state={st()} classKey="A" today="2026-11-03" layout="phone" onTick={one} />)
+    const b = document.querySelectorAll('button.t')[1]! as HTMLElement & { setPointerCapture: (id: number) => void; releasePointerCapture: (id: number) => void }
+    const calls: string[] = []; b.setPointerCapture = () => { calls.push('set') }; b.releasePointerCapture = () => { calls.push('release') }
+    b.getBoundingClientRect = () => ({ ...rect(150), left: 300, right: 350 })
+    fireEvent.pointerDown(b, { clientX: 340, clientY: 175, pointerId: 3 }); fireEvent.pointerMove(b, { clientX: 250, clientY: 176, pointerId: 3 })
+    expect(calls).toEqual(['set'])
+    fireEvent.pointerUp(b, { clientX: 230, clientY: 176, pointerId: 3 }); expect(one).toHaveBeenCalledTimes(1)
+  })
+  it('BK-SW-02 (P10) a two-date swipe that overshoots past the last box still covers both dates', async () => {
+    const { Checklist } = await import('../src/screens/Checklist')
+    const one = vi.fn()
+    const two = st(); two.sessions.push({ ...two.sessions[0]!, sessionId: 's0', date: '2026-11-02' })
+    render(<Checklist state={two} classKey="A" today="2026-11-03" layout="phone" dateCols={2} onTick={one} />)
+    document.querySelectorAll('tbody tr').forEach((tr) => { tr.querySelectorAll('button.t').forEach((b, ci) => { (b as HTMLElement).getBoundingClientRect = () => ({ ...rect(0), left: 200 + ci * 60, right: 250 + ci * 60 }) }) })
+    expect(document.querySelectorAll('tbody tr')[1]!.querySelectorAll('button.t').length).toBe(2)
+    const b = document.querySelectorAll('tbody tr')[1]!.querySelectorAll('button.t')[1]!
+    fireEvent.pointerDown(b, { clientX: 300, clientY: 175, pointerId: 4 }); fireEvent.pointerMove(b, { clientX: 220, clientY: 176, pointerId: 4 }); fireEvent.pointerMove(b, { clientX: 120, clientY: 176, pointerId: 4 })
+    fireEvent.pointerUp(b, { clientX: 120, clientY: 176, pointerId: 4 })
+    expect(new Set(one.mock.calls.map(([sid]) => sid)).size).toBe(2)
+  })
   it('V05-SW-01b (t121u) an up-and-down drag ticks nothing (it scrolls)', async () => {
     const { Checklist } = await import('../src/screens/Checklist')
     const one = vi.fn()
