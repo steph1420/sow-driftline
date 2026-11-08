@@ -60,8 +60,11 @@ const LASTTAB = storageKey('lastTab')
 const loadTab = (): Tab => { try { const v = localStorage.getItem(LASTTAB); return v === 'checklist' || v === 'overview' ? v : v === 'settings' || v === 'more' /* v0.8: More became Settings */ ? 'settings' : 'overview' } catch { return 'overview' } }
 const loadJson = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d } catch { return d } }
 const loadEdits = (): SessionEdit[] => loadJson(EDITS(), [] as SessionEdit[]); const loadMarks = (): Marks => loadJson(MARKS(), {} as Marks)
-/** Undo order across ticks and date edits (in memory). */
-let order: ('tick' | 'edit')[] = []
+/** Undo and redo order across ticks and date edits (in memory); undone edits wait in `redoEdits` for Redo. */
+type Step = 'tick' | 'edit'
+let order: Step[] = []; let redoOrder: Step[] = []; let redoEdits: SessionEdit[] = []
+/** A new action: it goes on the undo order and drops whatever was waiting for Redo. */
+const did = (k: Step) => { order.push(k); redoOrder = []; redoEdits = [] }
 let left: { date: string; at: number } | null = null
 /** 'now' for the late rule; ?today= stills pretend it is midday that day. */
 export const nowMs = () => { const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('today') : null; return q ? Date.parse(`${q}T12:00:00+05:30`) : Date.now() }
@@ -124,17 +127,23 @@ export const useApp = create<State>((set, get) => ({
     const d = get().data; const se = d.sessions.find((x) => x.sessionId === sessionId); if (!se) return
     const before = d.ticks.some((t) => t.sessionId === sessionId && t.roll === roll && t.set)
     const op: Op = { sessionId, subjectKey: se.subjectKey, classKey: se.classKey, date: se.date, roll, set: !before, updatedAt: nowIso() }
-    hist().record(op, before); order.push('tick'); mark(op); write(op)
+    hist().record(op, before); did('tick'); mark(op); write(op)
   }),
   tickMany: liveOnly((sessionId, rolls, value) => {
     const d = get().data; const se = d.sessions.find((x) => x.sessionId === sessionId); if (!se) return
     const at = nowIso(); const cells = rolls.map((roll) => ({ op: { sessionId, subjectKey: se.subjectKey, classKey: se.classKey, date: se.date, roll, set: value, updatedAt: at } as Op, before: d.ticks.some((t) => t.sessionId === sessionId && t.roll === roll && t.set) }))
       .filter((c) => c.before !== value)
-    hist().recordMany(cells); if (cells.length) order.push('tick'); for (const c of cells) { mark(c.op); write(c.op) }
+    hist().recordMany(cells); if (cells.length) did('tick'); for (const c of cells) { mark(c.op); write(c.op) }
   }),
   setDeviceName: (deviceName) => { localStorage.setItem(DEVNAME, deviceName); set({ deviceName }) },
-  undo: liveOnly(() => { if (order[order.length - 1] === 'edit') { order.pop(); undoEdit(); return } order.pop(); for (const op of hist().undo(nowIso()) ?? []) write(op); useApp.setState(flags()) }),
-  redo: liveOnly(() => { for (const op of hist().redo(nowIso()) ?? []) write(op); useApp.setState(flags()) }),
+  undo: liveOnly(() => {
+    if (order[order.length - 1] === 'edit') { order.pop(); const e = undoEdit(); if (e) { redoEdits.push(e); redoOrder.push('edit') } useApp.setState(flags()); return }
+    order.pop(); const ops = hist().undo(nowIso()); if (ops) redoOrder.push('tick'); for (const op of ops ?? []) write(op); useApp.setState(flags())
+  }),
+  redo: liveOnly(() => {
+    if (redoOrder[redoOrder.length - 1] === 'edit') { redoOrder.pop(); order.push('edit'); applyEdit(redoEdits.pop()!); useApp.setState(flags()); return }
+    redoOrder.pop(); const ops = hist().redo(nowIso()); if (ops) order.push('tick'); for (const op of ops ?? []) write(op); useApp.setState(flags())
+  }),
   snapshotNow: liveOnly((label: string) => { takeSnapshot(localStorage, snapKey(), get().data, label, nowIso(), CONFIG.data.snapshotsMax); set({ snaps: listSnapshots(localStorage, snapKey()) }) }),
   restore: liveOnly((at: string) => {
     const snap = listSnapshots(localStorage, snapKey()).find((x) => x.at === at); if (!snap) return
@@ -174,10 +183,10 @@ export const useApp = create<State>((set, get) => ({
     }
     catch (e) { set({ status: 'error', error: e instanceof Error ? e.message : String(e) }) }
   },
-  reset: () => { syncLoop(false); engine = null; order = []; left = null; live = null; set({ ...initial(), ...flags() }) },
+  reset: () => { syncLoop(false); engine = null; order = []; redoOrder = []; redoEdits = []; left = null; live = null; set({ ...initial(), ...flags() }) },
 }))
 
-const flags = () => { const h = hist(); return { canUndo: h.canUndo() || order[order.length - 1] === 'edit', canRedo: h.canRedo(), snaps: listSnapshots(localStorage, snapKey()) } }
+const flags = () => { const h = hist(); return { canUndo: h.canUndo() || order[order.length - 1] === 'edit', canRedo: h.canRedo() || redoOrder[redoOrder.length - 1] === 'edit', snaps: listSnapshots(localStorage, snapKey()) } }
 /** While a past year is shown, engine state updates are ignored; Back to now pulls again. */
 function eng() {
   if (!engine) engine = createEngine({ storage: localStorage, key: storageKey('outbox'), lock: webLock, channel: broadcast(storageKey('tabs')), graceMs: CONFIG.timing.pendingGraceMs, retryMs: CONFIG.timing.saveRetryMs,
@@ -202,15 +211,18 @@ export const onLive = () => lastSheetId === LIVE_SHEET_ID
 export const sheetLabel = () => (onLive() ? 'live sheet' : 'test copy')
 
 /** v0.7.0 S7/S8: record a date edit on this device (undoable). */
-function edit(e: Omit<SessionEdit, 'id' | 'at'>) {
-  const at = nowIso(); const full: SessionEdit = { ...e, id: at, at }; const edits = [...loadEdits(), full]
-  localStorage.setItem(EDITS(), JSON.stringify(edits)); order.push('edit')
-  useApp.setState((s) => ({ edits, ...withData(s.data, s.currentClass, s.subject) })); useApp.setState(flags())
-}
-function undoEdit() {
-  const edits = loadEdits(); const e = edits.pop(); if (!e) return
+function edit(e: Omit<SessionEdit, 'id' | 'at'>) { did('edit'); applyEdit(e); useApp.setState(flags()) }
+/** Stores the edit with a fresh time (a redo is a new edit as far as sync is concerned). */
+function applyEdit(e: Omit<SessionEdit, 'id' | 'at'>) {
+  const at = nowIso(); const edits = [...loadEdits(), { ...e, id: at, at }]
   localStorage.setItem(EDITS(), JSON.stringify(edits))
-  useApp.setState((s) => ({ edits, focus: e.add && s.focus === e.sessionId ? null : s.focus, ...withData(revertEdit(s.data, e), s.currentClass, s.subject) })); useApp.setState(flags())
+  useApp.setState((s) => ({ edits, ...withData(s.data, s.currentClass, s.subject) }))
+}
+function undoEdit(): SessionEdit | undefined {
+  const edits = loadEdits(); const e = edits.pop(); if (!e) return undefined
+  localStorage.setItem(EDITS(), JSON.stringify(edits))
+  useApp.setState((s) => ({ edits, focus: e.add && s.focus === e.sessionId ? null : s.focus, ...withData(revertEdit(s.data, e), s.currentClass, s.subject) }))
+  return e
 }
 /** v0.7.0 S9 (F-LT-05): marked time per tick, kept apart from updatedAt so "newer wins" is untouched. Back-date = marked on the due day. */
 function mark(op: Op) {

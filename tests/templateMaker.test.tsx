@@ -15,7 +15,7 @@ describe('P7 template maker (S2)', () => {
   afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
   it('V08-P7-01 Settings › Share templates opens the full-screen maker: back, title, ＋ New, named pills with Default', () => {
     maker(); expect(screen.getByRole('heading', { name: 'Share templates' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Back to Settings' })).toBeTruthy(); expect(screen.getByRole('button', { name: 'New template' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Back to Settings' })).toBeTruthy(); expect(screen.getByRole('button', { name: 'Add a template' })).toBeTruthy()
     expect(pills().map((p) => p.textContent)).toEqual(['Pending· Default', 'Submitted', 'Completed', 'Not submitted'])
     expect(pills()[0]!.getAttribute('aria-pressed')).toBe('true'); expect(editor().value).toBe('{class} • {date} • not set/found ({count}):\n{names}')
   })
@@ -45,7 +45,7 @@ describe('P7 template maker (S2)', () => {
     fireEvent.click(within(menu()).getByRole('menuitem', { name: 'Restore default templates' })); expect(pills()).toHaveLength(5)
   })
   it('V08-P7-06 ＋ New adds a template and selects it; demo shows no sync cloud', () => {
-    maker(); fireEvent.click(screen.getByRole('button', { name: 'New template' }))
+    maker(); fireEvent.click(screen.getByRole('button', { name: 'Add a template' }))
     expect(pills().at(-1)!.textContent).toBe('New template'); expect(pills().at(-1)!.getAttribute('aria-pressed')).toBe('true')
     expect(screen.queryByRole('img', { name: /synced|waiting/i })).toBeNull()
   })
@@ -72,5 +72,12 @@ describe('P7 share sheet uses templates (F-TP-09)', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Settings' })); fireEvent.click(screen.getByRole('button', { name: /^Share templates/ }))
     const shown = [...screen.getByRole('region', { name: /^Preview/ }).querySelectorAll('.sow-tpl__line')].map((l) => l.textContent).join('\n')
     expect(shown.split('\n').length).toBeGreaterThan(2); expect(sent.startsWith(shown)).toBe(true)
+  })
+})
+
+describe('P10 break-it: template maker names', () => {
+  it('BK-TP-01 after ＋ New, the header button and the new pill have different accessible names', () => {
+    maker(); fireEvent.click(screen.getByRole('button', { name: 'Add a template' }))
+    expect(screen.getAllByRole('button', { name: 'Add a template' }).length).toBe(1)
   })
 })

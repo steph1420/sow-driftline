@@ -32,7 +32,10 @@ export function templateBook(store: Store, key: string) {
         let s = load(); const remote = valueOf(got.rows, TEMPLATES_KEY)
         if (remote && (!s.updatedAt || remote.updatedAt > s.updatedAt)) s = save({ ...s, set: remote.value as TemplateSet, updatedAt: remote.updatedAt, dirty: false })
         else if (!remote && !s.updatedAt) { const old = legacyOf(got.rows); if (old) s = save({ ...s, set: old, updatedAt: new Date().toISOString(), dirty: true }) }
-        if (s.dirty && s.updatedAt) { await client.push([{ key: TEMPLATES_KEY, category: 'share', value: s.set, updatedAt: s.updatedAt }], deviceId); save({ ...load(), dirty: false }) }
+        if (s.dirty && s.updatedAt) {
+          await client.push([{ key: TEMPLATES_KEY, category: 'share', value: s.set, updatedAt: s.updatedAt }], deviceId)
+          const now = load(); if (now.updatedAt === s.updatedAt) save({ ...now, dirty: false }) // an edit made during the push stays dirty for the next sync
+        }
         return 'synced'
       } catch { return load().dirty ? 'waiting' : 'synced' }
     },

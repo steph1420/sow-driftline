@@ -31,7 +31,7 @@ export function TemplateMaker({ onBack }: { onBack: () => void }) {
   return (<div className="sow-tpl">
     <PageHead title="Share templates" backLabel="Back to Settings" onBack={onBack}>
       {paired && sync !== 'local' && <span className={`sow-tpl__cloud ${sync}`} role="img" aria-label={sync === 'synced' ? 'Templates synced' : 'Templates waiting to sync'}><Icon name="cloud" /></span>}
-      <button className="sow-page__action" aria-label="New template" onClick={create}>{GLYPH.plus} New</button>
+      <button className="sow-page__action" aria-label="Add a template" onClick={create}>{GLYPH.plus} New</button>
     </PageHead>
     <div className="sow-tpl__pills" role="group" aria-label="Templates">{set.templates.map((t) =>
       <button key={t.id} className={`sow-fchip${t.id === tpl.id ? ' on' : ''}`} aria-pressed={t.id === tpl.id} onClick={() => { setSel(t.id); setRenaming(false) }}>

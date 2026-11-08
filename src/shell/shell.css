@@ -1,6 +1,8 @@
 /* SoW Driftline shell — tokens only (r4 locked look). */
 /* F-DY-02: glow strength; Day themes run at half */
 :root { --sow-glow: 1; }
+/* standing rule: no text under 13 px, so the vendor caption size follows footnote (P10 break-it, B-P10-TEXT12) */
+:root { --dl-type-caption-size: var(--dl-type-footnote-size); }
 [data-theme$="-day"] { --sow-glow: .5; }
 :root { --sow-bar-height: calc(var(--dl-space-12) + var(--dl-space-2)); }
 .sow-bar { position: sticky; top: 0; z-index: var(--dl-z-header); height: var(--sow-bar-height); display: flex; align-items: center; gap: var(--dl-space-1); padding: 0 var(--dl-space-2) 0 var(--dl-space-3); background: var(--dl-header-bg); box-shadow: 0 1px 0 var(--dl-color-hairline); } /* token-ok: 1px hairline */
@@ -187,7 +189,8 @@
 .sow-ctl { display: flex; align-items: center; gap: var(--dl-space-2); min-height: calc(var(--dl-hit-min) + var(--dl-space-2)); padding: 0 var(--dl-space-1); }
 .sow-ctl .sow-pend { min-height: var(--dl-hit-min); padding-inline: var(--dl-space-4); }
 .sow-seg { display: flex; height: var(--dl-hit-min); padding: var(--dl-space-1); gap: var(--dl-space-1); border-radius: var(--dl-radius-pill); background: var(--dl-segment-track); }
-.sow-seg button { min-width: calc(var(--dl-hit-min) - var(--dl-space-2)); border: 0; border-radius: var(--dl-radius-pill); background: none; color: var(--dl-segment-text); font: inherit; font-weight: 600; cursor: pointer; }
+.sow-seg button { position: relative; min-width: calc(var(--dl-hit-min) - var(--dl-space-2)); border: 0; border-radius: var(--dl-radius-pill); background: none; color: var(--dl-segment-text); font: inherit; font-weight: 600; cursor: pointer; }
+.sow-seg button::after { content: ''; position: absolute; inset: calc(var(--dl-space-1) * -1); } /* 36 drawn, 44 hit (B-P10-SEG44) */
 .sow-seg button.on { background: linear-gradient(135deg, var(--dl-segment-active-from), var(--dl-segment-active-to)); color: var(--dl-segment-active-text); }
 .sow-ib.sow-bare { background: none; border: 0; box-shadow: none; }
 .sow-find { display: flex; align-items: center; gap: var(--dl-space-2); min-height: var(--dl-hit-min); margin: 0 var(--dl-space-1) var(--dl-space-2); padding: 0 0 0 var(--dl-space-4); border-radius: var(--dl-radius-pill); background: var(--dl-color-track); box-shadow: inset 0 0 0 1px var(--dl-color-accent); color: var(--dl-color-text-muted); } /* token-ok: 1px ring */
