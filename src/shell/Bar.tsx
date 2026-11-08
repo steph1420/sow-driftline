@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { labelOf, useApp } from '../store/store'
+import { useApp } from '../store/store'
 import { saveLabel, saveTone } from './saveState'
-import { focusColumn, toChecklist } from '../data/model'
+import { classLabel, focusColumn, toChecklist } from '../data/model'
 import { todayIso } from '../data/today'
 import { GLYPH, Icon } from '../ui/icons'
 export function Bar() {
@@ -29,7 +29,7 @@ export function Bar() {
         <button role="menuitem" className="dl-row dl-row--btn" onClick={() => { setMenu(false); s.setTab('settings') }}>Settings…</button>
       </div>}
       {open && cards.length > 1 && <div className="dl-card sow-menu" role="menu">{cards.map((x) =>
-        <button key={x.subjectKey} role="menuitem" aria-current={x.subjectKey === s.subject} className="dl-row dl-row--btn" onClick={() => { s.setSubject(x.subjectKey); setOpen(false) }}>{labelOf(x.classKey)} · {x.subject} {x.kind}</button>)}</div>}
+        <button key={x.subjectKey} role="menuitem" aria-current={x.subjectKey === s.subject} className="dl-row dl-row--btn" onClick={() => { s.setSubject(x.subjectKey); setOpen(false) }}>{classLabel(x.classKey)} · {x.subject} {x.kind}</button>)}</div>}
     </header>
   )
 }

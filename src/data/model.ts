@@ -45,6 +45,8 @@ export function focusColumn(c: Checklist, today: string, focusSessionId: string 
 export const toGo = (c: Checklist, sessionId: string) => c.pupils.filter((p) => !c.ticked(sessionId, p.roll)).length
 export const letterIndex = (names: string[], L: string) => names.findIndex((n) => n.trim().toUpperCase().startsWith(L.toUpperCase()))
 export function searchIndex(names: string[], q: string) { const s = q.trim().toLowerCase(); return s ? names.findIndex((n) => n.toLowerCase().includes(s)) : -1 }
+/** "KG-A" from a class key such as "KG_A" (the demo class is KG-A). */
+export const classLabel = (k: string) => (k === 'demo' ? 'KG-A' : k.replace(/^KG[-_ ]?([A-Z])\b.*/i, 'KG-$1'))
 /** "Wed 4" (chips, pills, card dates). */
 export const dayLabel = (iso: string) => `${fmtDay(iso).dow} ${Number(iso.slice(8, 10))}`
 /** "Wed 4 Nov" (labels for screen readers, headers). */

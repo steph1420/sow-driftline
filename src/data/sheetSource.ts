@@ -8,10 +8,10 @@ export const COPY_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxU01l41
 /** Copy-only everywhere (Steve t168u/t169u). LIVE stays off until Steve says otherwise. */
 export const allowedSheets = (_f: Flavor = FLAVOR): string[] => [COPY_SHEET_ID]
 const refuse = (_f: Flavor) => new Error('This bridge is not the test copy · the app works with the test copy only')
-export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim', 'devicesList']
+export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim', 'devicesList', 'prefsPull']
 type Fetcher = (u: string, init: { method: string; headers: Record<string, string>; body: string; redirect: 'follow' }) => Promise<Response>
 
-export const WRITE_ACTIONS: readonly string[] = ['push', 'deviceRevoke', 'deviceRename']
+export const WRITE_ACTIONS: readonly string[] = ['push', 'deviceRevoke', 'deviceRename', 'prefsPush']
 export async function call<T>(url: string, body: Record<string, unknown>, fetcher: Fetcher = fetch as unknown as Fetcher, write = false): Promise<T> {
   if (!(READ_ACTIONS.includes(String(body.action)) || (write && WRITE_ACTIONS.includes(String(body.action))))) throw new Error(`Blocked: “${String(body.action)}” is not allowed`)
   let res: Response

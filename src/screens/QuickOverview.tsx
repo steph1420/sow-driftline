@@ -37,6 +37,6 @@ export function QuickOverview({ layout, dateCols }: { layout: Layout; dateCols: 
           <button className="sow-qc__share" aria-label={`Share ${dateLabel(s.date)}`} onClick={() => setShare(s.sessionId)}><Icon name="share" /></button>
         </div> })}</div>
     </Sheet>
-    {share && <ShareSheet subjectKey={subject} sessionId={share} onClose={() => setShare(null)} />}
+    {share && <ShareSheet sessionId={share} onClose={() => setShare(null)} />}
   </>)
 }

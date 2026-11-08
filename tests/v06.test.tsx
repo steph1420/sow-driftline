@@ -42,9 +42,11 @@ describe('V06 Overview', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /open .* on checklist/i })[0]!)
     expect(useApp.getState().tab).toBe('checklist'); expect(useApp.getState().jump).toBe(j + 1)
   })
+  // v0.8 P7 changed V06-OV-03: the text now comes from the default share template (same output).
   it('V06-OV-03 share text matches the v0.47 Pending template', async () => {
-    const { shareText } = await import('../src/data/share')
-    expect(shareText({ label: 'KG-A', date: '2026-11-03', names: ['Lia Park', 'Ana'] })).toBe('KG-A • Tue 3/11 • not set/found (2):\nLia Park\nAna')
+    const { DEFAULT_PENDING_BODY, fillTemplate, shareLists } = await import('../src/data/templates')
+    const lists = shareLists([{ roll: 1, name: 'Lia Park', status: 'Active' }, { roll: 2, name: 'Ana', status: 'Active' }], () => false)
+    expect(fillTemplate(DEFAULT_PENDING_BODY, { cls: 'KG-A', subject: 'English', type: 'HW', date: '2026-11-03', topic: '', lists })).toBe('KG-A • Tue 3/11 • not set/found (2):\nLia Park\nAna')
   })
   // t113u changed V06-OV-04: the first open is Overview; after that the app reopens on the last tab used.
   it('V06-OV-04 opens on Overview the first time, then remembers the last tab', async () => {

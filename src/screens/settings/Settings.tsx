@@ -6,6 +6,8 @@ import { saveLabel, saveTone } from '../../shell/saveState'
 import { PageHead } from '../../ui/PageHead'
 import { Group, NavRow, Segment } from './rows'
 import { PairPage, SyncPage, devicesValue, useDevices } from './SyncPages'
+import { useTemplates } from '../../store/templates'
+import { TemplateMaker } from '../templates/TemplateMaker'
 import { AboutPage, ContrastPage, DeveloperPage, SnapshotsPage, UpdatesPage, aboutValue, contrastName, whenLabel } from './AppPages'
 
 type Page = 'contrast' | 'sync' | 'pair' | 'snapshots' | 'updates' | 'developer' | 'about'
@@ -13,7 +15,8 @@ const TITLES: Record<Page, string> = { contrast: 'Contrast', sync: 'Sync', pair:
 const THEMES = [{ id: 'night', label: 'Night' }, { id: 'day', label: 'Day' }, { id: 'system', label: 'Auto' }] as const
 
 export function Settings() {
-  const s = useApp(); const [page, setPage] = useState<Page | null>(null); const devices = useDevices()
+  const s = useApp(); const [page, setPage] = useState<Page | 'templates' | null>(null); const devices = useDevices(); const templates = useTemplates((t) => t.set.templates.length)
+  if (page === 'templates') return <TemplateMaker onBack={() => setPage(null)} />
   if (page) return (<div className="sow-set">
     <PageHead title={TITLES[page]} backLabel="Back to Settings" onBack={() => setPage(null)} />
     {{ contrast: <ContrastPage />, sync: <SyncPage />, pair: <PairPage devices={devices} />, snapshots: <SnapshotsPage />, updates: <UpdatesPage />, developer: <DeveloperPage />, about: <AboutPage /> }[page]}
@@ -28,6 +31,9 @@ export function Settings() {
     <Group title="Sync & pairing">
       <NavRow label="Sync" dot={{ tone: saveTone(s), label: saveLabel(s) }} onClick={() => setPage('sync')} />
       <NavRow label="Pair a device" value={devicesValue(devices)} onClick={() => setPage('pair')} />
+    </Group>
+    <Group title="Session & names">
+      <NavRow label="Share templates" value={`${templates} templates`} onClick={() => setPage('templates')} />
     </Group>
     <Group title="Backups">
       <NavRow label="Snapshots" value={latest ? whenLabel(latest.at) : 'None yet'} onClick={() => setPage('snapshots')} />

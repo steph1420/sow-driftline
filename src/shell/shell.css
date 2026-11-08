@@ -314,3 +314,38 @@ th.sel .sow-tab { background: linear-gradient(180deg, color-mix(in srgb, var(--d
 .sow-set__lead { margin: 0; font-size: var(--dl-type-headline-size); font-weight: 600; color: var(--dl-color-text); }
 .sow-set .dl-list .dl-row + .dl-row::before { left: var(--dl-pad); }
 .sow-set a.dl-btn { text-decoration: none; }
+
+/* v0.8 F-TP-01..09 (S2): share template maker; template pills, warning and off targets in the share sheet */
+.sow-tpl { display: flex; flex-direction: column; gap: var(--dl-space-3); }
+.sow-tpl__cloud { display: grid; place-items: center; width: var(--dl-hit-min); height: var(--dl-hit-min); color: var(--dl-color-positive); }
+.sow-tpl__cloud.waiting { color: color-mix(in srgb, var(--dl-color-warning) 70%, transparent); }
+.sow-tpl__pills, .sow-share__tpls { display: flex; gap: var(--dl-space-2); overflow-x: auto; scrollbar-width: none; }
+.sow-tpl__pills .sow-fchip, .sow-share__tpls .sow-fchip { box-shadow: inset 0 0 0 1px var(--dl-color-control-border); color: var(--dl-color-text); } /* token-ok: 1px ring */
+.sow-tpl__pills .sow-fchip.on, .sow-share__tpls .sow-fchip.on { background: var(--dl-chip-accent-bg); color: var(--dl-color-accent); box-shadow: inset 0 0 0 1px var(--dl-chip-accent-border); } /* token-ok: 1px ring */
+.sow-fchip small { margin-left: var(--dl-space-1); font-size: var(--dl-type-footnote-size); font-weight: 500; color: var(--dl-color-text-muted); }
+.sow-tpl__head { position: relative; display: flex; align-items: center; min-height: var(--dl-hit-min); }
+.sow-tpl__name, .sow-tpl__eyebrow { margin: 0 var(--dl-space-2); font-size: var(--dl-type-footnote-size); }
+.sow-tpl__rename { flex: 1; min-height: var(--dl-hit-min); border: 0; border-radius: var(--dl-radius-md); padding: 0 var(--dl-space-3); background: var(--dl-color-track); color: var(--dl-color-text); font: inherit; }
+.sow-tpl__menuwrap .sow-menu { top: var(--dl-hit-min); }
+.sow-tpl__menuwrap .dl-row[disabled] { opacity: .45; }
+.sow-tpl__delete { color: var(--dl-color-danger); }
+.sow-tpl__editor { position: relative; border-radius: var(--dl-radius-lg); background: var(--dl-color-surface); box-shadow: inset 0 0 0 1px var(--dl-chip-accent-border); } /* token-ok: 1px ring */
+.sow-tpl__mirror, .sow-tpl__input { box-sizing: border-box; width: 100%; margin: 0; padding: var(--dl-space-4); font: inherit; font-size: var(--dl-type-callout-size); line-height: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sow-tpl__mirror { color: var(--dl-color-text); min-height: calc(var(--dl-space-16) * 2); }
+.sow-tpl__input { position: absolute; inset: 0; height: 100%; resize: none; border: 0; outline: none; background: transparent; color: transparent; caret-color: var(--dl-color-accent); }
+.sow-tok { border-radius: var(--dl-radius-sm); padding: 0 var(--dl-space-1); color: var(--dl-color-accent); background: var(--dl-chip-accent-bg); box-shadow: inset 0 0 0 1px var(--dl-chip-accent-border); } /* token-ok: 1px ring */
+.sow-tok.submitted { color: var(--dl-color-special); background: var(--dl-chip-special-bg); box-shadow: inset 0 0 0 1px var(--dl-chip-special-border); } /* token-ok: 1px ring */
+.sow-tok.unknown { color: var(--dl-color-warning); background: none; box-shadow: none; text-decoration: underline wavy var(--dl-color-warning); }
+.sow-tpl__chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dl-space-2); }
+.sow-tpl__chipsTitle { flex-basis: 100%; font-size: var(--dl-type-footnote-size); color: var(--dl-color-text-muted); }
+.sow-tok--chip { min-height: var(--dl-hit-min); padding: 0 var(--dl-space-3); border: 0; border-radius: var(--dl-radius-pill); font: inherit; font-size: var(--dl-type-footnote-size); font-weight: 600; cursor: pointer; background: none; }
+.sow-tok--chip.known { color: var(--dl-color-text); box-shadow: inset 0 0 0 1px var(--dl-color-control-border); } /* token-ok: 1px ring */
+.sow-tpl__preview { display: flex; flex-direction: column; gap: var(--dl-space-2); }
+.sow-tpl__box { font-size: var(--dl-type-callout-size); line-height: 1.5; color: var(--dl-color-text); }
+.sow-tpl__line { white-space: pre-wrap; min-height: 1.5em; }
+.sow-tpl__more { color: var(--dl-color-text-muted); font-size: var(--dl-type-footnote-size); }
+.sow-share__warn { margin: 0 var(--dl-space-2); font-size: var(--dl-type-footnote-size); color: var(--dl-color-warning); }
+.sow-targets.off .sow-blob { opacity: .4; pointer-events: none; }
+.sow-tpl__mirror .sow-tok { padding: 0; box-shadow: 0 0 0 2px var(--dl-chip-accent-bg), inset 0 0 0 1px var(--dl-chip-accent-border); } /* token-ok: ring outside the glyphs keeps the caret aligned */
+.sow-tpl__mirror .sow-tok.submitted { box-shadow: 0 0 0 2px var(--dl-chip-special-bg), inset 0 0 0 1px var(--dl-chip-special-border); } /* token-ok */
+.sow-tpl__mirror .sow-tok.unknown { box-shadow: none; }

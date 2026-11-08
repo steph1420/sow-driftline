@@ -15,6 +15,7 @@ export const SVG = {
   copy: () => svg(<><rect x="8" y="8" width="12" height="12" rx="2.5" /><path d="M16 5.5V5a1.5 1.5 0 0 0-1.5-1.5h-9A1.5 1.5 0 0 0 4 5v9a1.5 1.5 0 0 0 1.5 1.5H6" /></>),
   share: () => svg(<><path d="M8 9H6.5A1.5 1.5 0 0 0 5 10.5v8A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 17.5 9H16M12 14V3M8.5 6.5 12 3l3.5 3.5" /></>),
   magnifier: () => svg(<><circle cx="10.5" cy="10.5" r="6" /><path d="M15 15l5 5" /></>),
+  cloud: () => svg(<><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.2 4.7 4.7 0 0 0 7 18.5z" /><path d="M9.5 13.8l1.8 1.8 3.4-3.6" /></>),
   list: () => svg(<><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1" /><circle cx="4.5" cy="12" r="1" /><circle cx="4.5" cy="18" r="1" /></>),
   calendarPlus: () => svg(<><rect x="3.5" y="5" width="17" height="15" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4M12 12.5v5M9.5 15h5" /></>),
   reschedule: () => svg(<><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" /><path d="M19.5 4.5v4h-4" /></>),

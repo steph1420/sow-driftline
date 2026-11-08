@@ -1,7 +1,7 @@
 // Overview data: per-class cards (O2g) and All dates (O2e). Pure. Spec: FEATURES.md F-OV-*.
 import type { SheetState } from './contract'
 import { addDays, dowOf } from './dial'
-const classLabel = (k: string) => (k === 'demo' ? 'KG-A' : /^KG/i.test(k) ? k.replace(/^KG[-_ ]?([A-Z])\b.*/i, 'KG-$1') : k)
+import { classLabel } from './model'
 function pupilsOf(s: SheetState, classKey: string) { return s.roster.filter((p) => p.classKey === classKey && p.status === 'Active') }
 function onSet(s: SheetState) { return new Set(s.ticks.filter((t) => t.set).map((t) => `${t.sessionId}|${t.roll}`)) }
 const sessionsOf = (s: SheetState, subjectKey: string) => s.sessions.filter((x) => x.subjectKey === subjectKey && x.date).sort((a, b) => a.date.localeCompare(b.date))

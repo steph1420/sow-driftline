@@ -51,7 +51,7 @@ export function Overview() {
 
 function CardSheet({ open: { kind, card }, today, onClose }: { open: NonNullable<Open>; today: string; onClose: () => void }) {
   const data = useApp((s) => s.data); const openSession = useApp((s) => s.openSession); const sid = focusOf(card)
-  if (kind === 'share') return sid ? <ShareSheet subjectKey={card.subjectKey} sessionId={sid} onClose={onClose} /> : null
+  if (kind === 'share') return sid ? <ShareSheet sessionId={sid} onClose={onClose} /> : null
   const c = toChecklist(data, card.classKey, card.subjectKey); const cur = c.columns.find((x) => x.sessionId === sid)
   return <DateSheet start={kind} columns={c.columns} current={sid ?? ''} today={today} subjectKey={card.subjectKey} kind={card.kind}
     ticks={cur ? c.pupils.filter((p) => c.ticked(cur.sessionId, p.roll)).length : 0} onPick={(s) => openSession(card.classKey, s)} onClose={onClose} />

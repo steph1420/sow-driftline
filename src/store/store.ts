@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { storageKey } from '../config'
 import type { SheetState } from '../data/contract'
-import { classesOf } from '../data/model'
+import { classLabel, classesOf } from '../data/model'
 import { DEMO_STATE, fakeSource } from '../data/fakeSource'
 import { schoolState, wantsSchool } from '../data/demoSchool'
 import { todayIso } from '../data/today'
@@ -79,11 +79,10 @@ function loadPrefs(): Prefs {
   return { side, contrast: p.contrast === 'high' ? 'high' : 'standard' }
 }
 const savePrefs = (p: Partial<Prefs>) => { const s = useApp.getState(); localStorage.setItem(PREFS, JSON.stringify({ side: s.side, contrast: s.contrast, ...p })) }
-export const labelOf = (k: string) => (k === 'demo' ? 'KG-A' : k.replace(/^KG[-_ ]?([A-Z])\b.*/i, 'KG-$1'))
 export const firstSubject = (d: SheetState, k: string) => d.subjects.find((x) => x.classKey === k && x.active)?.subjectKey ?? ''
 function withData(raw: SheetState, prev?: string, prevSubject?: string) {
   const data = applyEdits(raw, loadEdits())
-  const classes = classesOf(data).map((c) => ({ ...c, label: labelOf(c.classKey) }))
+  const classes = classesOf(data).map((c) => ({ ...c, label: classLabel(c.classKey) }))
   const currentClass = classes.some((c) => c.classKey === prev) ? prev! : classes[0]?.classKey ?? ''
   const keep = prevSubject && data.subjects.some((x) => x.subjectKey === prevSubject && x.classKey === currentClass)
   return { data, classes, currentClass, subject: keep ? prevSubject! : firstSubject(data, currentClass) }
