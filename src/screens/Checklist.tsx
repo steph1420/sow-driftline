@@ -20,11 +20,11 @@ type Side = 'right' | 'left'
 
 type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number
   onTick?: (sessionId: string, roll: number) => void; onTickMany?: (sessionId: string, rolls: number[], value: boolean) => void
-  railSide?: Side; railBubble?: boolean; onRailSide?: (s: Side) => void; swipe?: boolean; dateCols?: number; focusSessionId?: string | null; subjectKey?: string | null; pendingOnly?: boolean; onPick?: (sessionId: string) => void; onHalf?: (half: 'done' | 'go') => void }
+  railSide?: Side; railBubble?: boolean; onRailSide?: (s: Side) => void; swipe?: boolean; dateCols?: number; focusSessionId?: string | null; subjectKey?: string | null; pendingOnly?: boolean; onPick?: (sessionId: string) => void; onQuick?: () => void }
 // t119u/t121u: swipe is sideways along one name's row (was down a column); up-and-down scrolls
 type Paint = { roll: number; r: number; start: number; value: boolean; x0: number; y0: number; engaged: boolean; sids: string[] }
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
-export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols, focusSessionId = null, subjectKey = null, pendingOnly = false, onPick, onHalf }: Props) {
+export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols, focusSessionId = null, subjectKey = null, pendingOnly = false, onPick, onQuick }: Props) {
   const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
   const anchor = focusColumn(c0, today, focusSessionId)
   const [end, setEnd] = useState(anchor.index)
@@ -82,7 +82,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const dup = new Set(names.filter((n, i) => names.indexOf(n) !== i)) // Q-DUP-1: roll tells twins apart
   const doneOn = (sid: string) => c0.pupils.length - toGo(c0, sid)
   const matches = pill?.trim() ? rankMatches(pill.trim(), c.pupils.map((p) => ({ roll: p.roll, name: p.name }))).length : 0
-  const openToGo = (sid: string) => { if (sid !== focus.sessionId) onPick?.(sid); onHalf?.('go') }
+  const openQuick = (sid: string) => { if (sid !== focus.sessionId) onPick?.(sid); onQuick?.() }
   const sheet = c0.columns.find((x) => x.sessionId === dates)
   const colSids = cols.map((i) => c.columns[i]!.sessionId)
   const down = (e: React.PointerEvent, sid: string, roll: number, on: boolean) => {
@@ -117,7 +117,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
         <table onKeyDown={keyGrid}>
           <thead><tr><th className="n">{one && <span className="sow-yc">{keep ? 'Still to come in' : 'Your class'}</span>}{(one || keep) && (keep ? `${c.pupils.length} pending` : `${c.pupils.length} pupils`)}</th>
             {cols.map((i) => { const s = c.columns[i]!; return <th key={s.sessionId} className={`${i === anchor.index ? 'sel' : ''}${s.date < today ? ' old' : ''}${weekStart(i) ? ' wk' : ''}`}>
-              <ColumnTab kind={s.kind} date={s.date} done={doneOn(s.sessionId)} total={c0.pupils.length} past={s.date < today} onCount={() => openToGo(s.sessionId)} onDate={() => setDates(s.sessionId)} /></th> })}</tr></thead>
+              <ColumnTab kind={s.kind} date={s.date} done={doneOn(s.sessionId)} total={c0.pupils.length} past={s.date < today} onCount={() => openQuick(s.sessionId)} onDate={() => setDates(s.sessionId)} /></th> })}</tr></thead>
           <tbody>{c.pupils.map((p, r) => (
             <tr key={p.roll} ref={(el) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}>
               <td className="n" onClick={() => { setSel(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>

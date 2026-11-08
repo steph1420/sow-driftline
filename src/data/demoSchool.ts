@@ -14,7 +14,8 @@ const SUBJECTS: (Subject & { days: number[]; topics: string[] })[] = [
   { subjectKey: 'UKG-A_PHO_CW', classKey: 'UKG-A', subject: 'Phonics', kind: 'CW', active: true, days: [3], topics: ['Blends: bl, cl', 'Digraph sh', 'Sound families', 'Digraph ch'] },
   { subjectKey: 'KG-C_PHO_TEST', classKey: 'KG-C', subject: 'Phonics', kind: 'Test', active: true, days: [4], topics: ['Sound check 1', 'Listen & match', 'Sound check 2'] },
 ]
-export function schoolState(today: string): SheetState {
+/** `now` stamps today's demo ticks over the three hours before it, so "+N since" has something to count. Older ticks stay unstamped. */
+export function schoolState(today: string, now = Date.parse(`${today}T12:00:00+05:30`)): SheetState {
   const roster: Pupil[] = CLASSES.flatMap((c) => Array.from({ length: c.size }, (_, i) => ({ classKey: c.classKey, roll: i + 1, name: `${FIRST[(i + c.shift) % 24]} ${LAST[(i * 7 + c.shift) % 24]}`, status: 'Active', updatedAt: '' })))
   const mon = addDays(today, -dowOf(today)); const sessions: SessionRow[] = []; const ticks: TickRow[] = []
   for (const s of SUBJECTS) {
@@ -26,7 +27,8 @@ export function schoolState(today: string): SheetState {
       const size = CLASSES.find((c) => c.classKey === s.classKey)!.size; const isToday = date === today
       for (let r = 1; r <= size; r++) {
         const set = isToday ? (s.subjectKey === 'KG-A_PHO_CW' ? true : (r * 5 + n) % 12 < 7) : (r * 7 + n) % 11 !== 0
-        if (set) ticks.push({ tickId: `${sessionId}|${r}`, sessionId, subjectKey: s.subjectKey, classKey: s.classKey, roll: r, set: true, updatedAt: '' })
+        const at = isToday ? new Date(now - ((r * 37 + n * 11) % 180) * 60000).toISOString() : ''
+        if (set) ticks.push({ tickId: `${sessionId}|${r}`, sessionId, subjectKey: s.subjectKey, classKey: s.classKey, roll: r, set: true, updatedAt: at })
       }
     }
   }

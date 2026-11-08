@@ -22,7 +22,7 @@ export type Side = 'night' | 'day' | 'system'
 export type ClassInfo = { classKey: string; label: string; subject: string }
 type State = {
   tab: Tab; side: Side; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
-  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; quickHalf: 'done' | 'go' | null; find: string | null; setFind: (q: string | null) => void; openQuick: (half: 'done' | 'go' | null) => void; openSession: (classKey: string, sessionId: string) => void
+  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; find: string | null; setFind: (q: string | null) => void; openedAt: number; openSession: (classKey: string, sessionId: string) => void
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
   view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
@@ -38,7 +38,7 @@ export type Marks = Record<string, { at: string; back?: boolean }>
 export type Dev = { railSide: 'right' | 'left'; railBubble: boolean; swipeTick: boolean }
 const PREFS = storageKey('prefs'); const TOKEN = storageKey('copyToken'); const BRIDGE = storageKey('copyBridge'); const DEV = storageKey('dev')
 const demoTicksKey = () => storageKey(wantsSchool() ? 'demoTicksSchool' : 'demoTicks')
-const demoBase = () => (wantsSchool() ? schoolState(todayIso()) : DEMO_STATE); const VIEW = storageKey('view')
+const demoBase = () => (wantsSchool() ? schoolState(todayIso(), Math.min(nowMs(), Date.now())) /* never stamp demo ticks in the future: newer-wins must keep real taps */ : DEMO_STATE); const VIEW = storageKey('view')
 const loadView = (): View => { try { return { weeks: false, phoneCols: 1, ...JSON.parse(localStorage.getItem(VIEW) || '{}') } } catch { return { weeks: false, phoneCols: 1 } } }; const DEVNAME = storageKey('deviceName')
 const guessName = () => { const u = typeof navigator !== 'undefined' ? navigator.userAgent : ''; return /iPad/.test(u) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android phone' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows PC' : 'This device' }
 const src = () => (token() ? 'copy' : 'demo') as 'copy' | 'demo'
@@ -83,7 +83,7 @@ function withData(raw: SheetState, prev?: string, prevSubject?: string) {
   return { data, classes, currentClass, subject: keep ? prevSubject! : firstSubject(data, currentClass) }
 }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, quickHalf: null as 'done' | 'go' | null, find: null as string | null, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, hints: loadJson(HINTS, [] as string[]), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, hints: loadJson(HINTS, [] as string[]), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
@@ -101,7 +101,6 @@ export const useApp = create<State>((set, get) => ({
   addSession: (subjectKey, date) => { const sub = get().data.subjects.find((x) => x.subjectKey === subjectKey); if (!sub) return ''
     let sessionId = `${subjectKey}|${date}`; while (get().data.sessions.some((x) => x.sessionId === sessionId)) sessionId += '+'
     edit({ sessionId, add: { sessionId, subjectKey, classKey: sub.classKey, date, topic: '', status: 'Open', updatedAt: nowIso() } }); return sessionId },
-  openQuick: (quickHalf) => set({ quick: true, quickHalf }),
   setFind: (find) => set({ find }), // v0.8 F-CL-06: name search row, opened from the bar magnifier
   jumpToAnchor: () => set({ focus: null, jump: get().jump + 1 }),
   tick: (sessionId, roll) => {
@@ -131,7 +130,7 @@ export const useApp = create<State>((set, get) => ({
     localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh()
   },
   setView: (v) => { const view = { ...get().view, ...v }; localStorage.setItem(VIEW, JSON.stringify(view)); set({ view }) },
-  setQuick: (quick) => set(quick ? { quick } : { quick, quickHalf: null }),
+  setQuick: (quick) => set({ quick }),
   openClass: (k) => set({ currentClass: k, subject: firstSubject(get().data, k), tab: 'checklist', quick: false, focus: null, jump: get().jump + 1 }),
   /** v0.7j: a class card opens that class on Checklist at that card's session. */
   openSession: (classKey, sessionId) => set({ currentClass: classKey, subject: get().data.sessions.find((x) => x.sessionId === sessionId)?.subjectKey ?? firstSubject(get().data, classKey), tab: 'checklist', quick: false, focus: sessionId, jump: get().jump + 1 }),

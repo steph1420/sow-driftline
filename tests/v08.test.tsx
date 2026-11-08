@@ -88,3 +88,36 @@ describe('P2 date sheet from the column chip (dial3)', () => {
     expect(/\.sow-wh__top \{[^}]*justify-content: center/.test(css)).toBe(true)
   })
 })
+
+describe('P3 quick overview (Q2e + Q3-since) and share stack', () => {
+  afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/'); phone(1024) })
+  const quick = async (cols: 1 | 2 = 2) => { const useApp = await open(); act(() => useApp.getState().setView({ phoneCols: cols })); fireEvent.click(screen.getByRole('button', { name: /^HW Wed 4 Nov, \d+ of 24 done$/ })); return useApp }
+  it('V08-P3-01 one card per visible column: date pill, done/total, "+N since HH:MM" and a share button', async () => {
+    await quick(); const d = screen.getByRole('dialog', { name: 'Quick overview' })
+    const cards = d.querySelectorAll('.sow-qc'); expect(cards.length).toBe(2)
+    expect(within(d).getByText('Mon 2')).toBeTruthy(); expect(within(d).getByText('Wed 4')).toBeTruthy()
+    expect(cards[1]!.querySelector('.sow-qc__n')?.textContent).toBe('14/24')
+    expect(within(cards[1] as HTMLElement).getByRole('button', { name: /^\+\d+ since \d\d:\d\d/ })).toBeTruthy()
+    expect(within(d).getByRole('button', { name: 'Share Wed 4 Nov' })).toBeTruthy()
+    expect(cards[0]!.className).toContain('old')
+  })
+  it('V08-P3-02 tapping "+N since" cycles this hour → today → since open, with three dots', async () => {
+    await quick(1); const d = screen.getByRole('dialog', { name: 'Quick overview' })
+    const btn = () => within(d).getByRole('button', { name: /^\+\d+ (since|this hour|today)/ })
+    expect(btn().querySelectorAll('.sow-qc__dots i').length).toBe(3)
+    fireEvent.click(btn()); expect(btn().textContent).toMatch(/this hour/)
+    fireEvent.click(btn()); expect(btn().textContent).toMatch(/today/); expect(btn().textContent).toMatch(/^\+14 today/)
+    fireEvent.click(btn()); expect(btn().textContent).toMatch(/since \d\d:\d\d/)
+  })
+  it('V08-P3-03 share opens a stacked sheet with the message, Copy and the device targets; edits can be reset', async () => {
+    await quick(1); fireEvent.click(screen.getByRole('button', { name: 'Share Wed 4 Nov' }))
+    const s = screen.getByRole('dialog', { name: /^Share · Wed 4 · KG-A English HW/ })
+    const box = within(s).getByRole('textbox', { name: 'Message to share' }) as HTMLTextAreaElement
+    expect(box.value).toMatch(/^KG-A • Wed 4\/11 • not set\/found \(10\):/)
+    expect(within(s).getByRole('button', { name: 'Copy' })).toBeTruthy(); expect(within(s).getByRole('link', { name: /whatsapp/i })).toBeTruthy()
+    fireEvent.change(box, { target: { value: 'Hello class' } }); expect((within(s).getByRole('link', { name: /whatsapp/i }) as HTMLAnchorElement).href).toBe('https://wa.me/?text=Hello%20class')
+    fireEvent.click(within(s).getByRole('button', { name: 'Reset' })); expect(box.value).toMatch(/not set\/found/)
+    fireEvent.click(within(s).getByRole('button', { name: 'Close share' })); expect(screen.queryByRole('dialog', { name: /^Share/ })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Quick overview' })).toBeTruthy()
+  })
+})

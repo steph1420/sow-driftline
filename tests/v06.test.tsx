@@ -57,11 +57,12 @@ describe('V06 Overview', () => {
 })
 
 describe('V06 quick overview sheet', () => {
-  it('V06-QO-01 Shift+O opens the quick overview sheet on Checklist; Esc closes; it has the Share footer', async () => {
+  // v0.8 changed V06-QO-01: Q2e cards carry a share button each (the Share footer went)
+  it('V06-QO-01 Shift+O opens the quick overview sheet on Checklist; Esc closes; each card can share', async () => {
     const { App } = await import('../src/App'); render(<App />)
     fireEvent.keyDown(document.body, { key: 'O', shiftKey: true })
     const d = screen.getByRole('dialog', { name: /quick overview/i })
-    expect(d.textContent).toMatch(/to go|All done/i); expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy() // v0.6.1 lock: Share only (Copy dropped)
+    expect(d.querySelectorAll('.sow-qc').length).toBeGreaterThan(0); expect(screen.getAllByRole('button', { name: /^Share / }).length).toBeGreaterThan(0)
     fireEvent.keyDown(document.body, { key: 'Escape' }); expect(screen.queryByRole('dialog')).toBeNull()
   })
   it('V06-QO-02 swipe up on the grabber opens it', async () => {

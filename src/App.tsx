@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { sheetLabel, useApp } from './store/store'
 import { Bar } from './shell/Bar'
 import { Dock } from './shell/Dock'
-import { Overview, QuickSheet } from './screens/Overview'
+import { Overview } from './screens/Overview'
+import { QuickOverview } from './screens/QuickOverview'
 import { dateColsFor } from './data/model'
 import { Checklist } from './screens/Checklist'
 import { More } from './screens/More'
@@ -32,16 +33,17 @@ export function App() {
     const apply = () => { document.documentElement.dataset.theme = `utopian-${side === 'system' ? (mq?.matches ? 'day' : 'night') : side}` }
     apply(); mq?.addEventListener?.('change', apply); return () => mq?.removeEventListener?.('change', apply)
   }, [side])
+  const layout = wide ? 'desktop' : 'phone'; const dateCols = dateColsFor({ layout, landscape: land, weeks: view.weeks, phoneCols: view.phoneCols })
   return (
     <>
       {tab !== 'overview' && <Bar />}{/* v0.7j: Overview is all classes, so no class bar */}
       <main className="sow-main">
-        {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} onHalf={useApp.getState().openQuick} today={todayIso()} layout={wide ? 'desktop' : 'phone'} jump={jump} focusSessionId={focus} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateColsFor({ layout: wide ? 'desktop' : 'phone', landscape: land, weeks: view.weeks, phoneCols: view.phoneCols })} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
+        {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} onQuick={() => useApp.getState().setQuick(true)} today={todayIso()} layout={layout} jump={jump} focusSessionId={focus} onTick={tick} onTickMany={useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateCols} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
         {tab === 'overview' && <Overview />}
         {tab === 'more' && <More />}
         <p className="sow-foot">Driftline · {FLAVOR === 'beta' ? 'Beta' : 'Stable'} · v{VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>
       </main>
-      {tab === 'checklist' && <QuickSheet />}
+      {tab === 'checklist' && <QuickOverview layout={layout} dateCols={dateCols} />}
       <Dock />
     </>
   )

@@ -3,11 +3,11 @@
 // Reschedule (S7, F-DT-01..06: wheels, year, topic, live dashed chip, button dim until a change, collision note, Cancel)
 // and ＋ New date at the end of the strip (S8, F-OV-05: next class day picked, no duplicate on the same day).
 import { useEffect, useRef, useState } from 'react'
-import { CONFIG } from '../config'
 import { GLYPH } from '../ui/icons'
 import { useApp } from '../store/store'
 import { collides, nextClassDays } from '../data/edits'
 import { Wheels } from './Wheels'
+import { Sheet } from '../ui/Sheet'
 const chipDay = (iso: string) => { const d = new Date(iso + 'T00:00:00'); return { dow: d.toLocaleDateString('en-GB', { weekday: 'short' }), dm: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) } }
 const short = (iso: string) => { const d = chipDay(iso); return `${d.dow} ${d.dm}` }
 const long = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '')
@@ -15,7 +15,7 @@ export type DateCol = { sessionId: string; date: string; kind: string; topic: st
 type Mode = 'edit' | 'new'
 type Props = { columns: DateCol[]; current: string; today: string; onPick: (sessionId: string) => void; onClose: () => void; subjectKey?: string; kind?: string; ticks?: number; onDone?: (msg: string) => void; start?: Mode }
 export function DateSheet({ columns, current, today, onPick, onClose, subjectKey = '', kind = '', ticks = 0, onDone, start = 'edit' }: Props) {
-  const strip = useRef<HTMLDivElement | null>(null); const y0 = useRef<number | null>(null)
+  const strip = useRef<HTMLDivElement | null>(null)
   const data = useApp((s) => s.data); const cur = columns.find((c) => c.sessionId === current)
   const [mode, setMode] = useState<Mode>(start)
   const suggest = nextClassDays(data, subjectKey, today)
@@ -35,11 +35,8 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
     if (moved) s.moveSession(current, date)
     onDone?.(moved ? `Moved to ${short(date)} · ticks moved with it` : 'Topic updated'); onClose()
   }
-  return (<>
-    <button className="sow-scrim" aria-label="Close dates" onClick={onClose} />
-    <div className="sow-sheet sow-ds editing" role="dialog" aria-label={mode === 'edit' ? 'Reschedule' : 'New date'}>
-      <button className="sow-sheet__handle" aria-label="Close (swipe down)" onClick={onClose}
-        onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && e.clientY - y0.current > CONFIG.timing.sheetOpenDragPx) { y0.current = null; onClose() } }} onPointerUp={() => { y0.current = null }}><span className="sow-sheet__grip" /></button>
+  return (
+    <Sheet label={mode === 'edit' ? 'Reschedule' : 'New date'} scrimLabel="Close dates" onClose={onClose} className="sow-ds editing">
       <div className="sow-wp__head"><h2 className="sow-wp__title">{mode === 'edit' ? 'Reschedule' : 'New date'}</h2><button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
       {mode === 'edit' && <div className="sow-ds__strip" ref={strip}><div className="sow-ds__opts" role="listbox" aria-label="Existing dates">
         {columns.map((c) => { const on = c.sessionId === current; const shown = on ? date : c.date; const d = chipDay(shown)
@@ -60,5 +57,5 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
         : mode === 'new' ? <p className="sow-ds__note">Same day is fine with a different label</p> : null}
       <div className="sow-ds__btns"><button className="sow-ds__cancel" onClick={() => (mode === 'new' && start === 'edit' ? open('edit') : onClose())}>Cancel</button>
         <button className="sow-ds__go" disabled={!changed || clash} onClick={go}>{act}</button></div>
-    </div></>)
+    </Sheet>)
 }
