@@ -160,10 +160,11 @@ House rules that apply to every feature:
 ### F-CL-04 Swipe to tick
 - **Status:** LIVE
 - **How to use it:**
-  - Press a box and drag up or down the same column; every box you cross takes the first box's new value.
+  - Press a box and swipe sideways along that name's row (t119u/t121u); with two dates showing, every box you cross takes the first box's new value. Up and down scrolls.
   - The whole swipe is one Undo step.
   - A small wobble still counts as a tap.
-- **Rules:** It engages after 10px (`swipeEngagePx`). Developer option: Swipe to tick.
+- **Rules:** It engages after 10px (`swipeEngagePx`). Once engaged the box keeps the pointer, so the swipe still counts when the finger ends off the box; past either end of the row the end box counts (v0.8.0-beta.4, B-P10-SWIPE). Developer option: Swipe to tick.
+- **Tests:** V05-SW-01..03, BK-SW-01/02
 - **Code:** `src/screens/paint.ts`, `Checklist.tsx`
 - **Tests:** `tests/v05.test.tsx`
 
@@ -352,7 +353,8 @@ House rules that apply to every feature:
 
 ### F-SY-04 Undo / Redo
 - **Status:** LIVE
-- **Rules:** Kept on the device across restarts, up to 200 steps. A swipe counts as one step.
+- **Rules:** Kept on the device across restarts, up to 200 steps. A swipe counts as one step. Date moves, new dates and topic edits are undo steps too, and (from v0.8.0-beta.4) Redo brings them back in order with ticks; any new action clears Redo.
+- **Tests:** V05-SW-03, BK-STORE-01/02
 - **Code:** `src/sync/history.ts`
 
 ### F-SY-05 Snapshots and Restore

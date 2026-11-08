@@ -1,4 +1,12 @@
 # Changelog
+## 0.8.0-beta.4 (2026-11-09)
+Steve t79u: Phase 10 break-it run on v0.8.0-beta.3 (live Beta, demo data and a stand-in bridge; no token, no real sheet). Beta only.
+- Swipe to tick: a swipe that ends off the box now counts (it was lost and left a false tick on screen); an overshooting two-date swipe covers both dates.
+- Redo brings back undone date moves, new dates and topic edits, in order with ticks.
+- Template sync: an edit made during a sync is no longer dropped.
+- No text under 13 px anywhere (dock labels, Pending, YOUR CLASS, A–Z, footer); the 1|2 buttons have a 44 px hit area; the template maker's ＋ New is "Add a template" for screen readers.
+- Break-it suite: docs/breakit-v08.cjs (16 checks; report docs/BREAK_IT_v0.8.md). Tests: 236 app (BK-SYNC-01/02, BK-STORE-01/02, BK-UI-01/02, BK-TP-01, BK-SW-01/02 new).
+- Rollback: set BETA_REF back to v0.8.0-beta.3 in sow-driftline-beta (backup branch backup/pre-v0.8.0-p10).
 ## 0.8.0-beta.3 (2026-11-09)
 Steve: Batch 3 GO (Phases 6–9), t80u clean code; locks locked-20261108c (S1, S2), L-20261108b (O3-session, G5d-past). Beta only, demo/test copy only.
 - Settings replaces More (Phase 6): Appearance, Sync & pairing, Session & names, Backups, App; each row opens a page with ‹ back. The class bar shows on Checklist only.

@@ -1,5 +1,13 @@
 # BUGS
-None open on the branch.
+None open on the branch (Phase 10 break-it, 9 Nov 2026; see docs/BREAK_IT_v0.8.md).
+- FIXED 0.8.0-beta.4 B-P10-SWIPE (P1): a sideways swipe that ended off the tick box (the usual case) was lost, and the box kept showing a tick that was never saved. An overshooting two-date swipe only ticked the first box. Tests BK-SW-01/02.
+- FIXED 0.8.0-beta.4 B-P10-REDO (P2): Redo never brought back an undone date move, new date or topic edit (Redo stayed off). Tests BK-STORE-01/02.
+- FIXED 0.8.0-beta.4 B-P10-SYNCRACE (P2): a template edit made while a sync push was in flight was marked as sent and never reached the other device. Tests BK-SYNC-01/02.
+- FIXED 0.8.0-beta.4 B-P10-TEXT12 (P2, standing rule): 12 px text (dock labels, Pending chip, YOUR CLASS, A–Z letters, footer, SMS, date chip labels). Caption now follows footnote (13 px). Test BK-UI-01.
+- FIXED 0.8.0-beta.4 B-P10-SEG44 (P3, standing rule): the 1|2 date buttons were 36×36 px; now a 44 px hit area. Test BK-UI-02.
+- FIXED 0.8.0-beta.4 B-P10-NEWNAME (P3, a11y): after ＋ New, the header button and the new pill were both called "New template". Test BK-TP-01.
+- KNOWN 0.8.0-beta.4 (P3, not fixed): template sync trusts device clocks; a device whose clock runs ahead keeps its own templates over others' newer edits until real time catches up (the bridge clamps future stamps).
+- KNOWN 0.8.0-beta.4 (P3, by design, Q-FOCUS open): an update found before the first tap of a session applies at once, also when coming back to an untouched app.
 - FIXED 0.8.0-beta.3 B-P4-SHEEN: in the day theme the Overview card text was washed out by the dl-card sheen (`all: unset` dropped `position: relative`). Test V08-P4-11.
 - KNOWN 0.8.0-beta.3: share templates sync between devices only once the test-copy bridge has the prefs actions (bridge 0.50.0-dl.1, deploy left to Steve); until then they stay on this device.
 - KNOWN 0.8.0-beta.3: past years (Session switch) show made-up demo data until the Sheet has past sessions.
