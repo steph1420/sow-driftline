@@ -111,7 +111,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   }
   return (
     <>
-      {onTick && <ChecklistControls layout={layout} />}
+      <ChecklistControls layout={layout} history={!!onTick} />
       {pill != null && <SearchRow value={pill} matches={matches} total={c.pupils.length} onClose={() => setPill(null)} onChange={(q) => { setPill(q); if (q.trim()) find(q.trim()) }} />}
       <div className={`sow-grid ${layout}${swipe && onTick ? ' swipe' : ''}${one ? ' one' : ''}`}>
         <table onKeyDown={keyGrid}>
@@ -132,7 +132,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
         </table>
       </div>
       <AzRail names={names} onJump={go} side={railSide} bubble={railBubble} onSide={onRailSide} />
-      {sheet && <DateSheet columns={c0.columns} current={sheet.sessionId} today={today} onPick={(sid) => onPick?.(sid)} onClose={() => setDates(null)} subjectKey={subjectKey ?? ''} kind={sheet.kind} ticks={doneOn(sheet.sessionId)} onDone={setToast} />}
+      {sheet && <DateSheet viewOnly={!onTick} columns={c0.columns} current={sheet.sessionId} today={today} onPick={(sid) => onPick?.(sid)} onClose={() => setDates(null)} subjectKey={subjectKey ?? ''} kind={sheet.kind} ticks={doneOn(sheet.sessionId)} onDone={setToast} />}
       {/* v0.7.0 S9 (F-LT-02): mode pill, only once this date's due time has passed */}
       {onTick && pillVisible(focus.date, nowMs()) && <button className={`sow-mode ${markMode}`} aria-pressed={markMode === 'back'} aria-label={markMode === 'late' ? 'Marking late submissions, tap for back-date' : 'Marking on back-date, tap for late submissions'}
         onClick={() => useApp.getState().setMarkMode(markMode === 'late' ? 'back' : 'late')}><i aria-hidden>{GLYPH.clock}</i><span>{markMode === 'late' ? 'Marking late submissions' : 'Marking on back-date'}</span><span className="sow-mode__sw" aria-hidden /></button>}

@@ -3,6 +3,7 @@ import { useApp } from '../store/store'
 import { saveLabel, saveTone } from './saveState'
 import { classLabel, focusColumn, toChecklist } from '../data/model'
 import { todayIso } from '../data/today'
+import { yearById } from '../data/schoolYear'
 import { GLYPH, Icon } from '../ui/icons'
 export function Bar() {
   const s = useApp()
@@ -16,7 +17,7 @@ export function Bar() {
     <header className="sow-bar">
       <button className="sow-pill" aria-label={`Switch class, ${cls.label} ${sub?.subject ?? cls.subject} ${sub?.kind ?? ''}`.trim()} onClick={() => setOpen(!open)}>
         <span className="dl-logo" aria-hidden>{cls.label.slice(-1)}</span>
-        <span className="sow-pill__txt"><span className="sow-pill__top">{cls.label} <small className="sow-pill__sub">{line}</small></span>{topic && <small className="sow-pill__topic">{topic}</small>}</span>
+        <span className="sow-pill__txt"><span className="sow-pill__top">{cls.label} <small className="sow-pill__sub">{line}</small></span>{(topic || s.viewing) && <small className="sow-pill__topic">{topic}{s.viewing && <>{topic && ' · '}<span className="sow-pill__year">{yearById(s.viewing).label}</span></>}</small>}</span>
         <span className="sow-sp" /><i className="sow-pill__caret" aria-hidden>{GLYPH.down}</i>
         <span className={`sow-dot ${saveTone(s)}`} aria-label={dot} title={dot} />
       </button>

@@ -2,7 +2,8 @@
 // subject + type. Tap a card or date → Checklist there; ＋ → New date; All › → All dates; press and hold → card menu.
 import { useState } from 'react'
 import { useApp } from '../store/store'
-import { overviewCards, type Card } from '../data/overview'
+import { overviewCards, pastYearCards, type Card } from '../data/overview'
+import { shownYear } from '../data/schoolYear'
 import { dateLabel, toChecklist } from '../data/model'
 import { todayIso } from '../data/today'
 import { AllDates } from './AllDates'
@@ -10,6 +11,8 @@ import { CardMenu, type CardAction } from './CardMenu'
 import { DateSheet } from './DateSheet'
 import { Hint } from './Hint'
 import { OverviewCard, cardName } from './OverviewCard'
+import { SessionSheet } from './SessionSheet'
+import { GLYPH } from '../ui/icons'
 import { ShareSheet } from './ShareSheet'
 
 type Filter = { classKey: string | null; kind: string | null }
@@ -20,7 +23,9 @@ const focusOf = (c: Card) => c.dates[0]?.sessionId ?? c.open
 
 export function Overview() {
   const data = useApp((s) => s.data); const openSession = useApp((s) => s.openSession); const today = todayIso()
-  const cards = overviewCards(data, today)
+  const viewing = useApp((s) => s.viewing); const yearSwitch = useApp((s) => s.dev.pastSessions)
+  const cards = viewing ? pastYearCards(data, today) : overviewCards(data, today)
+  const [session, setSession] = useState(false); const year = shownYear(viewing, today)
   const [filter, setFilter] = useState<Filter>({ classKey: null, kind: null })
   const [menu, setMenu] = useState<{ card: Card; at: DOMRect } | null>(null)
   const [sheet, setSheet] = useState<Open>(null); const [all, setAll] = useState<string | null>(null)
@@ -32,7 +37,8 @@ export function Overview() {
   return (<div className="sow-ov">
     {allCard ? <AllDates card={allCard} today={today} onBack={() => setAll(null)} onOpen={(sid) => openSession(allCard.classKey, sid)} onAdd={() => setSheet({ kind: 'new', card: allCard })} onShare={() => setSheet({ kind: 'share', card: allCard })} />
       : <>
-        <header className="sow-ovh"><h1 className="sow-ovh__title">Overview</h1><span className="sow-ovh__date">{dateLabel(today)}</span></header>
+        <header className="sow-ovh"><h1 className="sow-ovh__title">Overview</h1>
+          <span className="sow-ovh__date">{dateLabel(today)}{yearSwitch && <> · <button className={`sow-ovh__year${viewing ? ' past' : ''}`} aria-label={`Session, ${year.label}`} onClick={() => setSession(true)}>{year.label} <i aria-hidden>{GLYPH.down}</i></button></>}</span></header>
         <div className="sow-filters" role="group" aria-label="Filter classes">
           {chip('All', !filter.classKey && !filter.kind, { classKey: null, kind: null })}
           {classes.map((k) => chip(cards.find((c) => c.classKey === k)!.label, filter.classKey === k, { ...filter, classKey: filter.classKey === k ? null : k }))}
@@ -40,11 +46,12 @@ export function Overview() {
           {kinds.map((k) => chip(k, filter.kind === k, { ...filter, kind: filter.kind === k ? null : k }))}
         </div>
         <Hint ids={['hold']} />
-        <div className="sow-ocs">{shown.map((c) => <OverviewCard key={c.subjectKey} card={c} held={menu?.card.subjectKey === c.subjectKey} onOpen={(sid) => openSession(c.classKey, sid)}
+        <div className="sow-ocs">{shown.map((c) => <OverviewCard key={c.subjectKey} card={c} viewOnly={!!viewing} held={menu?.card.subjectKey === c.subjectKey} onOpen={(sid) => openSession(c.classKey, sid)}
           onAdd={() => setSheet({ kind: 'new', card: c })} onAll={() => setAll(c.subjectKey)} onHold={(el) => setMenu({ card: c, at: el.getBoundingClientRect() })} />)}</div>
         {!cards.length && <p className="dl-muted">No classes yet.</p>}
       </>}
-    {menu && <CardMenu name={cardName(menu.card)} anchor={menu.at} canReschedule={!!focusOf(menu.card)} onPick={(a) => act(menu.card, a)} onClose={() => setMenu(null)} />}
+    {menu && <CardMenu name={cardName(menu.card)} anchor={menu.at} canEdit={!viewing} canReschedule={!!focusOf(menu.card)} onPick={(a) => act(menu.card, a)} onClose={() => setMenu(null)} />}
+    {session && <SessionSheet onClose={() => setSession(false)} />}
     {sheet && <CardSheet open={sheet} today={today} onClose={() => setSheet(null)} />}
   </div>)
 }

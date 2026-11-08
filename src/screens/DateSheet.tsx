@@ -2,6 +2,7 @@
 // Strip of this class's existing dates (F-DT-04: tap = open it, no data change; off once something has changed),
 // Reschedule (S7, F-DT-01..06: wheels, year, topic, live dashed chip, button dim until a change, collision note, Cancel)
 // and ＋ New date at the end of the strip (S8, F-OV-05: next class day picked, no duplicate on the same day).
+// `viewOnly` (a past year, F-DT-08): just the strip, to flip dates; no Reschedule, New date or topic edit.
 import { useEffect, useRef, useState } from 'react'
 import { GLYPH } from '../ui/icons'
 import { useApp } from '../store/store'
@@ -13,8 +14,8 @@ const short = (iso: string) => { const d = chipDay(iso); return `${d.dow} ${d.dm
 const long = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).replace(',', '')
 export type DateCol = { sessionId: string; date: string; kind: string; topic: string }
 type Mode = 'edit' | 'new'
-type Props = { columns: DateCol[]; current: string; today: string; onPick: (sessionId: string) => void; onClose: () => void; subjectKey?: string; kind?: string; ticks?: number; onDone?: (msg: string) => void; start?: Mode }
-export function DateSheet({ columns, current, today, onPick, onClose, subjectKey = '', kind = '', ticks = 0, onDone, start = 'edit' }: Props) {
+type Props = { columns: DateCol[]; current: string; today: string; onPick: (sessionId: string) => void; onClose: () => void; subjectKey?: string; kind?: string; ticks?: number; onDone?: (msg: string) => void; start?: Mode; viewOnly?: boolean }
+export function DateSheet({ columns, current, today, onPick, onClose, subjectKey = '', kind = '', ticks = 0, onDone, start = 'edit', viewOnly = false }: Props) {
   const strip = useRef<HTMLDivElement | null>(null)
   const data = useApp((s) => s.data); const cur = columns.find((c) => c.sessionId === current)
   const [mode, setMode] = useState<Mode>(start)
@@ -27,6 +28,7 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
   const moved = mode === 'edit' && cur != null && date !== cur.date; const retopic = mode === 'edit' && cur != null && topic.trim() !== (cur.topic ?? '')
   const clash = (mode === 'edit' && moved && collides(data, subjectKey, date, current)) || (mode === 'new' && collides(data, subjectKey, date))
   const changed = mode === 'new' || moved || retopic
+  const title = viewOnly ? 'Dates' : mode === 'edit' ? 'Reschedule' : 'New date'
   const act = mode === 'new' ? `Add ${kind ? `${kind} · ` : ''}${long(date)}` : moved ? `Move to ${short(date)}` : retopic ? 'Save topic' : 'Move date'
   function go() {
     if (!changed || clash) return; const s = useApp.getState()
@@ -36,15 +38,16 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
     onDone?.(moved ? `Moved to ${short(date)} · ticks moved with it` : 'Topic updated'); onClose()
   }
   return (
-    <Sheet label={mode === 'edit' ? 'Reschedule' : 'New date'} scrimLabel="Close dates" onClose={onClose} className="sow-ds editing">
-      <div className="sow-sheet__head"><h2 className="sow-sheet__title">{mode === 'edit' ? 'Reschedule' : 'New date'}</h2><button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
+    <Sheet label={title} scrimLabel="Close dates" onClose={onClose} className={`sow-ds${viewOnly ? '' : ' editing'}`}>
+      <div className="sow-sheet__head"><h2 className="sow-sheet__title">{title}</h2><button className="sow-x" aria-label="Close" onClick={onClose}>{GLYPH.close}</button></div>
       {mode === 'edit' && <div className="sow-ds__strip" ref={strip}><div className="sow-ds__opts" role="listbox" aria-label="Existing dates">
         {columns.map((c) => { const on = c.sessionId === current; const shown = on ? date : c.date; const d = chipDay(shown)
           return <button key={c.sessionId} role="option" aria-selected={on} aria-current={on} className={`sow-ds__chip${on ? ' on' : ''}${on && moved ? ' live' : ''}${shown < today ? ' old' : ''}`} aria-label={`${c.kind} ${d.dow} ${d.dm}${shown === today ? ', today' : ''}`}
             onClick={() => { if (on || changed) return; onPick(c.sessionId); onClose() }}>
             <small>{shown === today ? `${c.kind} · Today` : `${c.kind} · ${d.dow}`}</small><b>{d.dm}</b></button> })}</div>
-        <button className="sow-ds__chip sow-ds__new" aria-label="New date" onClick={() => open('new')}><small>{kind || 'Date'}</small><b>＋ New</b></button>
+        {!viewOnly && <button className="sow-ds__chip sow-ds__new" aria-label="New date" onClick={() => open('new')}><small>{kind || 'Date'}</small><b>＋ New</b></button>}
       </div>}
+      {viewOnly ? null : <>
       {mode === 'edit' && <div className="sow-ds__line">
         <span>{ticks} {ticks === 1 ? 'tick' : 'ticks'} · </span>
         {typing ? <input className="sow-ds__topic" aria-label="Topic" autoFocus value={topic} placeholder="Add a topic" onChange={(e) => setTopic(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') setTyping(false) }} onBlur={() => setTyping(false)} />
@@ -56,6 +59,6 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
       {clash ? <p className="sow-ds__clash" role="status">{kind || 'This'} already has {short(date)}. Pick another day.</p>
         : mode === 'new' ? <p className="sow-ds__note">Same day is fine with a different label</p> : null}
       <div className="sow-ds__btns"><button className="sow-ds__cancel" onClick={() => (mode === 'new' && start === 'edit' ? open('edit') : onClose())}>Cancel</button>
-        <button className="sow-ds__go" disabled={!changed || clash} onClick={go}>{act}</button></div>
+        <button className="sow-ds__go" disabled={!changed || clash} onClick={go}>{act}</button></div></>}
     </Sheet>)
 }

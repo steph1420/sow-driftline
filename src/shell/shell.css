@@ -352,3 +352,21 @@ th.sel .sow-tab { background: linear-gradient(180deg, color-mix(in srgb, var(--d
 .sow-tpl__mirror .sow-tok { padding: 0; box-shadow: 0 0 0 2px var(--dl-chip-accent-bg), inset 0 0 0 1px var(--dl-chip-accent-border); } /* token-ok: ring outside the glyphs keeps the caret aligned */
 .sow-tpl__mirror .sow-tok.submitted { box-shadow: 0 0 0 2px var(--dl-chip-special-bg), inset 0 0 0 1px var(--dl-chip-special-border); } /* token-ok */
 .sow-tpl__mirror .sow-tok.unknown { box-shadow: none; }
+
+/* v0.8 F-SH-08/09 (O3-session, O3-session-past2, G5d-past): session switch and the amber, view-only past year */
+.sow-ovh__year { min-height: var(--dl-hit-min); padding: 0 var(--dl-space-1); border: 0; background: none; font: inherit; color: var(--dl-color-text-muted); cursor: pointer; }
+.sow-ovh__year i { font-style: normal; }
+.sow-ovh__year.past, .sow-pill__year { color: var(--dl-color-warning); }
+.sow-year { min-height: calc(var(--dl-hit-min) + var(--dl-space-4)); }
+.sow-year__txt { display: flex; flex-direction: column; align-items: flex-start; }
+.sow-year__txt b { font-size: var(--dl-type-headline-size); font-weight: 600; }
+.sow-year__txt small { font-size: var(--dl-type-footnote-size); color: var(--dl-color-text-muted); }
+.sow-year.on b, .sow-year.on i { color: var(--dl-color-accent); font-style: normal; }
+.sow-session__note { margin: var(--dl-space-3) 0 0; text-align: center; font-size: var(--dl-type-footnote-size); color: var(--dl-color-text-muted); }
+.sow-oc--past .sow-oc__dates button.on { color: var(--dl-color-warning); }
+.sow-oc--past .sow-oc__dates button.on::after { border-top-color: var(--dl-color-warning); }
+.sow-pastpill { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--dl-hit-min) * 2 + var(--dl-space-6)); z-index: 30; display: flex; align-items: center; gap: var(--dl-space-3); padding: 0 var(--dl-space-2) 0 var(--dl-space-5); border-radius: var(--dl-radius-pill); white-space: nowrap;
+  background: color-mix(in srgb, var(--dl-color-warning) 14%, var(--dl-color-surface-solid)); box-shadow: inset 0 0 0 1px var(--dl-chip-warning-border), var(--dl-color-shadow-soft); color: var(--dl-color-warning); font-size: var(--dl-type-callout-size); } /* token-ok: 1px ring */
+.sow-pastpill__div { align-self: stretch; margin: var(--dl-space-3) 0; border-left: 1px solid var(--dl-chip-warning-border); } /* token-ok: 1px rule */
+.sow-pastpill button { min-height: var(--dl-hit-min); padding: 0 var(--dl-space-3); border: 0; background: none; font: inherit; font-weight: 600; color: var(--dl-color-accent); cursor: pointer; }
+.sow-pastpill ~ .sow-hint, .sow-pastpill ~ .sow-mode { display: none; }

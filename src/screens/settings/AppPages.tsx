@@ -49,6 +49,7 @@ export function DeveloperPage() {
       <Segment label="A–Z side" options={[{ id: 'left', label: 'Left' }, { id: 'right', label: 'Right' }] as const} value={dev.railSide} onChange={(railSide) => setDev({ railSide })} />
       <Segment label="Swipe to tick" options={onOff} value={flag(dev.swipeTick)} onChange={(v) => setDev({ swipeTick: bool(v) })} />
       <Segment label="Letter bubble" options={onOff} value={flag(dev.railBubble)} onChange={(v) => setDev({ railBubble: bool(v) })} />
+      <Segment label="Past sessions (preview)" options={onOff} value={flag(dev.pastSessions)} onChange={(v) => setDev({ pastSessions: bool(v) })} />
     </div>
     <div className="dl-list">
       <div className="dl-row sow-set__row"><span>Release channel</span><span className="sow-sp" />

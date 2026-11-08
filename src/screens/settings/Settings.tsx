@@ -1,5 +1,5 @@
 // v0.8 Settings (S1, F-ST-01): replaces More. Quiet grouped rows with chevrons; each opens a full page with ‹ back.
-// Sync and Updates show a status dot only. Rows for later phases appear with them (names: Phase 5).
+// Sync and Updates show a status dot only. Rows for later phases appear with them (names: Phase 5); Session only with its flag (F-ST-04).
 import { useState } from 'react'
 import { useApp, type Side } from '../../store/store'
 import { saveLabel, saveTone } from '../../shell/saveState'
@@ -8,6 +8,9 @@ import { Group, NavRow, Segment } from './rows'
 import { PairPage, SyncPage, devicesValue, useDevices } from './SyncPages'
 import { useTemplates } from '../../store/templates'
 import { TemplateMaker } from '../templates/TemplateMaker'
+import { SessionSheet } from '../SessionSheet'
+import { shownYear } from '../../data/schoolYear'
+import { todayIso } from '../../data/today'
 import { AboutPage, ContrastPage, DeveloperPage, SnapshotsPage, UpdatesPage, aboutValue, contrastName, whenLabel } from './AppPages'
 
 type Page = 'contrast' | 'sync' | 'pair' | 'snapshots' | 'updates' | 'developer' | 'about'
@@ -16,6 +19,7 @@ const THEMES = [{ id: 'night', label: 'Night' }, { id: 'day', label: 'Day' }, { 
 
 export function Settings() {
   const s = useApp(); const [page, setPage] = useState<Page | 'templates' | null>(null); const devices = useDevices(); const templates = useTemplates((t) => t.set.templates.length)
+  const [session, setSession] = useState(false)
   if (page === 'templates') return <TemplateMaker onBack={() => setPage(null)} />
   if (page) return (<div className="sow-set">
     <PageHead title={TITLES[page]} backLabel="Back to Settings" onBack={() => setPage(null)} />
@@ -33,6 +37,7 @@ export function Settings() {
       <NavRow label="Pair a device" value={devicesValue(devices)} onClick={() => setPage('pair')} />
     </Group>
     <Group title="Session & names">
+      {s.dev.pastSessions && <NavRow label="Session" value={shownYear(s.viewing, todayIso()).label} onClick={() => setSession(true)} />}
       <NavRow label="Share templates" value={`${templates} templates`} onClick={() => setPage('templates')} />
     </Group>
     <Group title="Backups">
@@ -44,5 +49,6 @@ export function Settings() {
       <NavRow label="Developer options" onClick={() => setPage('developer')} />
       <NavRow label="About" value={aboutValue()} onClick={() => setPage('about')} />
     </Group>
+    {session && <SessionSheet onClose={() => setSession(false)} />}
   </div>)
 }

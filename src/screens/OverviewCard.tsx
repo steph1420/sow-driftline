@@ -5,23 +5,23 @@ import { dateLabel, dayLabel } from '../data/model'
 import { GLYPH } from '../ui/icons'
 import { useHold } from '../ui/useHold'
 
-type Props = { card: Card; held: boolean; onOpen: (sessionId: string) => void; onAdd: () => void; onAll: () => void; onHold: (el: HTMLElement) => void }
+type Props = { card: Card; viewOnly?: boolean; held: boolean; onOpen: (sessionId: string) => void; onAdd: () => void; onAll: () => void; onHold: (el: HTMLElement) => void }
 export const cardName = (c: Card) => `${c.label} ${c.subject} ${c.kind}`
 
-export function OverviewCard({ card: c, held, onOpen, onAdd, onAll, onHold }: Props) {
+export function OverviewCard({ card: c, viewOnly = false, held, onOpen, onAdd, onAll, onHold }: Props) {
   const hold = useHold(onHold); const first = c.dates[0]; const name = cardName(c)
   const topic = !first ? 'No dates ahead' : first.when === 'future' ? `Next: ${first.topic || 'no topic yet'}` : first.topic || 'No topic yet'
   return (
-    <div className={`dl-card sow-oc${held ? ' held' : ''}`} {...hold}>
+    <div className={`dl-card sow-oc${held ? ' held' : ''}${viewOnly ? ' sow-oc--past' : ''}`} {...hold}>
       <button className="sow-oc__main" aria-label={`Open ${name} on Checklist`} disabled={!c.open} onClick={() => c.open && onOpen(c.open)}>
         <span className="sow-oc__head"><b className="sow-oc__title">{c.label} · {c.subject} {c.kind}</b>
           {c.pastOpen && <i className="sow-oc__dot" role="img" aria-label="An older date still has copies to come in" />}</span>
-        <b className="sow-oc__n dl-num">{first?.when === 'today' ? <>{first.done}<small>/{c.total}</small></> : '—'}</b>
+        <b className="sow-oc__n dl-num">{first && first.when !== 'future' ? <>{first.done}<small>/{c.total}</small></> : '—'}</b>
         <span className="sow-oc__topic">{topic}</span>
       </button>
       <div className="sow-oc__dates">
-        {c.dates.map((d, i) => <button key={d.sessionId} className={i === 0 ? 'on' : ''} aria-current={i === 0 ? 'date' : undefined} aria-label={`Open ${dateLabel(d.date)}`} onClick={() => onOpen(d.sessionId)}>{dayLabel(d.date)}</button>)}
-        <button className="sow-oc__add" aria-label={`Add date, ${name}`} onClick={onAdd}>{GLYPH.plus}</button>
+        {c.dates.map((d, i) => <button key={d.sessionId} className={i === 0 ? 'on' : ''} aria-current={i === 0 ? 'date' : undefined} aria-label={`Open ${dateLabel(d.date)}`} onClick={() => onOpen(d.sessionId)}>{d.when === 'past' ? dateLabel(d.date) : dayLabel(d.date)}</button>)}
+        {!viewOnly && <button className="sow-oc__add" aria-label={`Add date, ${name}`} onClick={onAdd}>{GLYPH.plus}</button>}
         <span className="sow-sp" />
         <button className="sow-oc__all" aria-label={`All dates, ${name}`} onClick={onAll}>All {GLYPH.next}</button>
       </div>

@@ -16,16 +16,24 @@ function datesOf(s: SheetState, subjectKey: string, classKey: string, today: str
   return sessionsOf(s, subjectKey).map((x) => { const done = pupils.filter((p) => on.has(`${x.sessionId}|${p.roll}`)).length
     return { sessionId: x.sessionId, date: x.date, topic: x.topic, done, left: pupils.length - done, when: x.date < today ? 'past' : x.date === today ? 'today' : 'future' } })
 }
-export function overviewCards(s: SheetState, today: string): Card[] {
-  const sunday = addDays(today, 6 - dowOf(today))
+type PickDates = (all: OvDate[]) => OvDate[]
+function cardsWith(s: SheetState, today: string, pick: PickDates): Card[] {
   const cards = s.subjects.filter((x) => x.active).map((sub, order) => {
-    const all = datesOf(s, sub.subjectKey, sub.classKey, today); const ahead = all.filter((d) => d.when !== 'past')
-    const week = ahead.filter((d) => d.date <= sunday); const dates = (week.length ? week : ahead.slice(0, 1)).slice(0, MAX_CARD_DATES)
+    const all = datesOf(s, sub.subjectKey, sub.classKey, today); const dates = pick(all).slice(0, MAX_CARD_DATES)
     const open = dates[0]?.sessionId ?? all[all.length - 1]?.sessionId ?? null
     return { order, card: { subjectKey: sub.subjectKey, classKey: sub.classKey, label: classLabel(sub.classKey), subject: sub.subject, kind: sub.kind, total: pupilsOf(s, sub.classKey).length, dates, open, pastOpen: all.some((d) => d.when === 'past' && d.left > 0) } }
   })
   const isToday = (c: Card) => Number(c.dates[0]?.when === 'today')
   return cards.sort((a, b) => isToday(b.card) - isToday(a.card) || a.order - b.order).map((x) => x.card)
+}
+export function overviewCards(s: SheetState, today: string): Card[] {
+  const sunday = addDays(today, 6 - dowOf(today))
+  return cardsWith(s, today, (all) => { const ahead = all.filter((d) => d.when !== 'past'); const week = ahead.filter((d) => d.date <= sunday); return week.length ? week : ahead.slice(0, 1) })
+}
+/** v0.8 F-SH-09 (O3-session-past2): a past year's cards show its last week (Mon–Sun of its latest date); nothing is open any more. */
+export function pastYearCards(s: SheetState, today: string): Card[] {
+  const last = s.sessions.reduce((m, x) => (x.date > m ? x.date : m), ''); const monday = last && addDays(last, -dowOf(last))
+  return cardsWith(s, today, (all) => all.filter((d) => d.date >= monday)).map((c) => ({ ...c, pastOpen: false }))
 }
 export type DateWeek = { start: string; title: string; rows: OvDate[] }
 export type DateMonth = { key: string; title: string; weeks: DateWeek[] }
