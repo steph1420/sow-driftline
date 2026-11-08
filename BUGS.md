@@ -1,5 +1,6 @@
 # BUGS
 None open.
+- KNOWN 0.8.0-beta.2: card titles use full subject names ("English", not "Eng") until shorthands (Phase 5, waiting on Steve's class/subject list); long titles truncate on All dates.
 - KNOWN 0.7.0-beta.1: Reschedule, New date, topic edits and late marks stay on this device until bridge 0.51.0-dl (not a bug, needs the bridge update).
 - FIXED 0.3.0-beta.1 B-D1-RAIL: A–Z rail scrolled with the list (t146u).
 - FIXED 0.3.0-beta.1 B-B4-1: two tabs could overwrite each other (test D2-TAB-01).

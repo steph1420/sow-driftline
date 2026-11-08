@@ -71,67 +71,57 @@ House rules that apply to every feature:
 
 ## 2. Overview (v0.7j: your class list)
 
-### F-OV-01 All-classes list
-- **Status:** LIVE (Beta v0.7.0-beta.1). It replaces the v0.6 cards, the progress bars and the Done/To go/Waiting block.
-- **What you see:** "Your classes", with one squircle card per class and subject. Each card shows:
-  - class, subject and a **type pill** (CW/HW/Test) on the title row;
-  - the topic;
-  - the date line ("Today · Wed, 4 Nov");
-  - the to-go counter ("10 to go ›", or "✓ All in").
+### F-OV-01 Class cards (O2g)
+- **Status:** LIVE (Beta v0.8.0-beta.2), L-OVERVIEW O2g. Replaces the v0.7j squircle cards.
+- **What you see:** "Overview" with today's date ("Wed 4 Nov"), then one card per class + subject + type:
+  - title "KG-A · English HW", with an amber dot when an older date still has copies to come in;
+  - a big "14/24" for today (a dash when the date is still ahead);
+  - the topic ("Next: …" when ahead);
+  - date tabs: today and this week's dates ahead (max 3; else the first one ahead), the first underlined; ＋; All ›.
 - **Rules:**
-  - Every class on the sheet appears, including finished and future ones.
-  - The order is stable, with today's classes first.
-  - Each card shows its *current session*: today's, else the earliest future one, else the latest past one.
-  - Cards carry **no late chips, warnings, amber, progress bars, avatars or pupil totals** (Steve t82u).
+  - Cards with a date today come first; the order is otherwise stable.
   - Weekday names are always generated from the date.
-- **Data:** read-only from `SheetState` (subjects, sessions, ticks, roster).
-- **Code (planned):** `src/screens/Overview.tsx`, `src/data/overview.ts` (`overviewCards`)
-- **Tests (planned):** `tests/v07.test.tsx` (V07-OV-01..05)
-- **Mock:** `docs/mockups/v07j/overview-phone-night.png`, `overview-phone-day.png`, `overview-desktop-night.png`
-- **Tour:** "All your classes, one card each. Tap one to start marking."
+- **Data:** read-only from `SheetState`.
+- **Code:** `src/screens/Overview.tsx`, `src/screens/OverviewCard.tsx`, `src/data/overview.ts` (`overviewCards`)
+- **Tests:** `tests/v07.test.tsx` (V07-OV-01..06), `tests/v08.test.tsx` (V08-P4-01..03)
+- **Mock:** `docs/mockups/v08/O2g-overview.png`
 
-### F-OV-02 Tap a card to open its checklist
-- **Status:** LIVE (Beta v0.7.0-beta.1)
-- **What you see:** Tapping anywhere on the card opens Checklist on that class *and that exact session*.
-- **Rules:** The open action carries both the class and the session. It never falls back to the last-opened date.
-- **Code (planned):** `store.openSession(classKey, sessionId)`
-- **Tests:** V07-OV-03
-- **Mock:** `docs/mockups/v07j/checklist-landing-phone-night.png`
+### F-OV-02 Tap a card or a date to open its checklist
+- **Status:** LIVE (Beta v0.8.0-beta.2)
+- **What you see:** Tapping the card opens Checklist on its current date; tapping a date tab opens that exact date.
+- **Rules:** The open action carries both the class and the session (`store.openSession`).
+- **Tests:** V06-OV-02, V08-P4-05
 
-### F-OV-03 Squircle card shape
-- **Status:** LIVE (Beta v0.7.0-beta.1)
-- **Rules:**
-  - Each corner is a superellipse drawn as an SVG path, about 26px; no `border-radius`.
-  - The same path draws the fill, the 1px outline and the tap highlight, so they always line up.
-  - The path is redrawn when the screen is resized.
-- **Code (planned):** `src/screens/Squircle.tsx`
+### F-OV-03 Filter chips
+- **Status:** LIVE (Beta v0.8.0-beta.2)
+- **What you see:** All · each class · a divider · each type (CW, HW, Test). One class and one type can be on together; tapping an on chip turns it off; All clears both.
+- **Rules:** Chips come from the sheet; nothing is hard-coded. Not remembered between visits.
+- **Tests:** V08-P4-04
 
-### F-OV-04 Week path for one class (corner button)
-- **Status:** LIVE (Beta v0.7.0-beta.1)
-- **What you see:** A small path icon (44×44 tap area) in each card's top-right corner. It opens a sheet showing a thin line through that class's sessions:
-  - today is a blue node;
-  - past and upcoming sessions are quieter;
-  - each stop shows the type, topic and to-go count.
-- **How to use it:**
-  - Tap a stop to open its checklist.
-  - Scroll down for older weeks, which have quiet dividers ("Last week · 26 Oct – 1 Nov", "19–25 Oct").
-  - Close with ✕, swipe down, Esc or a tap outside.
-- **Rules:**
-  - Only that one class (and subject) is shown.
-  - The pinned heading follows the week in view.
-  - The corner button never triggers the card tap underneath it.
-- **Code (planned):** `src/screens/WeekPath.tsx`, `src/data/overview.ts` (`weekPath`)
-- **Tests:** V07-WP-01..04
-- **Mock:** `docs/mockups/v07j/week-path-phone-night.png`, `week-path-older-phone-night.png`, `week-path-older-phone-day.png`
-- **Tour:** "Tap the little path to see this class's week, and scroll for older weeks."
+### F-OV-04 All dates (O2e; replaces the week path)
+- **Status:** LIVE (Beta v0.8.0-beta.2), L-OVERVIEW O2e. The v0.7 week path sheet and its corner icon are gone.
+- **What you see:** "KG-A · English HW", "All dates · newest first", ＋ Add date and Share; dates grouped by month and week ("This week · 2–8 Nov") on a timeline. Today is blue with a Today tag, older dates with copies still to come in are amber, dates ahead are hollow with a dash, finished ones read "24 ✓".
+- **How to use it:** All › on a card or All dates in the hold menu; tap a row to open that date; ‹ goes back to Overview.
+- **Code:** `src/screens/AllDates.tsx`, `src/data/overview.ts` (`allDates`)
+- **Tests:** `tests/v07.test.tsx` (AD-01..03), V08-P4-09/10
+- **Mock:** `docs/mockups/v08/O2e-alldates.png`
 
 ### F-OV-05 + New date
-- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.7b lock.
-- **What you see:** "＋ New", the last chip in the date sheet strip (v0.8.0-beta.1). It opens New date, already set to the class's next class day; Cancel goes back to Reschedule.
+- **Status:** LIVE (Beta v0.8.0-beta.2): ＋ on each Overview card, Add date in the hold menu and on All dates, and "＋ New" in the date sheet strip.
+- **What you see:** New date, already set to the class's next class day.
 - **Rules:**
   - It never makes two sessions with the same label (CW/HW/Test) on the same day; it shows the collision note instead (F-DT-05).
   - Classes come from the sheet; nothing is hard-coded.
+- **Tests:** V08-P4-06
 - **Mock:** `docs/mockups/v07b/add-phone-night.png`, `dup-phone-night.png`, `dates-phone-night.png`
+
+### F-OV-06 Press and hold a card (O2g-hold)
+- **Status:** LIVE (Beta v0.8.0-beta.2)
+- **What you see:** Hold a card (about half a second) or right-click it: the card lifts, the page blurs, and a menu shows Share, All dates, Add date, Reschedule.
+- **Rules:** Moving the finger cancels the hold (scrolling stays free); the tap that ends a hold does not also open the card; Esc or a tap outside closes. Share and Reschedule act on the card's current date.
+- **Code:** `src/screens/CardMenu.tsx`, `src/ui/useHold.ts` (`CONFIG.timing.holdMs`)
+- **Tests:** V08-P4-07/08
+- **Mock:** `docs/mockups/v08/O2g-hold.png`
 
 ---
 
@@ -222,25 +212,29 @@ House rules that apply to every feature:
 - **Code:** `model.dateColsFor`
 - **Tests:** `tests/v06.test.tsx`
 
-### F-CL-10 Quick overview sheet
-- **Status:** LIVE. The v0.6.1 look adds a ✕ close button and a swipe up from the tab.
+### F-CL-10 Quick overview cards
+- **Status:** LIVE (Beta v0.8.0-beta.2), L-QUICK-SHARE (Q2e) and L-20261108b (Q3-since).
 - **How to use it:**
-  - Open it by swiping up on the handle above the dock, pressing ⇧O, or ⋮ › Quick overview.
+  - Open it by swiping up on the handle above the dock, pressing ⇧O, ⋮ › Quick overview, or tapping a column tab's count.
   - Close it by swiping down, pressing Esc, tapping ✕ or tapping outside.
-- **What you see:** The class and date, the split counter (F-CL-03), "Still to come in" names, and Share.
-- **Code:** `src/screens/Overview.tsx` (`QuickSheet`, `Summary`)
-- **Tests:** `tests/v06.test.tsx` (V06-QO-*)
-- **Mock:** `docs/mockups/v061/qo-phone-night.png`, `qo2-*`, `qo3-*`
+- **What you see:** One card per visible date (two side by side with 1|2 = 2): the day pill (amber when past), done/total, "+N since …" and Share.
+- **Code:** `src/screens/QuickOverview.tsx`, `src/ui/Sheet.tsx`
+- **Tests:** `tests/v08.test.tsx` (V08-P3-01..03), V06-QO-*, S3, S3b
 
-### F-CL-11 Share the list
-- **Status:** LIVE
-- **How to use it:** Tap Share to use the phone's share sheet (WhatsApp on desktop). Copy puts the pending list on the clipboard.
-- **Code:** `src/data/share.ts`
+### F-CL-11 "+N since" cycle and Share sheet
+- **Status:** LIVE (Beta v0.8.0-beta.2)
+- **What you see:**
+  - "+N since 10:40" counts ticks since the app opened; tap to cycle to "this hour" (since the top of the IST hour) and "today" (since IST midnight). Three dots show which one.
+  - Share opens a sheet stacked on top: an editable message (Reset brings the list back), Copy, and WhatsApp · Keep · SMS · More where the device has them.
+- **Rules:** Ticks with no time are never counted. The message is the shipped list template (numbering waits for the Phase 7 templates).
+- **Code:** `src/data/since.ts`, `src/screens/ShareSheet.tsx`, `src/data/share.ts`
+- **Tests:** `tests/since.test.ts` (SN-01..06), V08-P3-02/03
+- **Mock:** `docs/mockups/v08/Q2e-share.png`, `Q3-since-cycle.png`
 
 ### F-CL-12 One-time gesture hints
-- **Status:** LIVE (Beta v0.7.0-beta.1), from the v0.7d lock.
+- **Status:** LIVE (Beta v0.8.0-beta.2)
 - **Rules:**
-  - Each hint shows once per device and is dismissible: swipe to tick, A–Z grip, quick overview swipe, and the week path.
+  - Each hint shows once per device and is dismissible: swipe to tick, A–Z grip, quick overview swipe, and press-and-hold on Overview cards (replaces the week path hint).
   - There is no permanent help text.
 - **Data:** `storageKey('hints')`
 - **Mock:** `docs/mockups/v061/hint-phone-night.png`
@@ -445,7 +439,7 @@ Add these to the address: `?demo`, `?today=YYYY-MM-DD`, `?side=night|day`.
 ## 10. Feature tour order (v0.7)
 1. F-OV-01 Your classes
 2. F-OV-02 Tap to open
-3. F-OV-04 Week path
+3. F-OV-06 Hold a card / F-OV-04 All dates
 4. F-CL-01 Tap to tick
 5. F-CL-04 Swipe to tick
 6. F-CL-03 Done | To go

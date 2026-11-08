@@ -1,4 +1,14 @@
 # Changelog
+## 0.8.0-beta.2 (2026-11-09)
+Steve t79u keep going through the phases, t80u clean code; locks L-QUICK-SHARE (Q2e), L-20261108b (Q3-since), L-OVERVIEW (O2g, O2g-hold, O2e). Beta only, demo/test copy only.
+- Quick overview (Phase 3): one card per visible date with the day pill, done/total, "+N since 10:40" (tap: this hour → today → since open, three dots) and Share. Tapping a column tab's count opens it.
+- Share sheet stacked on top: editable message with Reset, Copy, WhatsApp · Keep · SMS · More.
+- Overview (Phase 4): "Overview" with today's date, filter chips (All · classes · CW/HW/Test), one card per class + subject + type with done/total (dash when ahead), topic, this week's date tabs, ＋ and All ›; an amber dot when an older date still has copies to come in.
+- Press and hold (or right-click) a card: it lifts over a blurred page with Share, All dates, Add date, Reschedule.
+- All dates: newest first by month and week on a timeline (today blue, older open dates amber, ahead hollow, done "24 ✓"); tap a row to open it.
+- Removed: the v0.7 week path sheet and corner icon, squircle cards, the old quick sheet (Summary/QuickSheet); the week path hint is now the press-and-hold hint.
+- Tests: 171 app (since SN-01..06, V08-P3-01..03, V08-P4-01..10, V07-OV-01..06, AD-01..03 new; V06-QO-01, V06-OV-01, S3/S3b, S4, S6-04 changed; week path tests removed).
+- Rollback: set BETA_REF back to v0.8.0-beta.1 in sow-driftline-beta (backup branches backup/pre-v0.8.0-p3, backup/pre-v0.8.0-p4).
 ## 0.8.0-beta.1 (2026-11-09)
 Steve t79u BUILD GO, t80u clean code; locks L-20261108b (G5d, dial3) and locked-20261108c. Beta only, demo/test copy only.
 - Checklist chrome (G5d): two-line class chip with the topic, search magnifier and ⋮ in the bar; a second row with Pending · 1|2 · bare undo/redo.
