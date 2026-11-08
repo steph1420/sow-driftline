@@ -251,7 +251,7 @@ th.sel .sow-tab { background: linear-gradient(180deg, color-mix(in srgb, var(--d
 .sow-ocs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--dl-space-16) * 5)), 1fr)); gap: var(--dl-space-3); }
 .sow-oc { display: flex; flex-direction: column; min-width: 0; padding: 0; -webkit-touch-callout: none; user-select: none; transition: transform var(--dl-dur-quick) var(--dl-ease-standard); }
 .sow-oc.held { z-index: calc(var(--dl-z-sheet) + 1); transform: scale(1.02); background: var(--dl-color-surface-solid); box-shadow: 0 var(--dl-space-3) var(--dl-space-8) var(--dl-color-shadow); }
-.sow-oc__main { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--dl-space-1) var(--dl-space-3); align-items: center; padding: var(--dl-space-4) var(--dl-space-4) var(--dl-space-2); border-radius: var(--dl-card-radius) var(--dl-card-radius) 0 0; }
+.sow-oc__main { all: unset; position: relative; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--dl-space-1) var(--dl-space-3); align-items: center; padding: var(--dl-space-4) var(--dl-space-4) var(--dl-space-2); border-radius: var(--dl-card-radius) var(--dl-card-radius) 0 0; }
 .sow-oc__main:focus-visible, .sow-oc__dates button:focus-visible, .sow-ad__row:focus-visible { outline: 2px solid var(--dl-color-focus); outline-offset: 2px; } /* token-ok */
 .sow-oc__main[disabled] { cursor: default; }
 .sow-oc__head { display: flex; align-items: center; gap: var(--dl-space-2); min-width: 0; }

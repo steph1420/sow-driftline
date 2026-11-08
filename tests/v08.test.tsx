@@ -184,4 +184,9 @@ describe('P4 Overview (O2g), hold menu, All dates (O2e)', () => {
     expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02')
   })
   it('V08-P4-10 the week path is gone', async () => { await ov(); expect(screen.queryByRole('button', { name: /^Week path/ })).toBeNull() })
+  // Bug B-P4-SHEEN (beta.2 day theme): `all: unset` dropped the card's main button under the dl-card sheen, washing out the text.
+  it('V08-P4-11 the card button stays above the dl-card sheen', () => {
+    const rule = readFileSync('src/shell/shell.css', 'utf8').match(/^\.sow-oc__main \{[^}]*\}/m)?.[0] ?? ''
+    expect(rule).toMatch(/all: unset;.*position: relative;/)
+  })
 })
