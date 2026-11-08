@@ -42,7 +42,7 @@
 .sow-note { font-size: var(--dl-type-footnote-size); }
 .sow-pair { display: flex; gap: var(--dl-space-2); margin-top: var(--dl-space-3); }
 .sow-pair input { flex: 1; min-height: var(--dl-hit-min); border-radius: var(--dl-radius-md); border: 0; padding: 0 var(--dl-space-3); background: var(--dl-color-track); color: var(--dl-color-text); font: inherit; letter-spacing: .2em; }
-.sow-menu { position: absolute; top: var(--sow-bar-height); left: var(--dl-space-3); z-index: var(--dl-z-sheet); display: flex; flex-direction: column; padding: var(--dl-space-2); }
+.sow-menu { position: absolute; top: var(--sow-bar-height); left: var(--dl-space-3); z-index: var(--dl-z-sheet); display: flex; flex-direction: column; padding: var(--dl-space-2); background: var(--dl-color-surface-raised); box-shadow: inset 0 0 0 1px var(--dl-card-border), var(--dl-color-shadow); } /* token-ok: 1px border; t123u solid menu */
 /* D1.5 A–Z rail: fixed in its own gutter, full height between bar and dock, never scrolls (old /sow/ logic) */
 :root { --sow-rail-w: var(--dl-space-8); --sow-dock-reserve: calc(var(--dl-space-16) + var(--dl-space-6)); }
 .sow-main { padding-right: calc(var(--dl-space-3) + var(--sow-rail-w)); }

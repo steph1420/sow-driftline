@@ -1,4 +1,8 @@
 # Changelog
+## 0.7.0-beta.4 (2026-11-08)
+- The ⋮ menu and class menu are solid again, so the content behind them no longer shows through (t123u).
+- Includes beta.3: sideways swipe, Dates on phone 1|2, date heading on phone.
+
 ## 0.7.0-beta.3 — 2026-11-08
 Steve t119u–t122u. Beta only.
 - Swipe to tick now runs sideways along one name's row: on the phone with one date it ticks that box; across two dates it ticks that name on both. Up-and-down just scrolls.
