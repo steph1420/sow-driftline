@@ -82,13 +82,13 @@ import { App as AppS2 } from '../src/App'
 import { useApp as useAppS2 } from '../src/store/store'
 describe('V07-S2 quiet save state', () => {
   it('V07-S2-01 footer shows no saved/saving/waiting text', () => {
-    cleanupS2(); localStorage.clear(); useAppS2.getState().reset()
+    cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); useAppS2.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */
     const { container } = renderS2(<AppS2 />)
     const foot = container.querySelector('.sow-foot')!.textContent!
     expect(foot).toMatch(/Driftline/); expect(foot).not.toMatch(/sav|waiting|on this device/i)
   })
   it('V07-S2-02 status dot still has an accessible label', () => {
-    cleanupS2(); localStorage.clear(); useAppS2.getState().reset()
+    cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); useAppS2.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */
     const { container } = renderS2(<AppS2 />)
     expect(container.querySelector('.sow-dot')!.getAttribute('aria-label')).toBeTruthy()
   })
@@ -97,7 +97,7 @@ describe('V07-S2 quiet save state', () => {
 // S3 (v0.6.1 lock, mocks v061/qo*): split Done | To go counter, names panel, ✕ close, no Waiting box.
 import { screen as scrS3, fireEvent as feS3, within as wS3 } from '@testing-library/react'
 describe('V07-S3 quick overview', () => {
-  const open = () => { cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); renderS2(<AppS2 />); feS3.keyDown(document.body, { key: 'O', shiftKey: true }); return scrS3.getByRole('dialog', { name: /quick overview/i }) }
+  const open = () => { cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); useAppS2.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */; renderS2(<AppS2 />); feS3.keyDown(document.body, { key: 'O', shiftKey: true }); return scrS3.getByRole('dialog', { name: /quick overview/i }) }
   it('V07-S3-01 ✕ closes the sheet', () => {
     const d = open(); feS3.click(wS3(d).getByRole('button', { name: 'Close' })); expect(scrS3.queryByRole('dialog')).toBeNull()
   })
@@ -122,7 +122,7 @@ describe('V07-S3 quick overview', () => {
 
 // S3b (t95u): Copy back beside Share; Share opens 4 target blobs (WhatsApp, Keep, Mail, Messages).
 describe('V07-S3b share targets', () => {
-  const open = () => { cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); renderS2(<AppS2 />); feS3.keyDown(document.body, { key: 'O', shiftKey: true }); return scrS3.getByRole('dialog', { name: /quick overview/i }) }
+  const open = () => { cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); useAppS2.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */; renderS2(<AppS2 />); feS3.keyDown(document.body, { key: 'O', shiftKey: true }); return scrS3.getByRole('dialog', { name: /quick overview/i }) }
   it('V07-S3b-01 Copy and Share both shown; targets hidden until Share', () => {
     const d = open(); expect(wS3(d).getByRole('button', { name: 'Copy' })).toBeTruthy()
     expect(wS3(d).queryByRole('link', { name: /whatsapp/i })).toBeNull()

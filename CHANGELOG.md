@@ -1,4 +1,9 @@
 # Changelog
+## 0.7.0-beta.2 — 2026-11-08
+Steve t112u/t113u. Beta only.
+- The app opens on Overview the first time, then reopens on the last tab used on this device.
+- "Change date" is now called Reschedule (t110u).
+- Tests: 145 app (V06-OV-04 and D0-STO-01 changed for the new start screen).
 ## 0.7.0-beta.1 — 2026-11-08
 Steve t88u GO, t111u release. Beta only, test copy only.
 - Overview first: squircle card per class, subject and type (pill), with topic, date and "N to go"; tap a card to open its checklist, corner path icon opens that class's week path (scrolls into older weeks, heading follows the week in view).

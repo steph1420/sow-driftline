@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 afterEach(cleanup)
-beforeEach(async () => { localStorage.clear(); const { useApp } = await import('../src/store/store'); useApp.getState().reset() })
+beforeEach(async () => { localStorage.clear(); const { useApp } = await import('../src/store/store'); useApp.getState().reset(); useApp.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */ })
 
 describe('V06 Weeks view toggle', () => {
   it('V06-WK-01 date columns: phone portrait 2; desktop calm 3 with Weeks off; Weeks on = wide (desktop or phone landscape only)', async () => {
@@ -21,7 +21,7 @@ describe('V06 Weeks view toggle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More options' }))
     const sw = screen.getByRole('switch', { name: /weeks/i }); expect(sw.getAttribute('aria-checked')).toBe('false')
     fireEvent.click(sw); expect(useApp.getState().view.weeks).toBe(true)
-    useApp.getState().reset(); expect(useApp.getState().view.weeks).toBe(true)
+    useApp.getState().reset(); useApp.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */; expect(useApp.getState().view.weeks).toBe(true)
   })
 })
 
@@ -46,10 +46,13 @@ describe('V06 Overview', () => {
     const { shareText } = await import('../src/data/share')
     expect(shareText({ label: 'KG-A', date: '2026-11-03', names: ['Lia Park', 'Ana'] })).toBe('KG-A • Tue 3/11 • not set/found (2):\nLia Park\nAna')
   })
-  // v0.7.0 S4 changed V06-OV-04: Overview is now first in the dock, but the app still opens on Checklist.
-  it('V06-OV-04 the app still opens on Checklist', async () => {
+  // t113u changed V06-OV-04: the first open is Overview; after that the app reopens on the last tab used.
+  it('V06-OV-04 opens on Overview the first time, then remembers the last tab', async () => {
+    const { useApp } = await import('../src/store/store'); localStorage.clear(); useApp.getState().reset()
     const { App } = await import('../src/App'); render(<App />)
-    expect(screen.getByRole('tab', { name: 'Checklist' }).getAttribute('aria-selected')).toBe('true'); expect(screen.getByRole('table')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(screen.getByRole('tab', { name: 'More' })); cleanup(); useApp.getState().reset(); render(<App />)
+    expect(screen.getByRole('tab', { name: 'More' }).getAttribute('aria-selected')).toBe('true')
   })
 })
 

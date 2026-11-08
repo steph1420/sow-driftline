@@ -5,9 +5,10 @@ import { useApp } from '../src/store/store'
 describe('store', () => {
   beforeEach(() => { localStorage.clear(); useApp.getState().reset() })
   // D1 changed D0-STO-01: demo now carries made-up dates so the checklist has something to show.
-  it('D0-STO-01/D1-STO-01 starts on Checklist with the demo class and demo dates, not paired', () => {
+  // t112u changed D0-STO-01: the first open is Overview.
+  it('D0-STO-01/D1-STO-01 starts on Overview with the demo class and demo dates, not paired', () => {
     const s = useApp.getState()
-    expect(s.tab).toBe('checklist')
+    expect(s.tab).toBe('overview')
     expect(s.classes[0].label).toBe('KG-A')
     expect(s.data.sessions.length).toBeGreaterThan(0)
     expect(s.source).toBe('demo')

@@ -5,7 +5,7 @@ import { App } from '../src/App'
 import { useApp } from '../src/store/store'
 
 describe('shell', () => {
-  beforeEach(() => { cleanup(); localStorage.clear(); useApp.getState().reset() })
+  beforeEach(() => { cleanup(); localStorage.clear(); useApp.getState().reset(); useApp.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */ })
   it('D0-SHL-01 slim bar has class pill, Undo, Redo and More', () => {
     render(<App />)
     expect(screen.getByRole('button', { name: /switch class/i }).textContent).toContain('KG-A')
