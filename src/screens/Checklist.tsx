@@ -2,19 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { CONFIG } from '../config'
 import type { SheetState } from '../data/contract'
 import { AzRail, firstRowFor } from './AzRail'
-import { fmtDay, pickAnchor, toChecklist, toGo, visibleCols, type Layout } from '../data/model'
+import { fmtDay, focusColumn, toChecklist, toGo, visibleCols, type Layout } from '../data/model'
 import { rankMatches } from '../data/quickSearch'
 import { centreScrollTop } from './scroll'
 import { gridMove, isTypingTarget } from './keyboard'
-
-type Side = 'right' | 'left'
 import { DateSheet } from './DateSheet'
-import { GLYPH, Icon } from '../ui/icons'
+import { ColumnTab } from './ColumnTab'
+import { ChecklistControls } from './ChecklistControls'
+import { SearchRow } from './SearchRow'
+import { GLYPH } from '../ui/icons'
 import { useApp, nowMs } from '../store/store'
 import { isLate, pillVisible } from '../data/late'
 import { cellKey } from '../sync/ops'
 import { Hint } from './Hint'
-const longDate = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '')
+
+type Side = 'right' | 'left'
 
 type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number
   onTick?: (sessionId: string, roll: number) => void; onTickMany?: (sessionId: string, rolls: number[], value: boolean) => void
@@ -24,9 +26,7 @@ type Paint = { roll: number; r: number; start: number; value: boolean; x0: numbe
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
 export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railSide = 'right', railBubble = true, onRailSide, swipe = true, dateCols, focusSessionId = null, subjectKey = null, pendingOnly = false, onPick, onHalf }: Props) {
   const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
-  const a0 = pickAnchor(c0.columns.map((x) => x.date), today)
-  const fi = focusSessionId ? c0.columns.findIndex((x) => x.sessionId === focusSessionId) : -1 // v0.7j: opened from a class card
-  const anchor = fi < 0 ? a0 : { index: fi, kind: (c0.columns[fi]!.date === today ? 'today' : c0.columns[fi]!.date > today ? 'upcoming' : 'last') as typeof a0.kind }
+  const anchor = focusColumn(c0, today, focusSessionId)
   const [end, setEnd] = useState(anchor.index)
   // S4b "Pending only": rows still to come in for the focused date. The set is fixed when switched on (or the date changes), so a row doesn't vanish mid-tap.
   const fsid = c0.columns[anchor.index]?.sessionId ?? ''
@@ -36,12 +36,12 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const [sel, setSel] = useState<number | null>(null)
   const [flash, setFlash] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
-  const [dates, setDates] = useState(false)
+  const [dates, setDates] = useState<string | null>(null) // sessionId whose date sheet is open
   const marks = useApp((s) => s.marks); const markMode = useApp((s) => s.markMode); const lateToast = useApp((s) => s.lateToast)
   const [late, setLate] = useState(false); const lx = useRef<number | null>(null)
   useEffect(() => { if (lateToast) setLate(true) }, [lateToast])
   useEffect(() => { if (!late) return; const t = setTimeout(() => setLate(false), CONFIG.timing.nameToastMs); return () => clearTimeout(t) }, [late, lateToast])
-  const [pill, setPill] = useState<string | null>(null)
+  const pill = useApp((s) => s.find); const setPill = useApp.getState().setFind
   const [painted, setPainted] = useState<{ roll: number; sids: string[]; value: boolean } | null>(null)
   const rows = useRef<(HTMLTableRowElement | null)[]>([])
   const paint = useRef<Paint | null>(null); const eatClick = useRef(false)
@@ -65,7 +65,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const wide = cols.length > CONFIG.layout.desktopCalmDateCols
   const weekStart = (i: number) => { if (!wide || i === cols[0]) return false; const a = new Date(c.columns[i]!.date + 'T00:00:00'), b = new Date(c.columns[i - 1]!.date + 'T00:00:00'); return a.getDay() < b.getDay() || (+a - +b) / 864e5 >= 7 }
   const focus = c.columns[anchor.index]!
-  const old = focus.date < today; const one = cols.length === 1
+  const one = cols.length === 1
   /** Jump: centre the name in the list viewport (near the top it stays where it lands) and highlight it. */
   function go(i: number) {
     if (i < 0) return; setSel(i); setFlash((x) => x + 1)
@@ -80,8 +80,10 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
     if (m) go(c.pupils.findIndex((p) => p.roll === m.roll))
   }
   const dup = new Set(names.filter((n, i) => names.indexOf(n) !== i)) // Q-DUP-1: roll tells twins apart
-  const left = toGo(c0, focus.sessionId); const done = c0.pupils.length - left
-  const f = fmtDay(focus.date)
+  const doneOn = (sid: string) => c0.pupils.length - toGo(c0, sid)
+  const matches = pill?.trim() ? rankMatches(pill.trim(), c.pupils.map((p) => ({ roll: p.roll, name: p.name }))).length : 0
+  const openToGo = (sid: string) => { if (sid !== focus.sessionId) onPick?.(sid); onHalf?.('go') }
+  const sheet = c0.columns.find((x) => x.sessionId === dates)
   const colSids = cols.map((i) => c.columns[i]!.sessionId)
   const down = (e: React.PointerEvent, sid: string, roll: number, on: boolean) => {
     if (!swipe || !onTick) return
@@ -109,28 +111,20 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   }
   return (
     <>
-      {/* v0.7.0 S6 (F-CL-02/03): subject heading, "HW · Wednesday 4 November", calendar button; amber for past dates (F-DT-07) */}
-      <div className={`sow-clhead${old ? ' old' : ''}`}>
-        <div className="sow-clhead__txt"><h2 className="sow-clhead__title">{c.subject || 'Checklist'}</h2>
-          <div className="sow-clhead__sub">{[focus.kind, longDate(focus.date)].filter(Boolean).join(' · ')}{old && <span className="sow-oldtag">Past date</span>}</div></div>
-        <button className="sow-cal" aria-label="Pick a date" aria-expanded={dates} onClick={() => setDates(true)}><Icon name="calendar" /></button>
-      </div>
-      <div className={`sow-split sow-split--cl${old ? ' old' : ''}`}>
-        <button className="sow-half" aria-label={`${done} done`} onClick={() => onHalf?.('done')}><b className="dl-num">{done}</b><span>Done <i aria-hidden>{GLYPH.down}</i></span></button>
-        <button className="sow-half" aria-label={`${left} to go`} onClick={() => onHalf?.('go')}><b className="dl-num">{left}</b><span>To go <i aria-hidden>{GLYPH.down}</i></span></button>
-      </div>
-      <button className="sow-search" aria-label="Search names" onClick={() => setPill('')}><span aria-hidden>{GLYPH.search}</span><span>Find a name</span>{layout === 'desktop' && <kbd className="sow-kbd">just type</kbd>}</button>
+      {onTick && <ChecklistControls layout={layout} />}
+      {pill != null && <SearchRow value={pill} matches={matches} total={c.pupils.length} onClose={() => setPill(null)} onChange={(q) => { setPill(q); if (q.trim()) find(q.trim()) }} />}
       <div className={`sow-grid ${layout}${swipe && onTick ? ' swipe' : ''}${one ? ' one' : ''}`}>
         <table onKeyDown={keyGrid}>
-          <thead><tr><th className="n">{one ? <span className="sow-yc">{keep ? 'Still to come in' : 'Your class'}</span> : null}{keep ? `${c.pupils.length} pending` : `${c.pupils.length} pupils`}</th>
-            {cols.map((i) => { const s = c.columns[i]!; const d = fmtDay(s.date); return <th key={s.sessionId} className={`${i === anchor.index ? 'today' : ''}${weekStart(i) ? ' wk' : ''}`}>{/* t122u: date shows above the ticks on the phone too */}{s.kind ? `${s.kind} · ` : ''}{d.dow}<b>{d.dm}</b></th> })}</tr></thead>
+          <thead><tr><th className="n">{one && <span className="sow-yc">{keep ? 'Still to come in' : 'Your class'}</span>}{(one || keep) && (keep ? `${c.pupils.length} pending` : `${c.pupils.length} pupils`)}</th>
+            {cols.map((i) => { const s = c.columns[i]!; return <th key={s.sessionId} className={`${i === anchor.index ? 'sel' : ''}${s.date < today ? ' old' : ''}${weekStart(i) ? ' wk' : ''}`}>
+              <ColumnTab kind={s.kind} date={s.date} done={doneOn(s.sessionId)} total={c0.pupils.length} past={s.date < today} onCount={() => openToGo(s.sessionId)} onDate={() => setDates(s.sessionId)} /></th> })}</tr></thead>
           <tbody>{c.pupils.map((p, r) => (
             <tr key={p.roll} ref={(el) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}>
               <td className="n" onClick={() => { setSel(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>
               {cols.map((i, ci) => { const s = c.columns[i]!; const fut = s.date > today; const real = c.ticked(s.sessionId, p.roll)
                 const pv = !!painted && painted.roll === p.roll && painted.sids.includes(s.sessionId); const on = pv ? painted!.value : real
                 const mk = real ? marks[cellKey({ sessionId: s.sessionId, roll: p.roll })] : undefined; const lt = !!mk && isLate(mk.at, s.date, !!mk.back) === true
-                return <td key={s.sessionId} className={`${i === anchor.index ? 'today' : ''}${weekStart(i) ? ' wk' : ''}`}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}${pv ? ' paint' : ''}${lt && on ? ' late' : ''}`} data-r={r} data-c={ci} aria-pressed={real} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${real ? (lt ? 'done, late' : 'done') : 'not yet'}`}
+                return <td key={s.sessionId} className={weekStart(i) ? 'wk' : undefined}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}${pv ? ' paint' : ''}${lt && on ? ' late' : ''}`} data-r={r} data-c={ci} aria-pressed={real} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${real ? (lt ? 'done, late' : 'done') : 'not yet'}`}
                     onPointerDown={(e) => down(e, s.sessionId, p.roll, real)} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { paint.current = null; setPainted(null) }}
                     onClick={() => { if (eatClick.current) { eatClick.current = false; return } onTick(s.sessionId, p.roll) }}>{on ? GLYPH.tick : ''}</button>
                   : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? GLYPH.tick : ''}</span>}</td> })}
@@ -138,19 +132,13 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
         </table>
       </div>
       <AzRail names={names} onJump={go} side={railSide} bubble={railBubble} onSide={onRailSide} />
-      {pill != null && <div className="sow-qs" role="search">
-        <span aria-hidden>{GLYPH.search}</span>
-        <input type="search" autoFocus aria-label="Find a name" value={pill} placeholder="Type a name, initials or roll"
-          onChange={(e) => { setPill(e.target.value); if (e.target.value.trim()) find(e.target.value.trim()) }}
-          onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); setPill(null) } }} onBlur={() => setPill(null)} />
-      </div>}
-      {dates && <DateSheet columns={c0.columns} current={focus.sessionId} today={today} onPick={(sid) => onPick?.(sid)} onClose={() => setDates(false)} subjectKey={subjectKey ?? ''} kind={focus.kind} ticks={done} onDone={setToast} />}
+      {sheet && <DateSheet columns={c0.columns} current={sheet.sessionId} today={today} onPick={(sid) => onPick?.(sid)} onClose={() => setDates(null)} subjectKey={subjectKey ?? ''} kind={sheet.kind} ticks={doneOn(sheet.sessionId)} onDone={setToast} />}
       {/* v0.7.0 S9 (F-LT-02): mode pill, only once this date's due time has passed */}
       {onTick && pillVisible(focus.date, nowMs()) && <button className={`sow-mode ${markMode}`} aria-pressed={markMode === 'back'} aria-label={markMode === 'late' ? 'Marking late submissions, tap for back-date' : 'Marking on back-date, tap for late submissions'}
         onClick={() => useApp.getState().setMarkMode(markMode === 'late' ? 'back' : 'late')}><i aria-hidden>{GLYPH.clock}</i><span>{markMode === 'late' ? 'Marking late submissions' : 'Marking on back-date'}</span><span className="sow-mode__sw" aria-hidden /></button>}
       {late && <div className="dl-toast-region sow-late-region"><div className="dl-toast sow-late" role="status" aria-label="Late Submission" onPointerDown={(e) => { lx.current = e.clientX }} onPointerMove={(e) => { if (lx.current != null && Math.abs(e.clientX - lx.current) > CONFIG.timing.swipeExtendPx) { lx.current = null; setLate(false) } }} onPointerUp={() => { lx.current = null }}>
         <i aria-hidden>{GLYPH.clock}</i><span><b>Late Submission</b><small>Marked after {new Date(focus.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')} · swipe to dismiss</small></span></div></div>}
-      {onTick && !dates && <Hint ids={['swipe', 'grip', 'quick']} />}
+      {onTick && !sheet && <Hint ids={['swipe', 'grip', 'quick']} />}
       {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--accent" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
     </>
   )

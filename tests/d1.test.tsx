@@ -84,7 +84,9 @@ describe('D1 checklist UI', () => {
   it('D1-UI-02 soft "N to go" and read-only ticks without onTick', async () => {
     const { Checklist } = await import('../src/screens/Checklist')
     render(<Checklist state={st} classKey="A" today="2026-11-03" layout="phone" />)
-    expect(screen.getByLabelText('2 to go')).toBeTruthy() // v0.7.0 S6: split counter Done | To go
+    // v0.8 changed: the split counter became the column tab count (done/total)
+    const [, done, total] = screen.getByRole('button', { name: /, \d+ of \d+ done$/ }).getAttribute('aria-label')!.match(/(\d+) of (\d+)/)!
+    expect(+total! - +done!).toBe(2)
     expect(document.querySelectorAll('button.t').length).toBe(0)
   })
   it('D1-UI-03 a class with no dates shows the calm empty state', async () => {

@@ -22,7 +22,7 @@ export type Side = 'night' | 'day' | 'system'
 export type ClassInfo = { classKey: string; label: string; subject: string }
 type State = {
   tab: Tab; side: Side; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
-  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; quickHalf: 'done' | 'go' | null; openQuick: (half: 'done' | 'go' | null) => void; openSession: (classKey: string, sessionId: string) => void
+  data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; quickHalf: 'done' | 'go' | null; find: string | null; setFind: (q: string | null) => void; openQuick: (half: 'done' | 'go' | null) => void; openSession: (classKey: string, sessionId: string) => void
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
   view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
@@ -83,12 +83,12 @@ function withData(raw: SheetState, prev?: string, prevSubject?: string) {
   return { data, classes, currentClass, subject: keep ? prevSubject! : firstSubject(data, currentClass) }
 }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, quickHalf: null as 'done' | 'go' | null, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, hints: loadJson(HINTS, [] as string[]), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  side: loadSide(), source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, quickHalf: null as 'done' | 'go' | null, find: null as string | null, save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, hints: loadJson(HINTS, [] as string[]), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
-  setTab: (tab) => set({ tab }),
+  setTab: (tab) => set({ tab, find: null }),
   setSide: (side) => { localStorage.setItem(PREFS, JSON.stringify({ side })); set({ side }) },
-  setClass: (currentClass) => set({ currentClass, subject: firstSubject(get().data, currentClass), focus: null }),
+  setClass: (currentClass) => set({ currentClass, subject: firstSubject(get().data, currentClass), focus: null, find: null }),
   setSubject: (subjectKey) => { const x = get().data.subjects.find((y) => y.subjectKey === subjectKey); if (x) set({ currentClass: x.classKey, subject: subjectKey, focus: null, jump: get().jump + 1 }) },
   setPending: (pending) => set({ pending }),
   pickSession: (focus) => { const s = get(); const from = s.data.sessions.find((x) => x.sessionId === s.focus)?.date ?? null; const to = s.data.sessions.find((x) => x.sessionId === focus)?.date ?? ''
@@ -102,6 +102,7 @@ export const useApp = create<State>((set, get) => ({
     let sessionId = `${subjectKey}|${date}`; while (get().data.sessions.some((x) => x.sessionId === sessionId)) sessionId += '+'
     edit({ sessionId, add: { sessionId, subjectKey, classKey: sub.classKey, date, topic: '', status: 'Open', updatedAt: nowIso() } }); return sessionId },
   openQuick: (quickHalf) => set({ quick: true, quickHalf }),
+  setFind: (find) => set({ find }), // v0.8 F-CL-06: name search row, opened from the bar magnifier
   jumpToAnchor: () => set({ focus: null, jump: get().jump + 1 }),
   tick: (sessionId, roll) => {
     const d = get().data; const se = d.sessions.find((x) => x.sessionId === sessionId); if (!se) return

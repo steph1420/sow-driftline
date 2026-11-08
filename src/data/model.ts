@@ -36,6 +36,12 @@ export function toChecklist(s: SheetState, classKey: string, subjectKey?: string
   const on = new Set(s.ticks.filter((t) => t.classKey === classKey && t.set && (!subjectKey || t.subjectKey === subjectKey)).map((t) => `${t.sessionId}|${t.roll}`))
   return { classKey, subject: s.subjects.find((x) => x.classKey === classKey && (!subjectKey || x.subjectKey === subjectKey))?.subject ?? '', pupils, columns, ticked: (id, r) => on.has(`${id}|${r}`) }
 }
+/** The date the checklist is on: the one picked (e.g. from a class card), else today → next → last. */
+export function focusColumn(c: Checklist, today: string, focusSessionId: string | null): { kind: AnchorKind; index: number } {
+  const i = focusSessionId ? c.columns.findIndex((x) => x.sessionId === focusSessionId) : -1
+  if (i < 0) return pickAnchor(c.columns.map((x) => x.date), today)
+  const d = c.columns[i]!.date; return { index: i, kind: d === today ? 'today' : d > today ? 'upcoming' : 'last' }
+}
 export const toGo = (c: Checklist, sessionId: string) => c.pupils.filter((p) => !c.ticked(sessionId, p.roll)).length
 export const letterIndex = (names: string[], L: string) => names.findIndex((n) => n.trim().toUpperCase().startsWith(L.toUpperCase()))
 export function searchIndex(names: string[], q: string) { const s = q.trim().toLowerCase(); return s ? names.findIndex((n) => n.toLowerCase().includes(s)) : -1 }

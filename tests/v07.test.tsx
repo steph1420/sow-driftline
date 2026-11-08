@@ -186,8 +186,8 @@ describe('S4b one subject per checklist + Pending only', () => {
   it('S4b-01 a card\'s checklist shows only that subject and type', async () => {
     const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: /open KG-C Phonics Test on checklist/i }))
     expect(useApp.getState().subject).toBe('KG-C_PHO_TEST')
-    const heads = screen.getAllByRole('columnheader').slice(1).map((h) => h.textContent)
-    expect(heads.length).toBeGreaterThan(0); for (const h of heads) expect(h).toMatch(/^Test · /)
+    const heads = screen.getAllByRole('button', { name: /^Dates, / }).map((h) => h.getAttribute('aria-label')) // v0.8: column tabs
+    expect(heads.length).toBeGreaterThan(0); for (const h of heads) expect(h).toMatch(/^Dates, Test /)
   })
   it('S4b-02 Pending only shows just the unticked names for the focused date, and no "later date" link', async () => {
     const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: /open KG-A English HW on checklist/i }))
@@ -225,34 +225,31 @@ describe('S5 week path', () => {
   })
 })
 
-// v0.7.0 S6 (step 5): checklist heading + date picking (F-CL-02/03, F-DT-04/07)
-describe('S6 checklist heading and dates', () => {
+// v0.7.0 S6 (step 5): date picking (F-DT-04/07). v0.8 changed S6: the heading, calendar button and split counter became column tabs (F-CL-02).
+describe('S6 column tabs and dates', () => {
   afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/') })
   const load = async () => { cleanup(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
     history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
     fireEvent.click(screen.getByRole('button', { name: /open KG-A English HW on checklist/i })); return useApp }
-  it('S6-01 subject heading and "HW · Wednesday 4 November"', async () => {
-    await load(); expect(screen.getByRole('heading', { name: 'English' })).toBeTruthy()
-    expect(document.querySelector('.sow-clhead__sub')?.textContent).toBe('HW · Wednesday 4 November')
-    expect(screen.getByLabelText('14 done')).toBeTruthy(); expect(screen.getByLabelText('10 to go')).toBeTruthy()
+  it('S6-01 the focused column tab shows done/total for HW Wed 4 Nov', async () => {
+    await load(); expect(screen.getByRole('button', { name: 'HW Wed 4 Nov, 14 of 24 done' }).textContent).toBe('14/24')
   })
-  it('S6-02 the calendar opens the existing dates; picking one switches the date and changes no data', async () => {
+  it('S6-02 the date chip opens the existing dates; picking one switches the date and changes no data', async () => {
     const useApp = await load(); const before = JSON.stringify(useApp.getState().data)
-    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' }))
     const opts = screen.getAllByRole('option'); expect(opts.length).toBe(15)
     for (const o of opts) expect(o.getAttribute('aria-label')).toMatch(/^HW /)
     fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
     expect(screen.queryByRole('dialog')).toBeNull(); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02')
-    expect(document.querySelector('.sow-clhead__sub')?.textContent).toMatch(/^HW · Monday 2 November/)
     expect(JSON.stringify(useApp.getState().data)).toBe(before)
   })
-  it('S6-03 a past date gets the amber look; today does not', async () => {
-    await load(); expect(document.querySelector('.sow-clhead.old')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
-    expect(document.querySelector('.sow-clhead.old')).toBeTruthy(); expect(screen.getByText('Past date')).toBeTruthy()
+  it('S6-03 a past date gets the amber chip; today does not', async () => {
+    await load(); expect(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' }).className).not.toContain('old')
+    fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    expect(screen.getByRole('button', { name: 'Dates, HW Mon 2 Nov' }).className).toContain('old')
   })
-  it('S6-04 tapping To go opens the quick overview on the still-to-come list for that date', async () => {
-    const useApp = await load(); fireEvent.click(screen.getByLabelText('10 to go'))
+  it('S6-04 tapping the count opens the quick overview on the still-to-come list for that date', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'HW Wed 4 Nov, 14 of 24 done' }))
     expect(useApp.getState().quick).toBe(true); expect(screen.getByText('Still to come in')).toBeTruthy()
   })
 })
@@ -263,7 +260,7 @@ describe('S7–S10 dates, late and hints', () => {
   const load = async (sub = /open KG-A English HW on checklist/i) => { cleanup(); localStorage.clear(); const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
     history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
     fireEvent.click(screen.getByRole('button', { name: sub })); return useApp }
-  const openChange = () => { fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'Reschedule' })) }
+  const openChange = () => { fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' })); fireEvent.click(screen.getByRole('button', { name: 'Reschedule' })) }
   const sid = 'KG-A_ENG_HW|2026-11-04'
   it('S7-01 the button is dim until something changes; the Day wheel moves within the week', async () => {
     await load(); openChange(); const go = () => screen.getByRole('button', { name: /^Move (to|date)/ }) as HTMLButtonElement
@@ -292,25 +289,25 @@ describe('S7–S10 dates, late and hints', () => {
     useApp.getState().reset(); expect(useApp.getState().data.sessions.find((x) => x.sessionId === sid)!.topic).toBe('Letters M & N')
   })
   it('S8-01 + New date picks the next class day, adds it and opens it; no duplicate on the same day', async () => {
-    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'New date' }))
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' })); fireEvent.click(screen.getByRole('button', { name: 'New date' }))
     const go = screen.getByRole('button', { name: /^Add HW/ }) as HTMLButtonElement; expect(go.textContent).toBe('Add HW · Thursday 5 Nov')
     fireEvent.click(go); expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-05')
-    expect(document.querySelector('.sow-clhead__sub')?.textContent).toMatch(/Thursday 5 November/)
-    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('button', { name: 'New date' }))
+    expect(screen.getByRole('button', { name: 'Dates, HW Thu 5 Nov' }).closest('th')!.className).toContain('sel')
+    fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Thu 5 Nov' })); fireEvent.click(screen.getByRole('button', { name: 'New date' }))
     // next free class day is Tue 10 Nov (Mon/Wed/Fri already exist); spin back to Mon 9 Nov, which exists
     fireEvent.click(screen.getByRole('button', { name: 'Date 9' }))
     expect(screen.getByText(/already has Mon 9 Nov/)).toBeTruthy(); expect((screen.getByRole('button', { name: /^Add HW/ }) as HTMLButtonElement).disabled).toBe(true)
   })
   it('S9-01 the mode pill shows only after the due time; a late tick gets the notch and the Late Submission toast', async () => {
     const useApp = await load(); expect(screen.queryByRole('button', { name: /Marking late/ })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
     expect(screen.getByRole('button', { name: /Marking late submissions/ })).toBeTruthy()
     const off = screen.getAllByRole('button', { name: /Mon 2\/11, not yet/ })[0]!; fireEvent.click(off)
     expect(screen.getByRole('status', { name: 'Late Submission' })).toBeTruthy(); expect(document.querySelectorAll('.t.late').length).toBe(1)
     void useApp
   })
   it('S9-02 back-date mode records the tick as on time (no notch)', async () => {
-    await load(); fireEvent.click(screen.getByRole('button', { name: 'Pick a date' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
+    await load(); fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
     fireEvent.click(screen.getByRole('button', { name: /Marking late submissions/ })); expect(screen.getByRole('button', { name: /Marking on back-date/ })).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: /Mon 2\/11, not yet/ })[0]!)
     expect(document.querySelectorAll('.t.late').length).toBe(0); expect(screen.queryByRole('status', { name: 'Late Submission' })).toBeNull()
@@ -330,12 +327,12 @@ describe('t122u phone columns', () => {
     expect(dateColsFor({ layout: 'phone', landscape: false, weeks: false })).toBe(1)
     expect(dateColsFor({ layout: 'desktop', landscape: true, weeks: false, phoneCols: 2 })).toBe(3)
   })
-  it('PC-02 the ⋮ menu switches Dates on phone to 2 and it is remembered', async () => {
+  // v0.8 changed PC-02: 1|2 moved from the ⋮ menu to the checklist controls row (phone only)
+  it('PC-02 the controls row switches Dates on phone to 2 and it is remembered', async () => {
     const { useApp } = await import('../src/store/store'); const { App } = await import('../src/App')
     const { render: r, screen: sc, fireEvent: fe, cleanup: cl } = await import('@testing-library/react')
-    cl(); localStorage.clear(); useApp.getState().reset(); useApp.getState().setTab('checklist'); r(<App />)
-    fe.click(sc.getByRole('button', { name: 'More options' }))
-    fe.click(sc.getByRole('group', { name: 'Dates on phone' }).querySelectorAll('button')[1]!)
+    cl(); localStorage.clear(); Object.defineProperty(window, 'innerWidth', { value: 412, configurable: true }); useApp.getState().reset(); useApp.getState().setTab('checklist'); r(<App />)
+    fe.click(sc.getByRole('group', { name: 'Dates on phone' }).querySelectorAll('button')[1]!); Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true })
     expect(useApp.getState().view.phoneCols).toBe(2); useApp.getState().reset(); expect(useApp.getState().view.phoneCols).toBe(2)
   })
   it('PC-03 with one date the column heading still shows the date', async () => {

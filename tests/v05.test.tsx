@@ -32,10 +32,11 @@ describe('V05 quick search (ported /sow/ quickSearch)', () => {
     fireEvent.keyDown(pill, { key: 'Escape' })
     expect(screen.queryByRole('searchbox')).toBeNull()
   })
-  it('V05-QS-03 phone: search button opens the same pill; "/" opens it too', async () => {
-    const { Checklist } = await import('../src/screens/Checklist')
+  // v0.8 changed V05-QS-03: the search button moved to the bar magnifier (F-CL-06), which opens the search row via the store
+  it('V05-QS-03 phone: the bar magnifier opens the same search; "/" opens it too', async () => {
+    const { Checklist } = await import('../src/screens/Checklist'); const { useApp } = await import('../src/store/store')
     render(<Checklist state={st()} classKey="A" today="2026-11-03" layout="phone" onTick={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: /search names/i }))
+    act(() => useApp.getState().setFind(''))
     expect(screen.getByRole('searchbox')).toBeTruthy()
     fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' })
     fireEvent.keyDown(document.body, { key: '/' })
