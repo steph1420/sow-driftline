@@ -1,4 +1,13 @@
 # Changelog
+## 0.8.0-beta.3 (2026-11-09)
+Steve: Batch 3 GO (Phases 6–9), t80u clean code; locks locked-20261108c (S1, S2), L-20261108b (O3-session, G5d-past). Beta only, demo/test copy only.
+- Settings replaces More (Phase 6): Appearance, Sync & pairing, Session & names, Backups, App; each row opens a page with ‹ back. The class bar shows on Checklist only.
+- Updates: a dot on Settings › Updates when a new version is ready, "Restart to update"; it never reloads mid-work (a version found before the first tap applies at once).
+- Share templates (Phase 7): template maker with 22 variables, highlighted tokens, tap-to-add chips, live preview, rename/duplicate/default/move/delete/restore; the share sheet gets template pills and a long-message warning. Old templates are adopted once and {class} is migrated. Sync between devices is ready on the app side (newer wins, test copy only); the bridge deploy is Steve's.
+- Day theme (Phase 8): glows at half strength on Day; text contrast test (4.5:1) for utopian-day and contrast-day. Includes the B-P4-SHEEN fix (4b2518d): Overview card text no longer washed out on Day.
+- Session switch (Phase 9), behind Developer options › Past sessions (preview), off by default: Overview header year opens the Session sheet; past years are amber and view-only (no ticks, dates, topics, undo/redo, restore or snapshots) with a "Viewing 2025–26 | Back to now" pill. Demo data only.
+- Tests: 227 app (V08-P6-01..11, TP-01..16, PS-01..06, V08-P7-01..09, V08-P8-01..03, V08-P9-01..09 new; D0-SHL-02/04, D0-STO-02, V05-CH-01, V06-OV-03/04 changed).
+- Rollback: set BETA_REF back to v0.8.0-beta.2 in sow-driftline-beta (backup branches backup/pre-v0.8.0-p6 … p9).
 ## 0.8.0-beta.2 (2026-11-09)
 Steve t79u keep going through the phases, t80u clean code; locks L-QUICK-SHARE (Q2e), L-20261108b (Q3-since), L-OVERVIEW (O2g, O2g-hold, O2e). Beta only, demo/test copy only.
 - Quick overview (Phase 3): one card per visible date with the day pill, done/total, "+N since 10:40" (tap: this hour → today → since open, three dots) and Share. Tapping a column tab's count opens it.

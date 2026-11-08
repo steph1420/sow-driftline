@@ -6,7 +6,7 @@ This sheet is the single reference for what the app does. It feeds three things:
 3. **New features and debugging.** Use the "Rules", "Data", "Code", "Tests" and "Mock" lines.
 
 Status tags:
-- **LIVE (Beta v0.7.0-beta.1)** or **LIVE** means it is shipped now.
+- **LIVE (Beta v0.8.0-beta.N)** or **LIVE** means it is shipped now.
 - **v0.7.0 (building)** means it is locked by Steve and being built for v0.7.0-beta.1.
 - **Deferred** means agreed but parked.
 
@@ -384,19 +384,52 @@ House rules that apply to every feature:
 
 ---
 
-## 7. More
+## 7. Settings, share templates, Day theme and sessions (v0.8 Phases 6–9)
 
-### F-MO-01 Data card
-Connected or demo state, Refresh, and Back to demo.
+### F-ST-01..10 Settings (S1)
+- **Status:** LIVE (Beta v0.8.0-beta.3), locked-20261108c S1. Replaces More (F-MO-01..04); the dock is Overview · Checklist · Settings.
+- **What you see:** quiet grouped rows with chevrons, each opening a full page with ‹ back:
+  - Appearance: Theme Night | Day | Auto; Contrast (Standard | High).
+  - Sync & pairing: Sync (status dot only; code, setup file, demo note); Pair a device (device name, devices).
+  - Session & names: Session (only with the Past sessions flag); Share templates. The shorthands row waits for Phase 5.
+  - Backups: Snapshots (latest time; Restore rows); Back up now.
+  - App: Updates (dot when a new version is ready); Developer options (A–Z side, Swipe to tick, Letter bubble, Past sessions (preview), Release channel); About (version · Stable/Beta).
+- **Code:** `src/screens/settings/` (`Settings.tsx`, `rows.tsx`, `SyncPages.tsx`, `AppPages.tsx`), `src/ui/PageHead.tsx`, `src/shell/theme.ts`
+- **Tests:** `tests/settings.test.tsx` (V08-P6-01..11)
+- **Mock:** `docs/mockups/v08/S1-settings.png`, `S1-settings-day.png`
 
-### F-MO-02 This device
-The device name and the Stable/Beta channel switch.
+### F-SH-06 Update dot, never reload mid-work
+- **Status:** LIVE (Beta v0.8.0-beta.3)
+- **Rules:** a new version found before the first tap applies at once; after that it only lights the Updates dot and waits for "Restart to update". Coming back to the app checks for updates.
+- **Code:** `src/sync/updates.ts`, `src/main.tsx` (`registerType: 'prompt'`)
+- **Tests:** V08-P6-06..09
 
-### F-MO-03 Developer options
-A–Z rail side, Swipe to tick, and Letter bubble.
+### F-TP-01..11 Share templates (S2)
+- **Status:** LIVE (Beta v0.8.0-beta.3) on the app side. Syncing between devices needs the bridge's prefs actions on the test copy (already in bridge 0.50.0-dl.1; the deploy is Steve's). Until then templates stay on the device.
+- **What you see:** Settings › Share templates: template pills ("· Default"), the template text with highlighted variables (unknown ones get a wavy underline), "Tap to add" chips in Basics · Names · Counts, a live preview on the class in hand ("…N more"), ⋯ Rename · Duplicate · Set default · Move · Delete (tap twice) · Restore default templates, a cloud when synced.
+- **Variables (22):** {class} {subject} {type} {notebook} {date} {topic}; {names} {notSet} {set} {names.notSet} {names.set} {names.submitted} {names.notSubmitted} {names.active} {names.left}; {count} and the matching counts. Submitted = set (Driftline has no separate submitted mark).
+- **Rules:**
+  - Seeds: Pending (default, same text as before), Submitted, Completed, Not submitted.
+  - Templates are saved under a new key (`share.templates.v2`), so the old app's keys are never overwritten. The old keys are adopted once and migrated: {class} becomes "{subject} {type}" when the class prefix is off, else "{notebook}".
+  - Sync: newer wins, pushed 2 s after an edit when paired to the test copy; never on the live sheet.
+  - The share sheet has template pills; over 1500 characters it warns that WhatsApp may cut it off; share buttons are off while the message is empty.
+- **Code:** `src/data/templates.ts`, `src/data/templateBook.ts`, `src/store/templates.ts`, `src/sync/prefs.ts`, `src/screens/templates/`, `src/screens/ShareSheet.tsx`
+- **Tests:** `tests/templates.test.ts` (TP-01..16), `tests/prefsSync.test.ts` (PS-01..06, real bridge Code.js in a vm), `tests/templateMaker.test.tsx` (V08-P7-01..09)
+- **Mock:** `docs/mockups/v08/S2-share-template.png`
 
-### F-MO-04 Look
-Night, Day or System.
+### F-DY-01/02 Day theme
+- **Status:** LIVE (Beta v0.8.0-beta.3)
+- **Rules:** Day uses the `utopian-day` tokens; glows run at half strength (`--sow-glow`); every text colour reaches 4.5:1 on the page and on cards (utopian-day and contrast-day).
+- **Code:** `src/shell/shell.css` (`--sow-glow`)
+- **Tests:** `tests/dayTheme.test.ts` (V08-P8-01..03), V08-P4-11 (card sheen)
+
+### F-SH-08/09, F-DT-08 Session switch and past years (O3-session, G5d-past)
+- **Status:** LIVE (Beta v0.8.0-beta.3) behind Developer options › Past sessions (preview), off by default. Demo data only until the Sheet has past years.
+- **What you see:** Overview header "Wed 4 Nov · 2026–27 ⌄" opens the Session sheet (this year ✓, 2025–26, 2024–25, "Past years are view-only"). A past year shows amber: its classes and last week ("Mon 23 Mar"), no ＋, hold menu Share and All dates only, the year in the class bar, read-only ticks, no undo/redo, a date sheet that only flips dates, and a "Viewing 2025–26 | Back to now" pill above the dock.
+- **Rules:** school years run April–March. Nothing can be written in a past year (ticks, dates, topics, undo/redo, restore, snapshots); sync updates are ignored and Back to now pulls again. Turning the flag off goes back to now.
+- **Code:** `src/data/schoolYear.ts`, `src/data/demoSchool.ts` (`pastSchoolState`), `src/store/store.ts` (`viewing`, `viewYear`), `src/screens/SessionSheet.tsx`, `src/shell/PastPill.tsx`, `src/data/overview.ts` (`pastYearCards`)
+- **Tests:** `tests/session.test.tsx` (V08-P9-01..09)
+- **Mock:** `docs/mockups/v08/O3-session.png`, `O3-session-open.png`, `O3-session-past2.png`, `G5d-past.png`
 
 ---
 
