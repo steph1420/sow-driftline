@@ -2,7 +2,8 @@
 // Pure gesture/state logic first, then the UI on demo data (fake names only).
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, within, act } from '@testing-library/react'
-import { undoIntent, swipeDir, hitIndex } from '../src/data/gestures'
+import { undoIntent, swipeDir, hitIndex, pullOpens } from '../src/data/gestures'
+import { readFileSync } from 'node:fs'
 import { stepScope, scopeDots, validPick, scopeSubjects, ALL } from '../src/data/scope'
 import { fmtDate } from '../src/data/dateFormat'
 import { cleanHaptics } from '../src/shell/haptics'
@@ -118,5 +119,59 @@ describe('RDs2 UI', () => {
     await open(); const rail = document.querySelector('.sow-rail')!; expect(rail).not.toBeNull()
     expect(rail.querySelectorAll('[data-l]')).toHaveLength(26)
     expect(rail.querySelector('.off[aria-hidden]')).not.toBeNull()
+  })
+
+  // v0.9.0-beta.2 (t145u)
+  it('RD-18 the primary date is the rightmost column; the second (earlier) date opens to its left', async () => {
+    const useApp = await open(); act(() => useApp.getState().setView({ phoneCols: 2 }))
+    const ths = [...document.querySelectorAll('thead th.d')]; expect(ths).toHaveLength(2)
+    expect(ths[0]!.className).toContain('c2'); expect(ths[1]!.className).toContain('sel')
+    expect(ths.map((t) => t.querySelector('button')!.getAttribute('aria-label'))).toEqual(['Dates, HW Mon 2 Nov', 'Dates, HW Wed 4 Nov'])
+    const row = document.querySelector('tbody tr')!.querySelectorAll('td:not(.n):not(.r)'); expect(row[0]!.className).toContain('c2'); expect(row[1]!.className).not.toContain('c2')
+    expect(ths[1]!.querySelector('.sow-grip.is-open')).not.toBeNull()
+  })
+  it('RD-19 swipe left on a date header opens the second date, swipe right closes it', async () => {
+    const useApp = await open(); const h = () => screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' })
+    ptr(h(), 'pointerDown', 300, 100); ptr(h(), 'pointerUp', 200, 104); expect(useApp.getState().view.phoneCols).toBe(2)
+    ptr(h(), 'pointerDown', 200, 100); ptr(h(), 'pointerUp', 300, 104); expect(useApp.getState().view.phoneCols).toBe(1)
+    expect(screen.queryByRole('dialog', { name: /date/i })).toBeNull()
+  })
+  it('RD-20 a swipe up from the Checklist dock tab pulls Quick overview up; short pulls snap back; a tap is a tab tap', async () => {
+    const { quickOpenPx: o, quickFlickPxMs: f, swipeEngagePx: e } = CONFIG.timing
+    expect(pullOpens(-o, 0)).toBe(true); expect(pullOpens(-(o - 1), 0)).toBe(false); expect(pullOpens(-e, -f)).toBe(true); expect(pullOpens(-(e - 1), -f * 4)).toBe(false); expect(pullOpens(-40, -f / 2)).toBe(false)
+    const useApp = await open(); const tab = screen.getByRole('tab', { name: 'Checklist' })
+    const p = (type: 'pointerDown' | 'pointerMove' | 'pointerUp', y: number, t: number) => fireEvent[type](tab, { clientX: 180, clientY: y, pointerId: 1, button: 0, timeStamp: t })
+    p('pointerDown', 600, 0); p('pointerMove', 560, 400); expect(useApp.getState().quickPull).toBe(40)
+    const sheet = screen.getByRole('dialog', { name: 'Quick overview' }); expect(sheet.className).toContain('is-pulling'); expect(sheet.style.getPropertyValue('--sow-pull')).toBe('40px')
+    p('pointerUp', 560, 800); fireEvent.click(tab); expect(useApp.getState().quick).toBe(false); expect(screen.queryByRole('dialog', { name: 'Quick overview' })).toBeNull()
+    expect(useApp.getState().tab).toBe('checklist')
+    p('pointerDown', 600, 1000); p('pointerMove', 560, 1100); p('pointerMove', 600 - o - 10, 1300); p('pointerUp', 600 - o - 10, 1400); fireEvent.click(tab)
+    expect(useApp.getState().quick).toBe(true); expect(screen.getByRole('dialog', { name: 'Quick overview' }).className).not.toContain('is-pulling')
+    act(() => useApp.getState().setQuick(false)); fireEvent.click(screen.getByRole('tab', { name: 'Overview' })); fireEvent.click(tab); expect(useApp.getState().tab).toBe('checklist'); expect(useApp.getState().quick).toBe(false)
+  })
+  it('RD-21 the shortcuts hold is 100 ms; the chip and Undo keep 160 ms', async () => {
+    expect(CONFIG.timing.shortcutHoldMs).toBe(100); expect(CONFIG.timing.pressMs).toBe(160)
+    await open(); vi.useFakeTimers(); const plus = screen.getByRole('button', { name: 'Shortcuts' })
+    ptr(plus, 'pointerDown', 340, 20); act(() => { vi.advanceTimersByTime(99) }); expect(screen.queryByRole('group', { name: 'Shortcuts' })).toBeNull()
+    act(() => { vi.advanceTimersByTime(1) }); expect(screen.getByRole('group', { name: 'Shortcuts' })).toBeTruthy()
+    ptr(plus, 'pointerUp', 340, 20)
+  })
+  it('RD-22 the undo overlay is solid, hides the chip under it and says "Nothing to redo" cleanly', async () => {
+    await open(); fireEvent.click(document.querySelector('tbody button.t')!); const undo = screen.getByRole('button', { name: 'Undo' })
+    ptr(undo, 'pointerDown', 300, 20); ptr(undo, 'pointerMove', 300, 50)
+    const o = document.querySelector('.sow-act')!; expect(o.className).toContain('is-off'); expect(o.querySelector('b')?.textContent).toBe('Redo'); expect(o.querySelector('span')?.textContent).toBe('Nothing to redo')
+    expect(screen.getByRole('banner').className).toContain('is-acting'); ptr(undo, 'pointerUp', 300, 50); expect(screen.getByRole('banner').className).not.toContain('is-acting')
+    const css = readFileSync('src/shell/shell.css', 'utf8')
+    expect(css).toMatch(/\.sow-act\.is-off \{[^}]*background: var\(--dl-color-surface-raised\)/); expect(css).not.toMatch(/\.sow-act[^{]*\{[^}]*opacity/)
+    expect(css).toMatch(/\.sow-bar\.is-acting \.sow-cs \{ visibility: hidden; \}/); expect(css).toMatch(/\.sow-act span \{[^}]*min-width: 0; text-align: right;[^}]*text-overflow: ellipsis/)
+  })
+  it('RD-23 a done tick is one round-capped stroke in the filled box; the bar and table sit closer to the left edge', async () => {
+    await open(); fireEvent.click(document.querySelector('tbody button.t')!)
+    const svg = document.querySelector('tbody button.t.on svg')!; expect(svg.querySelectorAll('path')).toHaveLength(1)
+    expect(svg.getAttribute('stroke-linecap')).toBe('round'); expect(svg.getAttribute('stroke-linejoin')).toBe('round'); expect(document.querySelector('tbody button.t.on')!.textContent).toBe('')
+    const css = readFileSync('src/shell/shell.css', 'utf8')
+    expect(css).toMatch(/\.sow-bar \{[^}]*padding: 0 var\(--dl-space-2\) 0 var\(--sow-rail-x\)/)
+    expect(css).toMatch(/--sow-gutter: calc\(var\(--sow-rail-x\) \+ var\(--sow-rail-w\) \+ var\(--dl-space-2\)\)/)
+    expect(css).toMatch(/\.sow-grid \.r \{ width: calc\(var\(--dl-space-8\) \+ var\(--dl-space-1\)\)/)
   })
 })

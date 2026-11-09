@@ -19,3 +19,9 @@ export function swipeDir(dx: number, dy: number, min: number = CONFIG.timing.swi
   if (Math.abs(dx) < min || Math.abs(dx) <= Math.abs(dy)) return null
   return dx > 0 ? 'right' : 'left'
 }
+
+/** t146u: release of a pull up from the Checklist dock tab. Opens past `openPx`, or on a quick upward flick
+ * (`vy` px/ms, negative = up) that has at least engaged; otherwise the sheet snaps back. */
+export function pullOpens(dy: number, vy: number, openPx: number = CONFIG.timing.quickOpenPx, flick: number = CONFIG.timing.quickFlickPxMs): boolean {
+  return -dy >= openPx || (-dy >= CONFIG.timing.swipeEngagePx && -vy >= flick)
+}

@@ -20,6 +20,8 @@ export const SVG = {
   calendarPlus: () => svg(<><rect x="3.5" y="5" width="17" height="15" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4M12 12.5v5M9.5 15h5" /></>),
   reschedule: () => svg(<><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" /><path d="M19.5 4.5v4h-4" /></>),
   // RDs2 top bar (mockups v7, undo-v2, menu-v1, shortcut icon 3)
+  /** v0.9.0-beta.2 tick (t145u "simple"): one stroke, round caps and joins; drawn by the box's own size. */
+  check: () => <svg viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12.5l4 4 8-9" /></svg>,
   lines: () => svg(<path d="M4 7h16M4 12h16M4 17h16" />),
   undo: () => svg(<><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></>),
   redo: () => svg(<><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></>),

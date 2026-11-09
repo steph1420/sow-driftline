@@ -1,4 +1,15 @@
 # Changelog
+## 0.9.0-beta.2 (2026-11-10)
+Steve t145u–t147u on beta.1 ("Looks nice"). Beta only, demo data.
+- Columns swapped: the primary (selected) date is the rightmost column, flush right; the second (earlier) date opens to its LEFT. Swipe left on a date header opens it, swipe right closes it; the right-edge grip and the 1/2 shortcut still toggle it. Desktop/landscape already ran oldest → newest, so the newest date is rightmost everywhere.
+- Ticks: one clean round-capped check stroke (SVG) in the same filled rounded box, colours and states.
+- # and Names sit a little further left (rail→# gap 12→8 px, # column 40→36 px); the class chip starts at the rail inset (8 px).
+- Shortcuts ＋ hold is 100 ms (own constant shortcutHoldMs); the class chip and Undo keep 160 ms.
+- Undo overlay fix: always solid (the "nothing to redo" state was 60 % see-through), the chip underneath is hidden while it shows, label left and subtext right-aligned with ellipsis; "Nothing to redo" shows cleanly.
+- Quick overview: swipe up from the Checklist dock tab pulls the sheet up under the finger; it opens past 96 px or on a quick flick, otherwise snaps back. A tap is still a tab tap; the strip and ⇧O stay. The strip is a bit more visible (wider, thicker, muted colour).
+- Fix: the shortcuts container shared the class "sow-quick" with the Quick overview sheet in beta.1, which pinned that sheet top-right; renamed (sow-scs / sow-qo). The day pills no longer wrap.
+- Tests: 261 app (RD-18..23 new).
+- Rollback: set BETA_REF back to v0.9.0-beta.1 in sow-driftline-beta (backup branch backup/pre-v0.9.0-beta.2).
 ## 0.9.0-beta.1 (2026-11-10)
 Steve t121u–t140u: RDs2 redesign (GO t140u), t80u clean code. Beta only, demo data / COPY sheet only.
 - Top bar: class chip "≡ KG-A · English HW ⌄" with scope dots. Tap opens Classes, hold (160 ms) opens Favourites, swipe sideways steps to the next/previous subject in the scope. No sync dot (Settings › Sync shows status). Undo and the shortcuts ＋ on the right.

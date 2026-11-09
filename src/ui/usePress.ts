@@ -1,10 +1,11 @@
-// RDs2 top bar press: tap, a short hold (160 ms) and a drag, on one element. The pointer is captured so a slide
+// RDs2 top bar press: tap, a short hold (160 ms; the shortcuts button 100 ms) and a drag, on one element. The pointer is captured so a slide
 // that leaves the button still counts. A keyboard click (detail 0) is a tap; the pointer's own click is swallowed.
 import { useRef } from 'react'
 import { CONFIG } from '../config'
 
 export type PressInfo = { dx: number; dy: number; x: number; y: number; held: boolean; moved: boolean }
-type Handlers = { onTap: () => void; onHold?: (p: PressInfo) => void; onDrag?: (p: PressInfo) => void; onRelease?: (p: PressInfo) => void; onCancel?: () => void }
+/** `holdMs`: how long a still press waits before it counts as a hold (default CONFIG.timing.pressMs). */
+type Handlers = { holdMs?: number; onTap: () => void; onHold?: (p: PressInfo) => void; onDrag?: (p: PressInfo) => void; onRelease?: (p: PressInfo) => void; onCancel?: () => void }
 
 export function usePress(h: Handlers) {
   const s = useRef<{ x0: number; y0: number; held: boolean; moved: boolean; timer: ReturnType<typeof setTimeout> | null } | null>(null)
@@ -16,7 +17,7 @@ export function usePress(h: Handlers) {
       if (e.button > 0) return
       e.currentTarget.setPointerCapture?.(e.pointerId)
       const x = e.clientX, y = e.clientY
-      s.current = { x0: x, y0: y, held: false, moved: false, timer: setTimeout(() => { const p = s.current; if (!p || p.moved) return; p.held = true; ref.current.onHold?.({ dx: 0, dy: 0, x, y, held: true, moved: false }) }, CONFIG.timing.pressMs) }
+      s.current = { x0: x, y0: y, held: false, moved: false, timer: setTimeout(() => { const p = s.current; if (!p || p.moved) return; p.held = true; ref.current.onHold?.({ dx: 0, dy: 0, x, y, held: true, moved: false }) }, ref.current.holdMs ?? CONFIG.timing.pressMs) }
     },
     onPointerMove: (e: React.PointerEvent) => {
       const p = s.current; if (!p) return

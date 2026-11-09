@@ -1,10 +1,11 @@
 // RDs2 shortcuts button (replaces the ⋮ menu; there is no 3-dot menu). A plus that turns 45° into ✕.
-// Tap: the circles slide straight down under it and stay until ✕ or a tap outside. Hold (160 ms), slide onto a circle and
+// Tap: the circles slide straight down under it and stay until ✕ or a tap outside. Hold (100 ms), slide onto a circle and
 // release: that one toggles and the circles hide. Pending only (amber) · 1/2 columns (blue, badge = columns now) · Search.
 import { useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useApp } from '../store/store'
 import { hitIndex } from '../data/gestures'
+import { CONFIG } from '../config'
 import { Icon, type IconName } from '../ui/icons'
 import { usePress } from '../ui/usePress'
 import { buzz } from './haptics'
@@ -25,7 +26,7 @@ export function Shortcuts({ columns, onOpen }: { columns: boolean; onOpen: () =>
     else if (c.id === 'cols') s.setView({ phoneCols: s.view.phoneCols === 2 ? 1 : 2 })
     else { s.setFind(s.find == null ? '' : null); close() } }
   const under = (x: number, y: number) => hitIndex(refs.current.map((r) => r?.getBoundingClientRect() ?? { left: 0, right: -1, top: 0, bottom: -1 }), x, y)
-  const press = usePress({
+  const press = usePress({ holdMs: CONFIG.timing.shortcutHoldMs, // t145u: 100 ms here; the chip and Undo keep pressMs
     onTap: () => { if (mode) close(); else { onOpen(); setMode('tap') } },
     onHold: () => { onOpen(); buzz(useApp.getState().haptics); setMode('hold') },
     onDrag: ({ x, y }) => { if (mode !== 'hold') return; const i = under(x, y); if (i !== hot) { setHot(i); if (i >= 0) buzz(useApp.getState().haptics) } },
@@ -38,9 +39,9 @@ export function Shortcuts({ columns, onOpen }: { columns: boolean; onOpen: () =>
     <button className={`sow-ib sow-plus${open ? ' is-open' : ''}`} aria-expanded={open} aria-label="Shortcuts" aria-description="Tap to open; hold and slide onto one to pick it" {...press}>
       <motion.span className="sow-plus__icon" initial={false} animate={{ rotate: open ? 45 : 0 }} transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 30 }}><Icon name="plus" /></motion.span>
     </button>
-    {open && <div className="sow-quick" role="group" aria-label="Shortcuts">{list.map((c, i) =>
-      <motion.div key={c.id} className="sow-quick__slot" initial={reduce ? false : { opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 34, delay: i * 0.03 }}>
-        {hot === i && <span className="sow-quick__label" aria-hidden>{c.label}</span>}
+    {open && <div className="sow-scs" role="group" aria-label="Shortcuts">{list.map((c, i) =>
+      <motion.div key={c.id} className="sow-scs__slot" initial={reduce ? false : { opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 34, delay: i * 0.03 }}>
+        {hot === i && <span className="sow-scs__label" aria-hidden>{c.label}</span>}
         <button ref={(el) => { refs.current[i] = el }} className={`sow-sc sow-sc--${c.tone}${c.on ? ' is-on' : ''}${hot === i ? ' is-hot' : ''}`} aria-label={c.label} aria-pressed={c.id === 'search' ? undefined : c.on}
           onPointerEnter={() => { if (mode === 'tap') setHot(i) }} onPointerLeave={() => { if (mode === 'tap') setHot(-1) }} onFocus={() => setHot(i)} onBlur={() => setHot(-1)}
           onClick={() => run(c)}><Icon name={c.icon} />{c.badge != null && <i className="sow-sc__badge">{c.badge}</i>}</button>

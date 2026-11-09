@@ -8,7 +8,7 @@ import { centreScrollTop } from './scroll'
 import { gridMove, isTypingTarget } from './keyboard'
 import { DateSheet } from './DateSheet'
 import { TableHead, type HeadCol } from './TableHead'
-import { GLYPH } from '../ui/icons'
+import { GLYPH, Icon } from '../ui/icons'
 import { useApp, nowMs } from '../store/store'
 import { isLate, pillVisible } from '../data/late'
 import { cellKey } from '../sync/ops'
@@ -73,8 +73,9 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
     <div className="dl-card sow-empty"><div className="sow-ico" aria-hidden>＋</div><h2 className="dl-title2">No dates yet</h2>
       <p className="dl-muted">This class has no dates on the sheet yet. Ticks appear here.</p></div>)
   const cols0 = visibleCols(c.columns.length, end, layout, dateCols)
-  // RDs2 Col2 drawer: on the phone the second date (the one before) slides out to the right of the first
-  const cols = drawer && cols0.length === 2 ? [...cols0].reverse() : cols0
+  // Dates run oldest → newest, so the primary (selected) date is always the rightmost column, flush right (t145u);
+  // on the phone the second date (the one before) is a drawer that opens to its left.
+  const cols = cols0
   const two = drawer && cols.length === 2
   const wide = cols.length > CONFIG.layout.desktopCalmDateCols
   const weekStart = (i: number) => { if (!wide || i === cols0[0]) return false; const a = new Date(c.columns[i]!.date + 'T00:00:00'), b = new Date(c.columns[i - 1]!.date + 'T00:00:00'); return a.getDay() < b.getDay() || (+a - +b) / 864e5 >= 7 }
@@ -96,7 +97,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const dup = new Set(names.filter((n, i) => names.indexOf(n) !== i)) // Q-DUP-1: roll tells twins apart
   const doneOn = (sid: string) => c0.pupils.length - toGo(c0, sid)
   const matches = pill?.trim() ? rankMatches(pill.trim(), c.pupils.map((p) => ({ roll: p.roll, name: p.name }))).length : 0
-  const head: HeadCol[] = cols.map((i, ci) => { const s = c.columns[i]!; return { sessionId: s.sessionId, date: s.date, kind: s.kind, topic: s.topic, done: doneOn(s.sessionId), total: c0.pupils.length, past: s.date < today, sel: i === anchor.index, second: two && ci === 1, week: weekStart(i) } })
+  const head: HeadCol[] = cols.map((i, ci) => { const s = c.columns[i]!; return { sessionId: s.sessionId, date: s.date, kind: s.kind, topic: s.topic, done: doneOn(s.sessionId), total: c0.pupils.length, past: s.date < today, sel: i === anchor.index, second: two && ci === 0, week: weekStart(i) } })
   const sheet = c0.columns.find((x) => x.sessionId === dates)
   const colSids = cols.map((i) => c.columns[i]!.sessionId)
   const down = (e: React.PointerEvent, sid: string, roll: number, on: boolean) => {
@@ -135,10 +136,10 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
               {cols.map((i, ci) => { const s = c.columns[i]!; const fut = s.date > today; const real = c.ticked(s.sessionId, p.roll)
                 const pv = !!painted && painted.roll === p.roll && painted.sids.includes(s.sessionId); const on = pv ? painted!.value : real
                 const mk = real ? marks[cellKey({ sessionId: s.sessionId, roll: p.roll })] : undefined; const lt = !!mk && isLate(mk.at, s.date, !!mk.back) === true
-                return <td key={s.sessionId} className={[weekStart(i) && 'wk', two && ci === 1 && 'c2'].filter(Boolean).join(' ') || undefined}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}${pv ? ' paint' : ''}${lt && on ? ' late' : ''}`} data-r={r} data-c={ci} aria-pressed={real} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${real ? (lt ? 'done, late' : 'done') : 'not yet'}`}
+                return <td key={s.sessionId} className={[weekStart(i) && 'wk', two && ci === 0 && 'c2'].filter(Boolean).join(' ') || undefined}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}${pv ? ' paint' : ''}${lt && on ? ' late' : ''}`} data-r={r} data-c={ci} aria-pressed={real} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${real ? (lt ? 'done, late' : 'done') : 'not yet'}`}
                     onPointerDown={(e) => down(e, s.sessionId, p.roll, real)} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { paint.current = null; setPainted(null) }}
-                    onClick={() => { if (eatClick.current) { eatClick.current = false; return } onTick(s.sessionId, p.roll) }}>{on ? GLYPH.tick : ''}</button>
-                  : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? GLYPH.tick : ''}</span>}</td> })}
+                    onClick={() => { if (eatClick.current) { eatClick.current = false; return } onTick(s.sessionId, p.roll) }}>{on ? <Icon name="check" /> : null}</button>
+                  : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? <Icon name="check" /> : null}</span>}</td> })}
             </tr>))}</tbody>
         </table>
       </div>

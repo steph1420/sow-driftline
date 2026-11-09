@@ -11,7 +11,7 @@ import { Sheet } from '../ui/Sheet'
 import { ShareSheet } from './ShareSheet'
 
 export function QuickOverview({ layout, dateCols }: { layout: Layout; dateCols: number }) {
-  const open = useApp((s) => s.quick); const setQuick = useApp((s) => s.setQuick)
+  const open = useApp((s) => s.quick); const setQuick = useApp((s) => s.setQuick); const pull = useApp((s) => s.quickPull)
   const data = useApp((s) => s.data); const cls = useApp((s) => s.currentClass); const subject = useApp((s) => s.subject); const focus = useApp((s) => s.focus); const openedAt = useApp((s) => s.openedAt)
   const [mode, setMode] = useState<SinceMode>('open'); const [share, setShare] = useState<string | null>(null)
   const y0 = useRef<number | null>(null)
@@ -21,11 +21,11 @@ export function QuickOverview({ layout, dateCols }: { layout: Layout; dateCols: 
   const today = todayIso(); const c = toChecklist(data, cls, subject); const anchor = focusColumn(c, today, focus)
   const cols = visibleCols(c.columns.length, anchor.index, layout, dateCols).map((i) => c.columns[i]!)
   const from = sinceStart(mode, { openedAt, now: nowMs() })
-  if (!open) return (
+  if (!open && !pull) return (
     <button className="sow-grabber" aria-label="Quick overview (swipe up)" onClick={() => setQuick(true)}
       onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && y0.current - e.clientY > CONFIG.timing.sheetOpenDragPx) { y0.current = null; setQuick(true) } }} onPointerUp={() => { y0.current = null }}><i /></button>)
   return (<>
-    <Sheet label="Quick overview" onClose={() => setQuick(false)} className="sow-quick">
+    <Sheet label="Quick overview" onClose={() => setQuick(false)} className="sow-qo" pull={open ? undefined : pull}>
       <div className="sow-sheet__head"><h2 className="sow-sheet__title">Quick overview</h2><button className="sow-x" aria-label="Close" onClick={() => setQuick(false)}>{GLYPH.close}</button></div>
       <div className={`sow-qcs${cols.length > 1 ? ' two' : ''}`}>{cols.map((s) => {
         const done = c.pupils.length - toGo(c, s.sessionId); const n = countSince(data.ticks, s.sessionId, from); const words = sinceWords(mode, openedAt)

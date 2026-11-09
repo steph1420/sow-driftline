@@ -32,7 +32,7 @@ type State = {
   tab: Tab; side: Side; contrast: Contrast; setContrast: (c: Contrast) => void; haptics: Haptics; setHaptics: (h: Haptics) => void; scale: DisplayScale; setScale: (p: Partial<DisplayScale>) => void; resetScale: () => void; update: Update; setUpdate: (u: Partial<Update>) => void; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
   data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; find: string | null; setFind: (q: string | null) => void; openedAt: number; openSession: (classKey: string, sessionId: string) => void
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
-  view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
+  view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; quickPull: number; setQuickPull: (px: number) => void; openClass: (k: string) => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
   tick: (sessionId: string, roll: number) => void; tickMany: (sessionId: string, rolls: number[], value: boolean) => void; deviceName: string; setDeviceName: (n: string) => void; undo: () => void; redo: () => void; restore: (at: string) => void; snapshotNow: (label: string) => void
   importSetup: (text: string) => Promise<void>; setDev: (d: Partial<Dev>) => void
@@ -112,7 +112,7 @@ const viewOnly = () => useApp.getState().viewing !== null
 /** Wraps a write action so it does nothing while a past year is shown (F-SH-09: view-only). */
 const liveOnly = <A extends unknown[]>(fn: (...a: A) => void) => (...a: A) => { if (!viewOnly()) fn(...a) }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: loadJson(HINTS, [] as string[]), favs: loadJson(FAVS, [] as string[]).filter((x) => typeof x === 'string'), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: loadJson(HINTS, [] as string[]), favs: loadJson(FAVS, [] as string[]).filter((x) => typeof x === 'string'), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
@@ -174,7 +174,8 @@ export const useApp = create<State>((set, get) => ({
     localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh()
   },
   setView: (v) => { const view = { ...get().view, ...v }; localStorage.setItem(VIEW, JSON.stringify(view)); set({ view }) },
-  setQuick: (quick) => set({ quick }),
+  setQuick: (quick) => set({ quick, quickPull: 0 }),
+  setQuickPull: (quickPull) => set({ quickPull: Math.max(0, quickPull) }), // t146u: px the Checklist dock tab has pulled Quick overview up
   openClass: (k) => set({ currentClass: k, subject: firstSubject(get().data, k), tab: 'checklist', quick: false, focus: null, jump: get().jump + 1 }),
   /** v0.7j: a class card opens that class on Checklist at that card's session. */
   openSession: (classKey, sessionId) => set({ currentClass: classKey, subject: get().data.sessions.find((x) => x.sessionId === sessionId)?.subjectKey ?? firstSubject(get().data, classKey), tab: 'checklist', quick: false, focus: sessionId, jump: get().jump + 1 }),

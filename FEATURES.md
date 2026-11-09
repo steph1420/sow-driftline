@@ -491,3 +491,18 @@ Add these to the address: `?demo`, `?today=YYYY-MM-DD`, `?side=night|day`.
 10. F-DT-01 Reschedule
 11. F-CL-10 Quick overview
 12. F-SY-02 Status dot
+
+---
+
+## 11. RDs2 checklist (v0.9.0, Beta)
+- **Status:** BETA (v0.9.0-beta.2), Steve t121u–t145u. Replaces the G5d chrome (F-SH-01, F-CL-02/03/06 controls row, pill chip, ⋮ menu, sync dot in the bar).
+- **Top bar:** class chip "≡ KG-A · English HW ⌄" at the rail inset (8 px). Tap: Classes panel (CLASSES strip All · Fav · classes · LISTS, collapsible; subjects with done/total and ★; loop). Hold 160 ms: favourites. Swipe sideways: next/previous subject in the scope (stops at the ends unless loop).
+- **Undo:** tap = undo; press and slide down = Redo (icon flips), slide left = Cancel; a solid label over the chip says what release does ("Nothing to redo" when there is none).
+- **Shortcuts ＋:** tap opens Pending · 1/2 · Search straight down; hold 100 ms, slide and release picks one.
+- **Table (A5):** # · Names 🔍 (search in place, "n of 24") · 56 px date columns flush right, the date over count or topic (Settings › Column dates). Dates run oldest → newest, so the primary (selected) date is always the rightmost column.
+- **Second date (phone):** a drawer to the left of the primary: swipe left on a date header, the right-edge grip or the 1/2 shortcut opens it; swipe right or the grip closes it. Its ticks are green.
+- **Ticks:** filled rounded box with one round-capped check stroke; blue done, amber late, green in the second date.
+- **A–Z rail:** left, all letters (missing ones dimmed, current one blue), ends above the dock.
+- **Quick overview:** swipe up from the Checklist dock tab (the sheet follows the finger, opens past 96 px or on a quick flick, else snaps back; a tap stays a tab tap), the strip above the dock, or ⇧O.
+- **Settings › Appearance:** Column dates (10/11 · Tue 10 · 10 Nov; Count · Topic), Week groups, Haptics (Off · Light · Normal · Strong).
+- **Not yet:** smart lists (LISTS shows only a disabled "+ New list").

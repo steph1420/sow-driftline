@@ -21,7 +21,7 @@ export function Bar({ columns }: { columns: boolean }) {
   const keys = scopeSubjects(data, validPick(data, scope), favs).map((x) => x.subjectKey)
   const close = () => setOpen(null)
   return (
-    <header className="sow-bar">
+    <header className={`sow-bar${intent ? ' is-acting' : ''}`}>
       <ClassChip open={open === 'classes'} scope={{ count: keys.length, index: keys.indexOf(subject) }} onTap={() => setOpen(open === 'classes' ? null : 'classes')} onHold={() => setOpen('favs')} />
       {intent && <UndoOverlay intent={intent} />}
       <span className="sow-sp" />
