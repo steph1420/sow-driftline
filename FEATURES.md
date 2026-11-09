@@ -400,6 +400,13 @@ House rules that apply to every feature:
 - **Tests:** `tests/settings.test.tsx` (V08-P6-01..11)
 - **Mock:** `docs/mockups/v08/S1-settings.png`, `S1-settings-day.png`
 
+### F-ST-11 Display size (v0.8 P11)
+- **Status:** BETA (v0.8.0-beta.5), Steve t81u–t83u. Default is today's look (all 100%).
+- **What you see:** Settings › Appearance › Display size (Standard / Compact / Custom). Size: Standard | Compact, then Fine-tune sliders: Overall, Text, Row spacing, Tickboxes, Date headers, Navigation (5% steps, value shown), and Reset to default. Changes apply live.
+- **Rules:** Each part is Overall × its own factor, applied once through `--sow-k-*` variables on the existing Driftline sizes (no CSS zoom). Bounds: Overall 75–115%, Text 85–120%, Row spacing 50–150%, Tickboxes 75–115%, Date headers 80–115%, Navigation 80–115%; stored values are clamped and snapped, junk falls back to 100%. Text never under 13 px. Tickboxes draw smaller inside a 44 px tap target; row spacing is the gap around the drawn box (rows never under 44 px). Date header chips draw smaller but each keeps a 44 px tap (count reaches up, date reaches down); the dials are unchanged. Navigation shrinks the class bar, the controls row and the dock (all ≥ 44 px). Compact = Overall 85%, Row spacing 110%, Tickboxes 95%, Navigation 95% (smaller, but rows keep their gap). Saved on this device only (not synced).
+- **Code:** `src/shell/displayScale.ts`, `src/screens/settings/DisplayPage.tsx`, `src/store/store.ts` (`scale`, `setScale`, `resetScale`), `src/App.tsx`, `src/shell/shell.css` (P11 block)
+- **Tests:** `tests/displayScale.test.tsx` (V08-P11-01..08), `tests/v08.test.tsx` (V08-P1-07 updated)
+
 ### F-SH-06 Update dot, never reload mid-work
 - **Status:** LIVE (Beta v0.8.0-beta.3)
 - **Rules:** a new version found before the first tap applies at once; after that it only lights the Updates dot and waits for "Restart to update". Coming back to the app checks for updates.

@@ -11,10 +11,11 @@ import { Settings } from './screens/settings/Settings'
 import { todayIso } from './data/today'
 import { APP_VERSION, CONFIG, FLAVOR_LABEL } from './config'
 import { themeFor } from './shell/theme'
+import { scaleVars } from './shell/displayScale'
 import { isMod, isTypingTarget } from './screens/keyboard'
 
 export function App() {
-  const tab = useApp((s) => s.tab); const side = useApp((s) => s.side); const contrast = useApp((s) => s.contrast)
+  const tab = useApp((s) => s.tab); const side = useApp((s) => s.side); const contrast = useApp((s) => s.contrast); const scale = useApp((s) => s.scale)
   const data = useApp((s) => s.data); const cls = useApp((s) => s.currentClass); const jump = useApp((s) => s.jump); const source = useApp((s) => s.source); const tick = useApp((s) => s.tick); const dev = useApp((s) => s.dev); const view = useApp((s) => s.view); const focus = useApp((s) => s.focus); const subject = useApp((s) => s.subject); const pending = useApp((s) => s.pending); const viewOnly = useApp((s) => s.viewing !== null)
   const [land, setLand] = useState(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight)
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth >= CONFIG.layout.desktopMinWidthPx)
@@ -30,6 +31,7 @@ export function App() {
     const apply = () => { document.documentElement.dataset.theme = themeFor(side, contrast, !!mq?.matches) }
     apply(); mq?.addEventListener?.('change', apply); return () => mq?.removeEventListener?.('change', apply)
   }, [side, contrast])
+  useEffect(() => { for (const [k, v] of Object.entries(scaleVars(scale))) document.documentElement.style.setProperty(k, v) }, [scale])
   const layout = wide ? 'desktop' : 'phone'; const dateCols = dateColsFor({ layout, landscape: land, weeks: view.weeks, phoneCols: view.phoneCols })
   return (
     <>

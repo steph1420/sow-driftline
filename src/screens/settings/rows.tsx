@@ -19,7 +19,7 @@ export function NavRow({ label, value, dot, onClick }: NavProps) {
     </button>)
 }
 
-type SegProps<T extends string> = { label: string; options: readonly { id: T; label: string }[]; value: T; onChange: (v: T) => void }
+type SegProps<T extends string> = { label: string; options: readonly { id: T; label: string }[]; value: T | null; onChange: (v: T) => void }
 export function Segment<T extends string>({ label, options, value, onChange }: SegProps<T>) {
   return <div className="dl-row sow-set__row"><span aria-hidden>{label}</span><span className="sow-sp" /><div className="dl-seg" role="group" aria-label={label}>{options.map((o) =>
     <button key={o.id} className={`dl-seg__item${o.id === value ? ' is-on' : ''}`} aria-pressed={o.id === value} onClick={() => onChange(o.id)}>

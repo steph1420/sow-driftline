@@ -56,7 +56,10 @@ describe('P1 checklist chrome (G5d)', () => {
     const css = readFileSync('src/shell/shell.css', 'utf8')
     const px = (v: string) => [...v.matchAll(/var\((--dl-[\w-]+)\)/g)].reduce((a, m) => a + tok[m[1]!]!, 0)
     const col = css.match(/--sow-tick-col:\s*calc\(([^;]+)\);/)!; expect(px(col[1]!)).toBe(84)
-    for (const sel of ['.sow-tab__n', '.sow-tab__d']) expect(new RegExp(`\\${sel} \\{[^}]*min-height: var\\(--dl-hit-min\\)`).test(css)).toBe(true)
+    // P11: chips draw at 44 px × date headers; the count reaches up and the date down by the shortfall, so taps stay 44 px
+    expect(css).toMatch(/--sow-chip:\s*calc\(var\(--dl-hit-min\) \* var\(--sow-k-dates\)\)/)
+    for (const sel of ['.sow-tab__n', '.sow-tab__d']) expect(new RegExp(`\\${sel} \\{[^}]*min-height: var\\(--sow-chip\\)`).test(css)).toBe(true)
+    expect(css).toMatch(/\.sow-tab__n::after \{ top: calc\(var\(--sow-chip-gap\) \* -1\); \} \.sow-tab__d::after \{ bottom: calc\(var\(--sow-chip-gap\) \* -1\); \}/)
   })
 })
 

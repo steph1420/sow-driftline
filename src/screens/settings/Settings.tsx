@@ -11,10 +11,11 @@ import { TemplateMaker } from '../templates/TemplateMaker'
 import { SessionSheet } from '../SessionSheet'
 import { shownYear } from '../../data/schoolYear'
 import { todayIso } from '../../data/today'
+import { DisplayPage, displayName } from './DisplayPage'
 import { AboutPage, ContrastPage, DeveloperPage, SnapshotsPage, UpdatesPage, aboutValue, contrastName, whenLabel } from './AppPages'
 
-type Page = 'contrast' | 'sync' | 'pair' | 'snapshots' | 'updates' | 'developer' | 'about'
-const TITLES: Record<Page, string> = { contrast: 'Contrast', sync: 'Sync', pair: 'Pair a device', snapshots: 'Snapshots', updates: 'Updates', developer: 'Developer options', about: 'About' }
+type Page = 'contrast' | 'display' | 'sync' | 'pair' | 'snapshots' | 'updates' | 'developer' | 'about'
+const TITLES: Record<Page, string> = { contrast: 'Contrast', display: 'Display size', sync: 'Sync', pair: 'Pair a device', snapshots: 'Snapshots', updates: 'Updates', developer: 'Developer options', about: 'About' }
 const THEMES = [{ id: 'night', label: 'Night' }, { id: 'day', label: 'Day' }, { id: 'system', label: 'Auto' }] as const
 
 export function Settings() {
@@ -23,7 +24,7 @@ export function Settings() {
   if (page === 'templates') return <TemplateMaker onBack={() => setPage(null)} />
   if (page) return (<div className="sow-set">
     <PageHead title={TITLES[page]} backLabel="Back to Settings" onBack={() => setPage(null)} />
-    {{ contrast: <ContrastPage />, sync: <SyncPage />, pair: <PairPage devices={devices} />, snapshots: <SnapshotsPage />, updates: <UpdatesPage />, developer: <DeveloperPage />, about: <AboutPage /> }[page]}
+    {{ contrast: <ContrastPage />, display: <DisplayPage />, sync: <SyncPage />, pair: <PairPage devices={devices} />, snapshots: <SnapshotsPage />, updates: <UpdatesPage />, developer: <DeveloperPage />, about: <AboutPage /> }[page]}
   </div>)
   const latest = s.snaps[0]
   return (<div className="sow-set">
@@ -31,6 +32,7 @@ export function Settings() {
     <Group title="Appearance">
       <Segment label="Theme" options={THEMES} value={s.side} onChange={(v: Side) => s.setSide(v)} />
       <NavRow label="Contrast" value={contrastName(s.contrast)} onClick={() => setPage('contrast')} />
+      <NavRow label="Display size" value={displayName(s.scale)} onClick={() => setPage('display')} />
     </Group>
     <Group title="Sync & pairing">
       <NavRow label="Sync" dot={{ tone: saveTone(s), label: saveLabel(s) }} onClick={() => setPage('sync')} />

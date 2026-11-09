@@ -1,4 +1,10 @@
 # Changelog
+## 0.8.0-beta.5 (2026-11-09)
+Steve t81u–t83u: display size ("just smaller scaled, not congested"). Beta only, demo data.
+- Settings › Appearance › Display size: Standard | Compact, plus sliders for Overall, Text, Row spacing, Tickboxes, Date headers and Navigation; Reset to default. Standard is today's look.
+- Overall shrinks the class bar, date headers and dock too; row spacing is tuned on its own so smaller boxes keep clear gaps. Text stays ≥ 13 px and every tap stays ≥ 44 px.
+- Saved on this device, validated and bounded. Tests: 244 app (V08-P11-01..08 new).
+- Rollback: set BETA_REF back to v0.8.0-beta.4 in sow-driftline-beta (backup branch backup/pre-v0.8.0-p11).
 ## 0.8.0-beta.4 (2026-11-09)
 Steve t79u: Phase 10 break-it run on v0.8.0-beta.3 (live Beta, demo data and a stand-in bridge; no token, no real sheet). Beta only.
 - Swipe to tick: a swipe that ends off the box now counts (it was lost and left a false tick on screen); an overshooting two-date swipe covers both dates.
