@@ -11,8 +11,10 @@ describe('P10 break-it: UI rules', () => {
     expect(px('footnote', tokens)).toBeGreaterThanOrEqual(13)
     expect(shell).toMatch(/:root\s*\{[^}]*--dl-type-caption-size:\s*var\(--dl-type-footnote-size\)/)
   })
-  it('BK-UI-02 the 1|2 date buttons have a 44 px hit area', () => {
-    expect(shell).toMatch(/\.sow-seg button\s*\{[^}]*position:\s*relative/)
-    expect(shell).toMatch(/\.sow-seg button::after\s*\{[^}]*inset:\s*calc\(var\(--dl-space-1\) \* -1\)/)
+  // RDs2 changed BK-UI-02: the 1|2 buttons became the shortcut circle (44 px) and the Col2 edge grip (full header height)
+  it('BK-UI-02 the 1|2 shortcut and the Col2 edge grip have a 44 px hit area', () => {
+    expect(shell).toMatch(/\.sow-sc \{[^}]*width: var\(--dl-hit-min\); height: var\(--dl-hit-min\)/)
+    expect(shell).toMatch(/--sow-head-h: max\(var\(--dl-hit-min\)/)
+    expect(shell).toMatch(/\.sow-grip \{[^}]*top: 0; bottom: 0/)
   })
 })

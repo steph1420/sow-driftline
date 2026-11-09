@@ -84,7 +84,7 @@ describe('v0.7 dates (F-DT-05, F-OV-05)', () => {
 })
 
 // S2 (v0.6.1 lock): no save wording on screen; only the status dot carries it (as its label).
-import { render as renderS2, cleanup as cleanupS2 } from '@testing-library/react'
+import { render as renderS2, cleanup as cleanupS2, fireEvent as fireS2 } from '@testing-library/react'
 import { App as AppS2 } from '../src/App'
 import { useApp as useAppS2 } from '../src/store/store'
 describe('V07-S2 quiet save state', () => {
@@ -94,10 +94,12 @@ describe('V07-S2 quiet save state', () => {
     const foot = container.querySelector('.sow-foot')!.textContent!
     expect(foot).toMatch(/Driftline/); expect(foot).not.toMatch(/sav|waiting|on this device/i)
   })
-  it('V07-S2-02 status dot still has an accessible label', () => {
+  // RDs2 changed V07-S2-02: no sync dot in the bar (sync is automatic); Settings › Sync still names the state
+  it('V07-S2-02 no dot in the bar; the Sync row in Settings still has an accessible state', () => {
     cleanupS2(); localStorage.clear(); useAppS2.getState().reset(); useAppS2.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */
     const { container } = renderS2(<AppS2 />)
-    expect(container.querySelector('.sow-dot')!.getAttribute('aria-label')).toBeTruthy()
+    expect(container.querySelector('.sow-bar .sow-dot')).toBeNull()
+    fireS2.click(container.querySelector('[role="tab"][aria-label="Settings"]')!); expect(container.querySelector('[aria-label^="Sync, "]')).toBeTruthy()
   })
 })
 
@@ -161,7 +163,7 @@ describe('S4b one subject per checklist + Pending only', () => {
   it('S4b-02 Pending only shows just the unticked names for the focused date, and no "later date" link', async () => {
     const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: /open KG-A English HW on checklist/i }))
     const all = screen.getAllByRole('row').length
-    fireEvent.click(screen.getByRole('button', { name: 'Pending only' })); expect(useApp.getState().pending).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' })); fireEvent.click(screen.getByRole('button', { name: 'Pending only' })); expect(useApp.getState().pending).toBe(true) // RDs2: a shortcut
     expect(screen.getAllByRole('row').length).toBe(10 + 1) // 10 to go + header row
     expect(screen.getAllByRole('row').length).toBeLessThan(all)
     expect(screen.queryByText(/later date/)).toBeNull()
@@ -175,7 +177,8 @@ describe('S6 column tabs and dates', () => {
     history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset(); render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Overview' }))
     fireEvent.click(screen.getByRole('button', { name: /open KG-A English HW on checklist/i })); return useApp }
   it('S6-01 the focused column tab shows done/total for HW Wed 4 Nov', async () => {
-    await load(); expect(screen.getByRole('button', { name: 'HW Wed 4 Nov, 14 of 24 done' }).textContent).toBe('14/24')
+    await load(); const h = screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' }) // RDs2: the date header carries the count
+    expect(h.getAttribute('aria-description')).toMatch(/^14 of 24 done/); expect(h.textContent).toBe('4/1114/24')
   })
   it('S6-02 the date chip opens the existing dates; picking one switches the date and changes no data', async () => {
     const useApp = await load(); const before = JSON.stringify(useApp.getState().data)
@@ -191,8 +194,9 @@ describe('S6 column tabs and dates', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' })); fireEvent.click(screen.getByRole('option', { name: 'HW Mon 2 Nov' }))
     expect(screen.getByRole('button', { name: 'Dates, HW Mon 2 Nov' }).className).toContain('old')
   })
-  it('S6-04 tapping the count opens the quick overview for that date', async () => {
-    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'HW Wed 4 Nov, 14 of 24 done' }))
+  // RDs2 changed S6-04: the header has one button per date (the date sheet); Quick overview opens from the bottom grabber (and ⇧O)
+  it('S6-04 the bottom grabber opens the quick overview for the focused date', async () => {
+    const useApp = await load(); fireEvent.click(screen.getByRole('button', { name: 'Quick overview (swipe up)' }))
     expect(useApp.getState().quick).toBe(true); expect(screen.getByRole('dialog', { name: 'Quick overview' })).toBeTruthy()
   })
 })
@@ -270,19 +274,19 @@ describe('t122u phone columns', () => {
     expect(dateColsFor({ layout: 'phone', landscape: false, weeks: false })).toBe(1)
     expect(dateColsFor({ layout: 'desktop', landscape: true, weeks: false, phoneCols: 2 })).toBe(3)
   })
-  // v0.8 changed PC-02: 1|2 moved from the ⋮ menu to the checklist controls row (phone only)
+  // v0.8 changed PC-02: 1|2 moved from the ⋮ menu to the checklist controls row (phone only); RDs2: to the 1/2 shortcut circle
   it('PC-02 the controls row switches Dates on phone to 2 and it is remembered', async () => {
     const { useApp } = await import('../src/store/store'); const { App } = await import('../src/App')
     const { render: r, screen: sc, fireEvent: fe, cleanup: cl } = await import('@testing-library/react')
     cl(); localStorage.clear(); Object.defineProperty(window, 'innerWidth', { value: 412, configurable: true }); useApp.getState().reset(); useApp.getState().setTab('checklist'); r(<App />)
-    fe.click(sc.getByRole('group', { name: 'Dates on phone' }).querySelectorAll('button')[1]!); Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true })
+    fe.click(sc.getByRole('button', { name: 'Shortcuts' })); fe.click(sc.getByRole('button', { name: 'Switch to 2 columns' })); Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true }) // RDs2: the 1/2 shortcut
     expect(useApp.getState().view.phoneCols).toBe(2); useApp.getState().reset(); expect(useApp.getState().view.phoneCols).toBe(2)
   })
   it('PC-03 with one date the column heading still shows the date', async () => {
     const { useApp } = await import('../src/store/store'); const { App } = await import('../src/App')
     const { render: r, cleanup: cl } = await import('@testing-library/react')
     cl(); localStorage.clear(); useApp.getState().reset(); useApp.getState().setTab('checklist'); r(<App />)
-    const th = Array.from(document.querySelectorAll('thead th')).slice(1)
+    const th = Array.from(document.querySelectorAll('thead th')).slice(2) // RDs2: '#' and Names come first
     expect(th.length).toBeGreaterThan(0); expect(th[0]!.querySelector('.sow-sr')).toBeNull(); expect(th[0]!.textContent).toMatch(/\d+\/\d+/)
   })
 })

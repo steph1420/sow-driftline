@@ -1,7 +1,9 @@
 // Settings › Appearance, Backups and App pages (F-ST-02, F-ST-07..10). Developer options keep all the jargon (R14 A).
 import { sheetLabel, useApp, type Contrast } from '../../store/store'
 import { APP_VERSION, FLAVOR, FLAVOR_LABEL, channelUrl } from '../../config'
-import { Segment } from './rows'
+import { Choices, Segment } from './rows'
+import { DATE_FMTS, DATE_SUBS, fmtDate } from '../../data/dateFormat'
+import { HAPTICS, buzz } from '../../shell/haptics'
 
 const CONTRASTS: { id: Contrast; label: string; note: string }[] = [
   { id: 'standard', label: 'Standard', note: 'Soft glass and glows' }, { id: 'high', label: 'High', note: 'Solid surfaces and stronger text' }]
@@ -46,7 +48,6 @@ export function DeveloperPage() {
   const flag = (v: boolean) => (v ? 'on' : 'off'); const bool = (v: 'on' | 'off') => v === 'on'
   return (<>
     <div className="dl-list">
-      <Segment label="A–Z side" options={[{ id: 'left', label: 'Left' }, { id: 'right', label: 'Right' }] as const} value={dev.railSide} onChange={(railSide) => setDev({ railSide })} />
       <Segment label="Swipe to tick" options={onOff} value={flag(dev.swipeTick)} onChange={(v) => setDev({ swipeTick: bool(v) })} />
       <Segment label="Letter bubble" options={onOff} value={flag(dev.railBubble)} onChange={(v) => setDev({ railBubble: bool(v) })} />
       <Segment label="Past sessions (preview)" options={onOff} value={flag(dev.pastSessions)} onChange={(v) => setDev({ pastSessions: bool(v) })} />
@@ -66,4 +67,22 @@ export function AboutPage() {
     <p className="dl-muted sow-note">Version {APP_VERSION}</p>
     <p className="dl-muted sow-note">{source === 'copy' ? `Data: the ${sheetLabel()}.` : 'Data: a demo class with made-up names, saved on this device.'}</p>
   </div>)
+}
+
+const SAMPLE = '2026-11-10'
+export const datesValue = (v: ReturnType<typeof useApp.getState>['view']) => `${fmtDate(SAMPLE, v.dateFmt)} · ${DATE_SUBS.find((x) => x.id === v.dateSub)!.label}`
+/** RDs2: how the column headers write the date, and what goes under it. */
+export function DatesPage() {
+  const view = useApp((s) => s.view); const setView = useApp((s) => s.setView)
+  return (<>
+    <Choices label="Date format" options={DATE_FMTS} value={view.dateFmt} onChange={(dateFmt) => setView({ dateFmt })} />
+    <Choices label="Under the date" options={DATE_SUBS.map((x) => ({ ...x, note: x.id === 'count' ? 'Done so far, like 18/24' : "The date's topic" }))} value={view.dateSub} onChange={(dateSub) => setView({ dateSub })} />
+  </>)
+}
+
+export const hapticsName = (h: ReturnType<typeof useApp.getState>['haptics']) => HAPTICS.find((x) => x.id === h)!.label
+/** RDs2: vibration strength for scrubbing the A–Z strip and the top bar's holds. */
+export function HapticsPage() {
+  const haptics = useApp((s) => s.haptics); const setHaptics = useApp((s) => s.setHaptics)
+  return <Choices label="Haptics" options={HAPTICS} value={haptics} onChange={(h) => { setHaptics(h); buzz(h) }} />
 }

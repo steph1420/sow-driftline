@@ -5,23 +5,17 @@ import { AZ, letterAtY, firstRowFor } from '../src/screens/AzRail'
 afterEach(cleanup)
 const names = ['Aarav Rohan Fenwick', 'Mohammed Elias Thornbury', 'Zoya Imran']
 describe('A–Z rail', () => {
-  // v0.4 (t155u) changed D15-AZ-01: unavailable letters are hidden, the rest spread over the rail
-  it('D15-AZ-01 only present letters, spread to fill the rail', async () => {
+  // RDs2 (t134u–t138u) changed D15-AZ-01: all 26 letters keep their place; letters with no names are dimmed; the current letter is accent.
+  // The grip and the side switch are gone (D4P-GRIP-01 removed): the rail is always on the left.
+  it('D15-AZ-01 all 26 letters, absent ones dimmed, the current one lit; no grip', async () => {
     const { AzRail } = await import('../src/screens/AzRail')
-    render(<AzRail names={names} onJump={() => {}} />)
+    render(<AzRail names={names} onJump={() => {}} current="M" />)
     const nav = screen.getByRole('navigation', { name: /jump by letter/i })
-    expect([...nav.querySelectorAll('[data-l]')].map((x) => x.getAttribute('data-l'))).toEqual(['A', 'M', 'Z'])
-    expect((nav.querySelector('[data-l="M"]') as HTMLElement).style.top).toMatch(/^33\.33/)
-  })
-  it('D4P-GRIP-01 grip above the rail: tap moves it to the other side, drag snaps to the nearest edge', async () => {
-    const { AzRail } = await import('../src/screens/AzRail')
-    const side = vi.fn()
-    render(<AzRail names={names} onJump={() => {}} side="right" onSide={side} />)
-    const grip = screen.getByRole('button', { name: /move the a to z strip to the left/i })
-    fireEvent.click(grip, { detail: 0 }); expect(side).toHaveBeenLastCalledWith('left')
-    Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true })
-    fireEvent.pointerDown(grip, { clientX: 390, pointerId: 2 }); fireEvent.pointerMove(grip, { clientX: 60, pointerId: 2 }); fireEvent.pointerUp(grip, { clientX: 60, pointerId: 2 })
-    expect(side).toHaveBeenLastCalledWith('left')
+    expect(nav.querySelectorAll('[data-l]').length).toBe(26)
+    expect([...nav.querySelectorAll('[data-l]:not(.off)')].map((x) => x.getAttribute('data-l'))).toEqual(['A', 'M', 'Z'])
+    expect(nav.querySelector('[data-l="B"]')!.getAttribute('aria-hidden')).toBe('true')
+    expect(nav.querySelector('.on')!.getAttribute('data-l')).toBe('M')
+    expect(screen.queryByRole('button', { name: /A to Z strip/i })).toBeNull()
   })
   it('D15-AZ-02 rail is fixed (own gutter), not inside the scrolling grid', async () => {
     const { Checklist } = await import('../src/screens/Checklist')
@@ -52,7 +46,7 @@ describe('A–Z rail', () => {
     render(<AzRail names={names} onJump={onJump} />)
     const nav = screen.getByRole('navigation', { name: /jump by letter/i })
     nav.getBoundingClientRect = () => ({ top: 0, height: 260, left: 0, right: 30, bottom: 260, width: 30, x: 0, y: 0, toJSON() {} })
-    fireEvent.pointerDown(nav, { clientY: 130, pointerId: 1 })
+    fireEvent.pointerDown(nav, { clientY: 125, pointerId: 1 }) // slot 12 of 26 = M
     fireEvent.pointerMove(nav, { clientY: 255, pointerId: 1 })
     expect(onJump).toHaveBeenCalledWith(1)
     expect(onJump).toHaveBeenLastCalledWith(2)

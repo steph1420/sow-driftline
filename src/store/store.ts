@@ -14,6 +14,9 @@ import { parseSetup } from '../data/setup'
 import { applyOps, cellKey, type Op } from '../sync/ops'
 import { applyEdits, revertEdit, type SessionEdit } from '../data/edits'
 import { modeOnOpen, type MarkMode } from '../data/late'
+import { scopeSubjects, stepScope, validPick, type ScopePick } from '../data/scope'
+import type { DateFmt, DateSub } from '../data/dateFormat'
+import { cleanHaptics, type Haptics } from '../shell/haptics'
 import { broadcast, createEngine, webLock, type SaveStatus } from '../sync/engine'
 import { History } from '../sync/history'
 import { createPoller } from '../sync/poller'
@@ -26,7 +29,7 @@ export type Contrast = 'standard' | 'high'
 export type Update = { ready: boolean; apply: (() => void) | null; checkedAt: number | null }
 export type ClassInfo = { classKey: string; label: string; subject: string }
 type State = {
-  tab: Tab; side: Side; contrast: Contrast; setContrast: (c: Contrast) => void; scale: DisplayScale; setScale: (p: Partial<DisplayScale>) => void; resetScale: () => void; update: Update; setUpdate: (u: Partial<Update>) => void; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
+  tab: Tab; side: Side; contrast: Contrast; setContrast: (c: Contrast) => void; haptics: Haptics; setHaptics: (h: Haptics) => void; scale: DisplayScale; setScale: (p: Partial<DisplayScale>) => void; resetScale: () => void; update: Update; setUpdate: (u: Partial<Update>) => void; source: 'demo' | 'copy'; status: 'idle' | 'loading' | 'ok' | 'error'; error: string | null; pulledAt: string | null
   data: SheetState; classes: ClassInfo[]; currentClass: string; jump: number; focus: string | null; subject: string; setSubject: (subjectKey: string) => void; pending: boolean; setPending: (b: boolean) => void; pickSession: (sessionId: string) => void; find: string | null; setFind: (q: string | null) => void; openedAt: number; openSession: (classKey: string, sessionId: string) => void
   setTab: (t: Tab) => void; setSide: (s: Side) => void; setClass: (k: string) => void; jumpToAnchor: () => void
   view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; openClass: (k: string) => void
@@ -38,15 +41,19 @@ type State = {
   marks: Marks; markMode: MarkMode; setMarkMode: (m: MarkMode) => void; lateToast: number; hints: string[]; dismissHint: (id: string) => void
   /** v0.8 F-SH-08/09: a past school year (id like '2025-26') shown view-only, or null for now. */
   viewing: string | null; viewYear: (id: string | null) => void
+  /** RDs2 Classes panel: starred subjects, the strip's pick (the chip swipe walks it) and whether the walk loops. On this device. */
+  favs: string[]; toggleFav: (subjectKey: string) => void; scope: ScopePick; setScope: (p: ScopePick) => void; loop: boolean; setLoop: (b: boolean) => void; stepSubject: (dir: 1 | -1) => boolean
   setToken: (t: string) => void; unpair: () => void; pair: (code: string) => Promise<void>; refresh: () => Promise<void>; reset: () => void
 }
-export type View = { weeks: boolean; phoneCols: 1 | 2 } // t122u: phoneCols
+export type View = { weeks: boolean; phoneCols: 1 | 2; dateFmt: DateFmt; dateSub: DateSub } // t122u: phoneCols; RDs2: header date format + subtext
 export type Marks = Record<string, { at: string; back?: boolean }>
-export type Dev = { railSide: 'right' | 'left'; railBubble: boolean; swipeTick: boolean; pastSessions: boolean }
+export type Dev = { railBubble: boolean; swipeTick: boolean; pastSessions: boolean }
 const PREFS = storageKey('prefs'); const TOKEN = storageKey('copyToken'); const BRIDGE = storageKey('copyBridge'); const DEV = storageKey('dev')
 const demoTicksKey = () => storageKey(wantsSchool() ? 'demoTicksSchool' : 'demoTicks')
 const demoBase = () => (wantsSchool() ? schoolState(todayIso(), Math.min(nowMs(), Date.now())) /* never stamp demo ticks in the future: newer-wins must keep real taps */ : DEMO_STATE); const VIEW = storageKey('view')
-const loadView = (): View => { try { return { weeks: false, phoneCols: 1, ...JSON.parse(localStorage.getItem(VIEW) || '{}') } } catch { return { weeks: false, phoneCols: 1 } } }; const DEVNAME = storageKey('deviceName')
+const VIEW_DEFAULT: View = { weeks: false, phoneCols: 1, dateFmt: 'dm', dateSub: 'count' }
+const loadView = (): View => { const v = { ...VIEW_DEFAULT, ...loadJson<Partial<View>>(VIEW, {}) }
+  return { weeks: !!v.weeks, phoneCols: v.phoneCols === 2 ? 2 : 1, dateFmt: (['dm', 'dow', 'dmon'] as const).includes(v.dateFmt) ? v.dateFmt : 'dm', dateSub: v.dateSub === 'topic' ? 'topic' : 'count' } }; const DEVNAME = storageKey('deviceName')
 const guessName = () => { const u = typeof navigator !== 'undefined' ? navigator.userAgent : ''; return /iPad/.test(u) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android phone' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows PC' : 'This device' }
 const src = () => (token() ? 'copy' : 'demo') as 'copy' | 'demo'
 const hist = () => new History(localStorage, storageKey(`undo-${src()}`))
@@ -54,8 +61,11 @@ const snapKey = () => storageKey(`snapshots-${src()}`)
 const bridgeUrl = () => localStorage.getItem(BRIDGE) || COPY_BRIDGE_URL
 let lastMs = 0 // strictly increasing, so a quick Undo→Redo is never seen as “older”
 const nowIso = () => { lastMs = Math.max(Date.now(), lastMs + 1); return new Date(lastMs).toISOString() }
-const DEV_DEFAULTS: Dev = { railSide: 'right', railBubble: true, swipeTick: true, pastSessions: false }
-const loadDev = (): Dev => ({ ...DEV_DEFAULTS, ...loadJson<Partial<Dev>>(DEV, {}) })
+const DEV_DEFAULTS: Dev = { railBubble: true, swipeTick: true, pastSessions: false }
+const loadDev = (): Dev => { const d = { ...DEV_DEFAULTS, ...loadJson<Partial<Dev>>(DEV, {}) }; return { railBubble: d.railBubble, swipeTick: d.swipeTick, pastSessions: d.pastSessions } } // RDs2: the A–Z side is fixed (left)
+const FAVS = storageKey('favs'); const SCOPE = storageKey('scope')
+const loadScope = (data: SheetState) => { const v = loadJson<{ pick?: ScopePick; loop?: boolean }>(SCOPE, {}); return { scope: validPick(data, v.pick), loop: v.loop === true } }
+const saveScope = (scope: ScopePick, loop: boolean) => localStorage.setItem(SCOPE, JSON.stringify({ pick: scope, loop }))
 const EDITS = () => storageKey(`edits-${src()}${wantsSchool() ? '-school' : ''}`); const MARKS = () => storageKey(`marks-${src()}${wantsSchool() ? '-school' : ''}`); const HINTS = storageKey('hints')
 const LASTTAB = storageKey('lastTab')
 const loadTab = (): Tab => { try { const v = localStorage.getItem(LASTTAB); return v === 'checklist' || v === 'overview' ? v : v === 'settings' || v === 'more' /* v0.8: More became Settings */ ? 'settings' : 'overview' } catch { return 'overview' } }
@@ -80,13 +90,13 @@ function syncLoop(on: boolean) {
 }
 const forceDemo = () => typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo')
 const token = () => (forceDemo() ? null : localStorage.getItem(TOKEN))
-type Prefs = { side: Side; contrast: Contrast; scale: DisplayScale }
+type Prefs = { side: Side; contrast: Contrast; scale: DisplayScale; haptics: Haptics }
 function loadPrefs(): Prefs {
   const p = loadJson<Partial<Prefs>>(PREFS, {}); const u = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('side') : null
   const side = u === 'night' || u === 'day' ? u /* stills */ : p.side === 'night' || p.side === 'day' ? p.side : 'system'
-  return { side, contrast: p.contrast === 'high' ? 'high' : 'standard', scale: cleanScale(p.scale) }
+  return { side, contrast: p.contrast === 'high' ? 'high' : 'standard', scale: cleanScale(p.scale), haptics: cleanHaptics(p.haptics) }
 }
-const savePrefs = (p: Partial<Prefs>) => { const s = useApp.getState(); localStorage.setItem(PREFS, JSON.stringify({ side: s.side, contrast: s.contrast, scale: s.scale, ...p })) }
+const savePrefs = (p: Partial<Prefs>) => { const s = useApp.getState(); localStorage.setItem(PREFS, JSON.stringify({ side: s.side, contrast: s.contrast, scale: s.scale, haptics: s.haptics, ...p })) }
 export const firstSubject = (d: SheetState, k: string) => d.subjects.find((x) => x.classKey === k && x.active)?.subjectKey ?? ''
 /** Classes and the current class/subject for a data set (kept when they still exist). */
 function shape(data: SheetState, prev?: string, prevSubject?: string) {
@@ -102,12 +112,17 @@ const viewOnly = () => useApp.getState().viewing !== null
 /** Wraps a write action so it does nothing while a past year is shown (F-SH-09: view-only). */
 const liveOnly = <A extends unknown[]>(fn: (...a: A) => void) => (...a: A) => { if (!viewOnly()) fn(...a) }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: loadJson(HINTS, [] as string[]), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: loadJson(HINTS, [] as string[]), favs: loadJson(FAVS, [] as string[]).filter((x) => typeof x === 'string'), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
   setSide: (side) => { savePrefs({ side }); set({ side }) },
   setContrast: (contrast) => { savePrefs({ contrast }); set({ contrast }) },
+  setHaptics: (haptics) => { savePrefs({ haptics }); set({ haptics }) },
+  toggleFav: (k) => { const f = get().favs; const favs = f.includes(k) ? f.filter((x) => x !== k) : [...f, k]; localStorage.setItem(FAVS, JSON.stringify(favs)); set({ favs }) },
+  setScope: (scope) => { saveScope(scope, get().loop); set({ scope }) },
+  setLoop: (loop) => { saveScope(get().scope, loop); set({ loop }) },
+  stepSubject: (dir) => { const s = get(); const next = stepScope(scopeSubjects(s.data, validPick(s.data, s.scope), s.favs).map((x) => x.subjectKey), s.subject, dir, s.loop); if (!next || next === s.subject) return false; s.setSubject(next); return true },
   setScale: (p) => { const scale = cleanScale({ ...get().scale, ...p }); savePrefs({ scale }); set({ scale }) },
   resetScale: () => { savePrefs({ scale: SCALE_DEFAULT }); set({ scale: SCALE_DEFAULT }) },
   setUpdate: (u) => set({ update: { ...get().update, ...u } }),

@@ -25,3 +25,11 @@ export function Segment<T extends string>({ label, options, value, onChange }: S
     <button key={o.id} className={`dl-seg__item${o.id === value ? ' is-on' : ''}`} aria-pressed={o.id === value} onClick={() => onChange(o.id)}>
       {o.id === value && <span className="dl-seg__pill" />}<span className="dl-seg__label">{o.label}</span></button>)}</div></div>
 }
+
+type ChoiceProps<T extends string> = { label: string; options: readonly { id: T; label: string; note?: string }[]; value: T; onChange: (v: T) => void }
+/** A titled radio list (one quiet row per choice, ✓ on the chosen one) for a Settings page. */
+export function Choices<T extends string>({ label, options, value, onChange }: ChoiceProps<T>) {
+  return <section className="sow-set__group"><h2 className="dl-eyebrow sow-set__eyebrow">{label}</h2><div className="dl-list" role="radiogroup" aria-label={label}>{options.map((o) =>
+    <button key={o.id} role="radio" aria-checked={value === o.id} aria-label={o.label} className="dl-row dl-row--btn sow-set__row" onClick={() => onChange(o.id)}>
+      <span className="sow-set__txt"><span>{o.label}</span>{o.note && <small className="dl-muted">{o.note}</small>}</span><span className="sow-sp" />{value === o.id && <span className="sow-set__check" aria-hidden>✓</span>}</button>)}</div></section>
+}

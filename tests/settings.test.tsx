@@ -38,10 +38,12 @@ describe('P6 Settings (S1)', () => {
     expect(row(/^Snapshots, Today, \d{2}:\d{2}/)).toBeTruthy()
     fireEvent.click(row(/^Snapshots/)); expect(screen.getAllByRole('button', { name: /^Restore / }).length).toBeGreaterThan(0)
   })
-  it('V08-P6-05 Developer options hold the jargon: A–Z side, swipe to tick, letter bubble, release channel', () => {
+  // RDs2 changed V08-P6-05: the A–Z strip is always on the left, so its side switch is gone
+  it('V08-P6-05 Developer options hold the jargon: swipe to tick, letter bubble, release channel', () => {
     settings(); fireEvent.click(row('Developer options'))
-    for (const g of ['A–Z side', 'Swipe to tick', 'Letter bubble']) expect(screen.getByRole('group', { name: g })).toBeTruthy()
-    fireEvent.click(within(screen.getByRole('group', { name: 'A–Z side' })).getByRole('button', { name: 'Left' })); expect(useApp.getState().dev.railSide).toBe('left')
+    for (const g of ['Swipe to tick', 'Letter bubble']) expect(screen.getByRole('group', { name: g })).toBeTruthy()
+    expect(screen.queryByRole('group', { name: 'A–Z side' })).toBeNull()
+    fireEvent.click(within(screen.getByRole('group', { name: 'Letter bubble' })).getByRole('button', { name: 'Off' })); expect(useApp.getState().dev.railBubble).toBe(false)
     expect(screen.getByRole('link', { name: 'Beta' }).getAttribute('href')).toMatch(/sow-driftline-beta\/$/)
   })
   it('V08-P6-06 About shows the version with the Stable/Beta label', () => {

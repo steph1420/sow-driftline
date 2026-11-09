@@ -6,12 +6,13 @@ import { useApp } from '../src/store/store'
 
 describe('shell', () => {
   beforeEach(() => { cleanup(); localStorage.clear(); useApp.getState().reset(); useApp.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */ })
-  it('D0-SHL-01 slim bar has class pill, Undo, Redo and More', () => {
+  // RDs2 changed D0-SHL-01: Redo lives on the Undo button (slide down) and ⋮ became the shortcuts button
+  it('D0-SHL-01 slim bar has the class chip, Undo and Shortcuts only', () => {
     render(<App />)
     expect(screen.getByRole('button', { name: /switch class/i }).textContent).toContain('KG-A')
     expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Redo' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'More options' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Shortcuts' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Redo' })).toBeNull(); expect(screen.queryByRole('button', { name: 'More options' })).toBeNull()
   })
   // v0.7.0 S4 changed D0-SHL-02: v0.7j puts Overview first in the dock (the app still lands on Checklist).
   // v0.8 changed D0-SHL-02/04: More became Settings (S1).
@@ -24,7 +25,7 @@ describe('shell', () => {
   // v0.7.0 S4b changed D0-SHL-03: Steve (t101u) swapped the Today/Upcoming/Last chip for a "Pending only" pill.
   it('D0-SHL-03/D1-SHL-03 Checklist shows the grid with a Pending only pill', () => {
     render(<App />)
-    expect(screen.getByRole('table')).toBeTruthy()
+    expect(screen.getByRole('table')).toBeTruthy(); fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' })) // RDs2: Pending only is a shortcut
     expect(screen.getByRole('button', { name: 'Pending only' }).getAttribute('aria-pressed')).toBe('false')
   })
   it('D0-SHL-04 tapping a dock tab switches screen', () => {

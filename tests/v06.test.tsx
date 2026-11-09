@@ -14,13 +14,13 @@ describe('V06 Weeks view toggle', () => {
     expect(dateColsFor({ layout: 'desktop', landscape: true, weeks: false })).toBe(3)
     expect(dateColsFor({ layout: 'desktop', landscape: true, weeks: true })).toBe(9)
   })
-  it('V06-WK-02 Weeks is OFF by default, lives in the ⋮ view menu, remembered on this device', async () => {
+  // RDs2 changed V06-WK-02: there is no ⋮ menu; Week groups moved to Settings › Appearance
+  it('V06-WK-02 Weeks is OFF by default, lives in Settings as Week groups, remembered on this device', async () => {
     const { App } = await import('../src/App'); const { useApp } = await import('../src/store/store')
     expect(useApp.getState().view.weeks).toBe(false)
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'More options' }))
-    const sw = screen.getByRole('switch', { name: /weeks/i }); expect(sw.getAttribute('aria-checked')).toBe('false')
-    fireEvent.click(sw); expect(useApp.getState().view.weeks).toBe(true)
+    render(<App />); fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    const g = screen.getByRole('group', { name: 'Week groups' }); expect(g.querySelector('[aria-pressed="true"]')!.textContent).toBe('Off')
+    fireEvent.click(g.querySelectorAll('button')[0]!); expect(useApp.getState().view.weeks).toBe(true)
     useApp.getState().reset(); useApp.getState().setTab('checklist') /* t113u: app now opens on Overview first; these tests start on Checklist */; expect(useApp.getState().view.weeks).toBe(true)
   })
 })

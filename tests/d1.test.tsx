@@ -85,7 +85,7 @@ describe('D1 checklist UI', () => {
     const { Checklist } = await import('../src/screens/Checklist')
     render(<Checklist state={st} classKey="A" today="2026-11-03" layout="phone" />)
     // v0.8 changed: the split counter became the column tab count (done/total)
-    const [, done, total] = screen.getByRole('button', { name: /, \d+ of \d+ done$/ }).getAttribute('aria-label')!.match(/(\d+) of (\d+)/)!
+    const [, done, total] = screen.getByRole('button', { name: /^Dates, / }).getAttribute('aria-description')!.match(/(\d+) of (\d+)/)! // RDs2: the count rides on the date header
     expect(+total! - +done!).toBe(2)
     expect(document.querySelectorAll('button.t').length).toBe(0)
   })

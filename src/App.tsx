@@ -33,11 +33,12 @@ export function App() {
   }, [side, contrast])
   useEffect(() => { for (const [k, v] of Object.entries(scaleVars(scale))) document.documentElement.style.setProperty(k, v) }, [scale])
   const layout = wide ? 'desktop' : 'phone'; const dateCols = dateColsFor({ layout, landscape: land, weeks: view.weeks, phoneCols: view.phoneCols })
+  const drawer = layout === 'phone' && !(view.weeks && land) // RDs2: 1 or 2 dates, the second a drawer (Col2)
   return (
     <>
-      {tab === 'checklist' && <Bar />}{/* the class bar belongs to Checklist only (v0.7j Overview, v0.8 S1 Settings) */}
-      <main className="sow-main">
-        {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} onQuick={() => useApp.getState().setQuick(true)} today={todayIso()} layout={layout} jump={jump} focusSessionId={focus} onTick={viewOnly ? undefined : tick} onTickMany={viewOnly ? undefined : useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateCols} railSide={dev.railSide} railBubble={dev.railBubble} onRailSide={(railSide) => useApp.getState().setDev({ railSide })} />}
+      {tab === 'checklist' && <Bar columns={drawer} />}{/* the class bar belongs to Checklist only (v0.7j Overview, v0.8 S1 Settings) */}
+      <main className={`sow-main${tab === 'checklist' ? ' sow-main--list' : ''}`}>
+        {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} today={todayIso()} layout={layout} jump={jump} focusSessionId={focus} onTick={viewOnly ? undefined : tick} onTickMany={viewOnly ? undefined : useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateCols} drawer={drawer} railBubble={dev.railBubble} />}
         {tab === 'overview' && <Overview />}
         {tab === 'settings' && <Settings />}
         <p className="sow-foot">Driftline · {FLAVOR_LABEL} · v{APP_VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>

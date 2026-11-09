@@ -55,7 +55,7 @@ describe('P9 session switch (flag) and past view', () => {
   it('V08-P9-06 Checklist in a past year: ticks read-only, no undo/redo, the date sheet only flips dates', () => {
     start(true); openPast(); fireEvent.click(screen.getByRole('tab', { name: 'Checklist' }))
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Redo' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Pending only' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' })); expect(screen.getByRole('button', { name: 'Pending only' })).toBeTruthy(); fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' }))
     expect(document.querySelectorAll('button.t').length).toBe(0)
     expect(screen.getByText('2025–26')).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: /^Dates, / })[0]!)

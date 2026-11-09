@@ -13,7 +13,7 @@ export const CONFIG = {
   namespace: namespaceFor(FLAVOR),
   idbName: 'sow-driftline',
   storageVersion: 1,
-  timing: { pendingGraceMs: 3000, panelSettlePx: 24, panelSettleMs: 120, updateCheckMs: 5 * 60 * 1000, nameToastMs: 2600, railBubbleMs: 650, saveRetryMs: 15000, snapshotEveryMs: 10 * 60 * 1000, quickSyncMs: 4000, gripSnapMinPx: 8, swipeEngagePx: 10, swipeExtendPx: 28, swipeExtendFrac: 0.6, jumpFlashMs: 1200, sheetOpenDragPx: 64, holdMs: 500, prefsPushMs: 2000, stillToComeShown: 5, modeKeepMs: 20000 },
+  timing: { pendingGraceMs: 3000, panelSettlePx: 24, panelSettleMs: 120, updateCheckMs: 5 * 60 * 1000, nameToastMs: 2600, railBubbleMs: 650, saveRetryMs: 15000, snapshotEveryMs: 10 * 60 * 1000, quickSyncMs: 4000, gripSnapMinPx: 8, swipeEngagePx: 10, swipeExtendPx: 28, swipeExtendFrac: 0.6, jumpFlashMs: 1200, sheetOpenDragPx: 64, holdMs: 500, pressMs: 160, undoSlidePx: 16, undoCancelPx: 28, prefsPushMs: 2000, stillToComeShown: 5, modeKeepMs: 20000 },
   data: { snapshotsMax: 12, undoMax: 200 },
   layout: { phoneMaxDateCols: 1, desktopDateCols: 9, desktopCalmDateCols: 3, phoneNameShare: 0.5, headerHeightPx: 56, dockReservePx: 88, desktopMinWidthPx: 1000, desktopScaleDivisor: 600, desktopScaleMax: 2.4 },
 } as const

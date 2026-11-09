@@ -1,4 +1,17 @@
 # Changelog
+## 0.9.0-beta.1 (2026-11-10)
+Steve t121u–t140u: RDs2 redesign (GO t140u), t80u clean code. Beta only, demo data / COPY sheet only.
+- Top bar: class chip "≡ KG-A · English HW ⌄" with scope dots. Tap opens Classes, hold (160 ms) opens Favourites, swipe sideways steps to the next/previous subject in the scope. No sync dot (Settings › Sync shows status). Undo and the shortcuts ＋ on the right.
+- Classes panel (v7): left CLASSES strip (All, Fav, each class, LISTS) with a collapse toggle (short labels, no counts); right column lists subjects with done/total and a favourite star; loop toggle top-right. LISTS is empty with "+ New list" disabled: there is no smart-list data yet. Favourites, scope and loop are saved on this device.
+- Undo way 2: tap undoes; press and slide down flips the icon to Redo and release redoes (a quick flick down redoes); slide back up for Undo; slide left shows Cancel and release does nothing. A label over the chip names what release will do. One-time hint "Hold or swipe down to redo" after the first undo.
+- Shortcuts: ＋ turns to ✕; tap opens Pending (amber), 1/2 (blue, count badge) and Search straight down; tap outside or ✕ closes; hold, slide and release picks one. The 3-dot menu and the controls row are gone.
+- Table header (A5): # column, "Names 🔍" (search in place with "n of 24" and ✕), date columns 56 px flush right with the date over done/total (or the topic), no column tints; tap a date for the date dial.
+- Col2 drawer: opened by the 1/2 shortcut, a right swipe on the first date header or the 3 px edge grip (faint at 1 column, blue when open). Col2 is the earlier date, ticks green.
+- A–Z rail on the left, all letters (missing ones dimmed, current one blue), no pill, ends above the dock; every other letter on short landscape screens. The A–Z side setting is gone.
+- Settings › Appearance: Column dates (Date format 10/11 · Tue 10 · 10 Nov; Under the date Count · Topic), Week groups (moved from the removed menu), Haptics (Off · Light · Normal · Strong).
+- Removed: ChecklistControls, ColumnTab, SearchRow, the two-line pill chip, the bar sync dot and their CSS.
+- Tests: 255 app (RD-01..05, RD-10..17 new; V08-P1, V07, rail, shell, settings, session, v06, d1, displayScale, dayTheme, breakitUi changed for RDs2).
+- Rollback: set BETA_REF back to v0.8.0-beta.5 in sow-driftline-beta (backup branch backup/pre-v0.9.0-rds2).
 ## 0.8.0-beta.5 (2026-11-09)
 Steve t81u–t83u: display size ("just smaller scaled, not congested"). Beta only, demo data.
 - Settings › Appearance › Display size: Standard | Compact, plus sliders for Overall, Text, Row spacing, Tickboxes, Date headers and Navigation; Reset to default. Standard is today's look.

@@ -12,54 +12,47 @@ const open = async () => {
   return useApp
 }
 
-describe('P1 checklist chrome (G5d)', () => {
+// RDs2 (t140u) changed P1: the G5d chrome (two-line chip, magnifier, ⋮, controls row, glass column tabs) became the RDs2 top bar
+// and the A5 track-list header. The RDs2 behaviour itself is covered in tests/rds2.test.tsx.
+describe('P1 checklist chrome (RDs2)', () => {
   afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/'); phone(1024) })
-  it('V08-P1-01 the bar holds the class chip (subject · type and topic), the search magnifier and ⋮ only', async () => {
+  it('V08-P1-01 the bar holds the class chip (class · subject type), Undo and the shortcuts button only', async () => {
     await open(); const bar = screen.getByRole('banner')
     const chip = within(bar).getByRole('button', { name: /switch class/i })
-    expect(chip.querySelector('.sow-pill__sub')?.textContent).toMatch(/^English · HW/)
-    expect(within(bar).getByRole('button', { name: 'Search names' })).toBeTruthy()
-    expect(within(bar).getByRole('button', { name: 'More options' })).toBeTruthy()
-    expect(within(bar).queryByRole('button', { name: 'Undo' })).toBeNull()
+    expect(chip.querySelector('.sow-cs__label')?.textContent).toBe('KG-A·English HW')
+    expect(within(bar).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([chip.getAttribute('aria-label'), 'Undo', 'Shortcuts'])
+    expect(bar.querySelector('.sow-dot')).toBeNull()
   })
-  it('V08-P1-02 the second row is Pending · 1|2 · bare undo/redo', async () => {
-    await open(); const row = screen.getByRole('toolbar', { name: 'Checklist controls' })
-    expect(within(row).getByRole('button', { name: 'Pending only' })).toBeTruthy()
-    expect(within(row).getByRole('group', { name: 'Dates on phone' })).toBeTruthy()
-    for (const n of ['Undo', 'Redo']) expect(within(row).getByRole('button', { name: n }).className).toContain('sow-bare')
+  it('V08-P1-02 there is no controls row: Pending, 1/2 and Search are shortcut circles', async () => {
+    await open(); expect(screen.queryByRole('toolbar', { name: 'Checklist controls' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' }))
+    expect(within(screen.getByRole('group', { name: 'Shortcuts' })).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Pending only', 'Switch to 2 columns', 'Search names'])
   })
-  it('V08-P1-03 each date column has a glass tab: done/total over a day + date chip; current is blue, past is amber', async () => {
+  it('V08-P1-03 each date column has one header: the date over done/total; a past date that is not complete is amber', async () => {
     const useApp = await open()
-    const cur = screen.getByRole('button', { name: 'HW Wed 4 Nov, 14 of 24 done' }); expect(cur.textContent).toBe('14/24')
-    const chip = screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' }); expect(chip.textContent).toMatch(/^Wed 4/)
-    expect(chip.closest('th')!.className).toContain('sel'); expect(chip.className).not.toContain('old')
+    const cur = screen.getByRole('button', { name: 'Dates, HW Wed 4 Nov' }); expect(cur.textContent).toBe('4/1114/24'); expect(cur.getAttribute('aria-description')).toMatch(/^14 of 24 done/)
+    expect(cur.closest('th')!.className).toContain('sel'); expect(cur.className).not.toContain('old')
     act(() => useApp.getState().pickSession('KG-A_ENG_HW|2026-11-02'))
     expect(screen.getByRole('button', { name: 'Dates, HW Mon 2 Nov' }).className).toContain('old')
   })
   it('V08-P1-04 the old subject heading, calendar button, split counter and search bar are gone', async () => {
     await open()
     expect(screen.queryByRole('heading', { name: 'English' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Pick a date' })).toBeNull()
-    expect(document.querySelector('.sow-split, .sow-clhead, .sow-search')).toBeNull()
+    expect(document.querySelector('.sow-split, .sow-clhead, .sow-search, .sow-tab, .sow-ctl, .sow-pill')).toBeNull()
   })
-  it('V08-P1-05 the magnifier shows a thin search row with "n of 24" and ✕', async () => {
+  it('V08-P1-05 tapping Names searches in place with "n of 24" and ✕', async () => {
     await open(); fireEvent.click(screen.getByRole('button', { name: 'Search names' }))
-    const box = screen.getByRole('searchbox', { name: /find a name/i }); fireEvent.change(box, { target: { value: 'zz' } })
-    expect(document.querySelector('.sow-find__n')?.textContent).toMatch(/^\d+ of 24$/)
+    const box = screen.getByRole('searchbox', { name: /find a name/i }); expect(box.closest('th')!.className).toBe('n')
+    fireEvent.change(box, { target: { value: 'zz' } }); expect(document.querySelector('.sow-th__n')?.textContent).toMatch(/^\d+ of 24$/)
     fireEvent.click(screen.getByRole('button', { name: 'Close search' })); expect(screen.queryByRole('searchbox')).toBeNull()
   })
-  it('V08-P1-06 tapping a count opens the still-to-come list for that date', async () => {
-    const useApp = await open(); act(() => useApp.getState().setView({ phoneCols: 2 })); fireEvent.click(screen.getByRole('button', { name: /^HW Mon 2 Nov, \d+ of 24 done$/ }))
-    expect(useApp.getState().focus).toBe('KG-A_ENG_HW|2026-11-02'); expect(useApp.getState().quick).toBe(true)
-  })
-  it('V08-P1-07 tick columns are 84 px on the phone and tab targets stay ≥ 44 px (token sums)', () => {
+  it('V08-P1-07 date columns are 56 px and the header and ticks keep 44 px taps (token sums)', () => {
     const tok = Object.fromEntries([...readFileSync('src/vendor/driftline/tokens.css', 'utf8').matchAll(/(--dl-[\w-]+):\s*(\d+)px/g)].map((m) => [m[1], +m[2]!]))
     const css = readFileSync('src/shell/shell.css', 'utf8')
     const px = (v: string) => [...v.matchAll(/var\((--dl-[\w-]+)\)/g)].reduce((a, m) => a + tok[m[1]!]!, 0)
-    const col = css.match(/--sow-tick-col:\s*calc\(([^;]+)\);/)!; expect(px(col[1]!)).toBe(84)
-    // P11: chips draw at 44 px × date headers; the count reaches up and the date down by the shortfall, so taps stay 44 px
-    expect(css).toMatch(/--sow-chip:\s*calc\(var\(--dl-hit-min\) \* var\(--sow-k-dates\)\)/)
-    for (const sel of ['.sow-tab__n', '.sow-tab__d']) expect(new RegExp(`\\${sel} \\{[^}]*min-height: var\\(--sow-chip\\)`).test(css)).toBe(true)
-    expect(css).toMatch(/\.sow-tab__n::after \{ top: calc\(var\(--sow-chip-gap\) \* -1\); \} \.sow-tab__d::after \{ bottom: calc\(var\(--sow-chip-gap\) \* -1\); \}/)
+    const col = css.match(/--sow-tick-col:\s*calc\(\((.+?)\) \* var\(--sow-k-dates\)\);/)!; expect(px(col[1]!)).toBe(56)
+    expect(css).toMatch(/\.sow-grid \.t \{[^}]*width: max\(var\(--dl-hit-min\), var\(--sow-tick\)\)/)
+    expect(css).toMatch(/\.sow-th__date \{[^}]*min-height: var\(--sow-head-h\)/)
   })
 })
 
@@ -94,7 +87,7 @@ describe('P2 date sheet from the column chip (dial3)', () => {
 
 describe('P3 quick overview (Q2e + Q3-since) and share stack', () => {
   afterEach(() => { cleanup(); localStorage.clear(); history.replaceState(null, '', '/'); phone(1024) })
-  const quick = async (cols: 1 | 2 = 2) => { const useApp = await open(); act(() => useApp.getState().setView({ phoneCols: cols })); fireEvent.click(screen.getByRole('button', { name: /^HW Wed 4 Nov, \d+ of 24 done$/ })); return useApp }
+  const quick = async (cols: 1 | 2 = 2) => { const useApp = await open(); act(() => useApp.getState().setView({ phoneCols: cols })); fireEvent.click(screen.getByRole('button', { name: 'Quick overview (swipe up)' })); return useApp } // RDs2: from the grabber
   it('V08-P3-01 one card per visible column: date pill, done/total, "+N since HH:MM" and a share button', async () => {
     await quick(); const d = screen.getByRole('dialog', { name: 'Quick overview' })
     const cards = d.querySelectorAll('.sow-qc'); expect(cards.length).toBe(2)

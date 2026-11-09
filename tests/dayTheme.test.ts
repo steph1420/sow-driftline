@@ -35,12 +35,9 @@ describe('v0.8 Phase 8: Day theme (F-DY-01/02)', () => {
     expect(shell).toMatch(/:root\s*\{[^}]*--sow-glow:\s*1\b/)
   })
 
-  it('V08-P8-03 the column-tab glow and the header glow scale with --sow-glow', () => {
-    const tab = shell.split('\n').find((l) => l.startsWith('th.sel .sow-tab {'))!
-    const head = shell.split('\n').find((l) => l.startsWith('.sow-grid tbody {'))!
-    for (const rule of [tab, head]) {
-      expect(rule).toMatch(/var\(--sow-glow\)/)
-      expect(rule).not.toMatch(/accent\) \d+%/)
-    }
+  // RDs2 changed V08-P8-03: the glass column tabs and the header glow are gone (A5 track-list header); any glow left scales with --sow-glow
+  it('V08-P8-03 no glass tab or header glow; any accent glow left scales with --sow-glow', () => {
+    expect(shell).not.toMatch(/th\.sel \.sow-tab|\.sow-grid tbody \{[^}]*radial-gradient/)
+    for (const l of shell.split('\n').filter((x) => /--sow-glow\)/.test(x))) expect(l).not.toMatch(/accent\) \d+%/)
   })
 })
