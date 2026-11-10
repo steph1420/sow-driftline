@@ -1,4 +1,11 @@
 # Changelog
+## 0.9.0-beta.12 (2026-11-10)
+Steve t240u. Beta only, demo data.
+- All dates: the share icon on each row is gone; press and hold a row for the date menu (Share, Open, Reschedule).
+- Date hold menu: compact equal rows (48) with small icons; the oversized Open row is fixed.
+- Reschedule and New date: the date pills keep their full height and no longer squish or clip; hidden scrollbar.
+- Tests: 330 app.
+- Rollback: set BETA_REF back to f35ed5e (beta.11); backup branch backup/pre-v0.9.0-beta.12.
 ## 0.9.0-beta.11 (2026-11-10)
 Steve t227u-t233u, t238u "Proceed". Beta only, demo data.
 - Row focus: a tap, A-Z rail jump or search hit now flashes the whole row once and fades away for good; it no longer sticks on (long-standing bug). Motion Off = no flash.
