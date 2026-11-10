@@ -1,4 +1,12 @@
 # Changelog
+## 0.9.0-beta.5 (2026-11-10)
+Steve t164u: on his phone beta.4 didn't match the sizer — the class chip touched the top and the divider, and the right tick column hugged the screen edge. Beta only.
+- Why: the two only match at Display size 100 %. The sizer keeps its own settings (so it ran at 100 %) and wrote the bar height as a fixed 56 px; Beta multiplies the bar by the Display size navigation factor, but the chip was a fixed 45 px. Below 100 % the bar shrank around the chip (at 75 % the chip was taller than the bar). Narrower date columns (dates factor) also brought the right tick box closer to the edge, and a 44 px tick button in a column under 44 px hung off to the right instead of centring.
+- The chip is now the bar height minus 5.5 px above and below, so it keeps the sizer's breathing room at every Display size (45 px at 100 %).
+- The right-most tick box keeps at least 13 px (the sizer's look) from the screen edge; an extra right inset appears only when Display size makes the column narrower. Tick buttons wider than their column stay centred.
+- At 100 % nothing changes: pixel-identical to beta.4 and the sizer at 411×800.
+- Tests: 276 app (BETA5-01..03; shared tests/cssEval.ts evaluates the CSS sizes for any Display size).
+- Rollback: set BETA_REF back to 2f6ebdc (beta.4) in sow-driftline-beta; backup branch backup/pre-v0.9.0-beta.5.
 ## 0.9.0-beta.4 (2026-11-10)
 Steve t160u ("GO"): his sizer v2 picks become the layout. Beta only, demo data; the sizer panel is not in this build (it lives on dev/sizer).
 - Layout (beta.3 → beta.4): top bar 48 → 56 px; class chip inset 8 → 5, height 36 → 45; A–Z rail inset 8 → 7, width 16 → 12, letters 13 → 18 px, no end padding (0), gap to # 8 → 6; header 44 → 46; rows 48 → 47; # column 36 → 20, # → Names 12 → 3; date columns 56 → 52; tick box 24 → 25, corner radius 10 → 6; Quick overview date pill 44 → 32 high; space above the dock 88 → 82. Name font (16) and dock tabs (48) unchanged; everything else as beta.3.

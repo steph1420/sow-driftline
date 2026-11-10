@@ -1,21 +1,6 @@
 // v0.9.0-beta.4: Steve's sizer v2 picks (t160u) are the layout, and UI chrome doesn't select text.
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
-
-const tokens = readFileSync('src/vendor/driftline/tokens.css', 'utf8')
-const shell = readFileSync('src/shell/shell.css', 'utf8')
-const tok: Record<string, number> = Object.fromEntries([...tokens.matchAll(/(--dl-(?:space|hit|radius)-[\w-]+):\s*(\d+)px/g)].map((m) => [m[1]!, +m[2]!]))
-/** Every --sow-* declared on a :root rule in shell.css (last one wins). */
-const decl: Record<string, string> = {}
-for (const rule of shell.matchAll(/:root\s*\{([^}]*)\}/g)) for (const m of rule[1]!.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--sow-[\w-]+):\s*([^;]+);/g)) decl[m[1]!] = m[2]!.trim()
-
-/** px at display size 1: kit tokens → px, --sow-k-* → 1, --sow-min-text → 13, then plain arithmetic. */
-function px(name: string): number {
-  const v = decl[name]; if (v == null) throw new Error(`${name} not declared`)
-  const expr = v.replace(/var\((--[\w-]+)\)/g, (_, n: string) => n.startsWith('--sow-k-') ? '1' : n === '--sow-min-text' ? '13' : n in tok ? String(tok[n]) : n.startsWith('--sow-') ? `(${px(n)})` : 'NaN')
-    .replace(/calc\(/g, '(').replace(/max\(/g, 'Math.max(').replace(/(\d+(?:\.\d+)?)px/g, '$1')
-  return Math.round(Function(`return ${expr}`)() * 100) / 100
-}
+import { decl, px, shell } from './cssEval'
 
 describe('v0.9.0-beta.4', () => {
   it("BETA4-01 layout = Steve's sizer v2 values (t160u); the rest stay at beta.3", () => {
