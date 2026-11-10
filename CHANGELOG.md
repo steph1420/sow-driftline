@@ -1,4 +1,12 @@
 # Changelog
+## 0.9.0-beta.9 (2026-11-10)
+Steve t212u, t219u-t223u. Beta only, demo data.
+- Animations scale: Off, 0.25x, 0.5x, 0.75x, 1x (default), 1.25x, 1.5x, 2x, 3x, 5x. beta.8 values carry over.
+- Settings > Appearance > Animations > Motion details: 20 motion moments, each with its own switch (all on by default). Global Off and phone reduce-motion still turn everything off.
+- Share any date from Overview: hold a date in a card's strip (Share, Open, Reschedule); date pills in the share sheet to switch the shared date; a share icon on every All dates row.
+- Undo toast after Reschedule, New date or a topic change.
+- Tests: 303 app.
+- Rollback: set BETA_REF back to 81ec5bd (beta.8); backup branch backup/pre-v0.9.0-beta.9.
 ## 0.9.0-beta.8 (2026-11-10)
 Steve t201u (B), t206u, t210u, t211u "Go". Beta only, demo data. Static looks unchanged at rest.
 - Quick overview E1 card: the top pager bars sit 8 px below the top edge and 28 px in from the sides, rounded at both ends, so the lit bar's glow is no longer clipped by the corner (glitch B). D4, E2-E4 unchanged.
