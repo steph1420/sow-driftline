@@ -20,6 +20,8 @@ import { useBackLayer } from '../ui/useBackLayer'
 import { flashClass, flashMs, type Flash } from './flash'
 import { UndoToast, type ToastMsg } from '../ui/UndoToast'
 import { Burst } from '../ui/Life'
+import { ARROW, isDefaultSort, sortDir, sortName, sortPupils } from '../data/sortNames'
+import { SortMenu } from './SortMenu'
 
 /** anim/proto: the check mark pops in on a tick (overshoot spring) and a ring bursts from the box; a clear shrinks it out. */
 function TickMark({ fx }: { fx: boolean }) {
@@ -56,7 +58,16 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const fsid = c0.columns[anchor.index]?.sessionId ?? ''
   const [keep, setKeep] = useState<Set<number> | null>(null)
   useEffect(() => { setKeep(pendingOnly && fsid ? new Set(c0.pupils.filter((p) => !c0.ticked(fsid, p.roll)).map((p) => p.roll)) : null) }, [pendingOnly, fsid, classKey]) // eslint-disable-line react-hooks/exhaustive-deps
-  const c = useMemo(() => (keep ? { ...c0, pupils: c0.pupils.filter((p) => keep.has(p.roll)) } : c0), [c0, keep])
+  // beta.13 (t230u): the chosen name order. Pending counts the leftover ticks on the dates on screen; that count is
+  // taken when the sort, the dates on screen or the subject change (not on every tick), so a row does not run away mid-tap.
+  const nameSort = useApp((s) => s.nameSort); const [sortAt, setSortAt] = useState<DOMRect | null>(null)
+  const shownSids = c0.columns.length ? visibleCols(c0.columns.length, end, layout, dateCols).map((i) => c0.columns[i]!.sessionId) : []
+  const pendKey = nameSort.by === 'pending' ? `${sk}|${sortDir(nameSort)}|${shownSids.join(',')}` : ''
+  const pend = useRef<{ key: string; n: Map<number, number> }>({ key: '', n: new Map() })
+  if (pendKey && pend.current.key !== pendKey) pend.current = { key: pendKey, n: new Map(c0.pupils.map((p) => [p.roll, shownSids.filter((sid) => !c0.ticked(sid, p.roll)).length])) }
+  const left = (roll: number) => pend.current.n.get(roll) ?? shownSids.filter((sid) => !c0.ticked(sid, roll)).length
+  const c = useMemo(() => { const pupils = keep ? c0.pupils.filter((p) => keep.has(p.roll)) : c0.pupils
+    return isDefaultSort(nameSort) && !keep ? c0 : { ...c0, pupils: isDefaultSort(nameSort) ? pupils : sortPupils(pupils, nameSort, left) } }, [c0, keep, nameSort, pendKey]) // eslint-disable-line react-hooks/exhaustive-deps
   // beta.11 (t228u/t233u): a tapped or jumped-to row flashes once and clears itself. It used to keep a solid `sel` tint
   // until another row was picked, so the fade ended back on that tint ("fades, then sticks on").
   const [flash, setFlash] = useState<Flash | null>(null); const animK = useAnimScale()
@@ -157,6 +168,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
       <div className={`sow-grid ${layout}${swipe && onTick ? ' swipe' : ''}${one ? ' one' : ''}${two ? ' two' : ''}`}>
         <table onKeyDown={keyGrid}>
           <TableHead cols={head} label={keep ? `Pending · ${c.pupils.length}` : 'Names'} count={c.pupils.length} matches={matches} onDate={setDates}
+            sortTag={isDefaultSort(nameSort) ? null : { name: sortName(nameSort.by), arrow: ARROW[sortDir(nameSort)] }} onSortHold={(el) => setSortAt(el.getBoundingClientRect())}
             onFind={(q) => { setPill(q); if (q.trim()) find(q.trim()) }} drawer={drawer && cols0.length > 0 && c.columns.length > 1 ? { open: two, set: (o) => setView({ phoneCols: o ? 2 : 1 }) } : undefined} />
           <tbody key={sk}>{c.pupils.map((p, r) => (
             <motion.tr key={p.roll} ref={(el: HTMLTableRowElement | null) => { rows.current[r] = el }} className={flashClass(flash, r, animK) || undefined}
@@ -175,6 +187,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
         </table>
       </div>
       <AzRail names={names} onJump={go} current={letter} bubble={railBubble} />
+      {sortAt && <SortMenu at={sortAt} onClose={() => setSortAt(null)} />}
       {sheet && <DateSheet viewOnly={!onTick} columns={c0.columns} current={sheet.sessionId} today={today} onPick={(sid) => onPick?.(sid)} onClose={() => setDates(null)} subjectKey={subjectKey ?? ''} kind={sheet.kind} ticks={doneOn(sheet.sessionId)} onDone={(text) => setUndo({ id: Date.now(), text, undo: /^(Moved|Added|Topic)/.test(text) ? () => useApp.getState().undo() : undefined })} />}
       {/* v0.7.0 S9 (F-LT-02): mode pill, only once this date's due time has passed */}
       {onTick && pillVisible(focus.date, nowMs()) && <button className={`sow-mode ${markMode}`} aria-pressed={markMode === 'back'} aria-label={markMode === 'late' ? 'Marking late submissions, tap for back-date' : 'Marking on back-date, tap for late submissions'}

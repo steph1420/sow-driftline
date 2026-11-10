@@ -7,3 +7,6 @@ export function parseSetup(text: string): Setup {
   if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(j.bridgeUrl)) throw new Error('The setup file points somewhere unexpected')
   return { bridgeUrl: j.bridgeUrl, token: j.token }
 }
+/** beta.13 (t234u/t235u): the file Settings › Export setup file writes, the exact shape parseSetup reads back. */
+export const SETUP_FILENAME = 'sow-driftline-setup.json'
+export const exportSetup = (s: Setup): string => JSON.stringify({ kind: 'sow-driftline-setup', bridgeUrl: s.bridgeUrl, token: s.token }, null, 2) + '\n'

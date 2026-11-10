@@ -10,12 +10,16 @@ import { dateLabel } from '../data/model'
 import { fmtDate } from '../data/dateFormat'
 import { swipeDir } from '../data/gestures'
 import { GLYPH, Icon } from '../ui/icons'
+import { useHold } from '../ui/useHold'
 import { RollNumber } from '../ui/RollNumber'
 
 export type HeadCol = { sessionId: string; date: string; kind: string; topic: string; done: number; total: number; past: boolean; sel: boolean; second: boolean; week: boolean }
-type Props = { cols: HeadCol[]; label: string; count: number; matches: number; onFind: (q: string) => void; onDate: (sessionId: string) => void; drawer?: { open: boolean; set: (open: boolean) => void } }
+type Props = { cols: HeadCol[]; label: string; count: number; matches: number; onFind: (q: string) => void; onDate: (sessionId: string) => void; drawer?: { open: boolean; set: (open: boolean) => void }
+  /** beta.13 (t230u): the active sort when it is not Roll ↑ (shown in place of Names), and press-and-hold on # / Names. */
+  sortTag?: { name: string; arrow: string } | null; onSortHold?: (el: HTMLElement) => void }
 
-export function TableHead({ cols, label, count, matches, onFind, onDate, drawer }: Props) {
+export function TableHead({ cols, label, count, matches, onFind, onDate, drawer, sortTag = null, onSortHold }: Props) {
+  const hold = useHold((el) => onSortHold?.(el)); const holds = onSortHold ? hold : undefined
   const sm = useMoment('search'); const find = useApp((s) => s.find); const setFind = useApp((s) => s.setFind); const fmt = useApp((s) => s.view.dateFmt); const subtext = useApp((s) => s.view.dateSub)
   const sw = useRef<{ x: number; y: number } | null>(null); const swiped = useRef(false)
   const swipe = drawer && { // on a date header: left = open the second date, right = close it
@@ -24,9 +28,9 @@ export function TableHead({ cols, label, count, matches, onFind, onDate, drawer 
       if (d) { swiped.current = true; drawer.set(d === 'left') } } }
   return (
     <thead><tr>
-      <th className="r" scope="col" aria-label="Roll">#</th>
+      <th className="r" scope="col" aria-label="Roll" {...holds}>#</th>
       <th className="n" scope="col">{find == null
-        ? <button className="sow-th__names" aria-label="Search names" onClick={() => setFind('')}><span>{label}</span><Icon name="magnifier" /></button>
+        ? <button className="sow-th__names" aria-label="Search names" {...holds} onClick={() => setFind('')}><span className={sortTag ? 'sow-th__sorted' : undefined}>{sortTag && label === 'Names' ? sortTag.name : label}{sortTag && <i className="sow-th__arrow" aria-hidden>{sortTag.arrow}</i>}</span><Icon name="magnifier" /></button>
         : <motion.div className="sow-th__find" role="search" initial={sm.on ? { opacity: 0, scaleX: 0.6 } : false} animate={{ opacity: 1, scaleX: 1 }} style={{ originX: 0 }} transition={sm.spring('snappy')}><Icon name="magnifier" />
             <input type="search" autoFocus aria-label="Find a name" value={find} placeholder="Name or roll" onChange={(e) => onFind(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); setFind(null) } }} />

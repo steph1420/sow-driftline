@@ -21,11 +21,11 @@ const DATE_ITEMS: { id: DateAction; label: string; icon: IconName }[] = [
 const READ_ONLY: CardAction[] = ['share', 'all']
 type Props = { name: string; anchor: DOMRect; canEdit: boolean; canReschedule: boolean; onPick: (a: CardAction) => void; onClose: () => void }
 
-function useEscape(onClose: () => void) {
+export function useEscape(onClose: () => void) {
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
 }
 type ShellProps = { name: string; className: string; style: CSSProperties; origin: string; head?: string; onClose: () => void; children: React.ReactNode }
-function MenuShell({ name, className, style, origin, head, onClose, children }: ShellProps) {
+export function MenuShell({ name, className, style, origin, head, onClose, children }: ShellProps) {
   const mk = useMoment('hold'); useBackLayer(true, onClose) // beta.11 (t229u): Back closes the hold menu
   return (<>
     <motion.button className="sow-scrim sow-scrim--blur" aria-label="Close menu" onClick={onClose} initial={mk.on ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={mk.tween(DUR.fade)} />

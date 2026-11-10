@@ -11,7 +11,8 @@ import { yearById, yearOf } from '../data/schoolYear'
 import { todayIso } from '../data/today'
 import { LIVE_SHEET_ID, lastSheetId, COPY_BRIDGE_URL, claimPair, copyWriter, sheetBridgeSource, verifyCopy } from '../data/sheetSource'
 import { CONFIG, FLAVOR } from '../config'
-import { parseSetup } from '../data/setup'
+import { exportSetup, parseSetup } from '../data/setup'
+import { cleanSort, type NameSort } from '../data/sortNames'
 import { applyOps, cellKey, type Op } from '../sync/ops'
 import { applyEdits, revertEdit, type SessionEdit } from '../data/edits'
 import { modeOnOpen, type MarkMode } from '../data/late'
@@ -37,6 +38,8 @@ type State = {
   view: View; setView: (v: Partial<View>) => void; quick: boolean; setQuick: (b: boolean) => void; quickPull: number; setQuickPull: (px: number) => void; openClass: (k: string) => void
   save: SaveStatus | 'demo'; waiting: number; canUndo: boolean; canRedo: boolean; snaps: Snapshot[]; dev: Dev
   tick: (sessionId: string, roll: number) => void; tickMany: (sessionId: string, rolls: number[], value: boolean) => void; deviceName: string; setDeviceName: (n: string) => void; undo: () => void; redo: () => void; restore: (at: string) => void; snapshotNow: (label: string) => void
+  /** beta.13 (t230u): Checklist name order, on this device. */
+  nameSort: NameSort; setNameSort: (s: NameSort) => void
   importSetup: (text: string) => Promise<void>; setDev: (d: Partial<Dev>) => void
   /** v0.7.0 S7/S8 date edits (on device) and S9 marks (marked time per tick, on device). */
   edits: SessionEdit[]; moveSession: (sessionId: string, date: string) => void; setTopic: (sessionId: string, topic: string) => void; addSession: (subjectKey: string, date: string) => string
@@ -65,7 +68,7 @@ let lastMs = 0 // strictly increasing, so a quick Undo→Redo is never seen as �
 const nowIso = () => { lastMs = Math.max(Date.now(), lastMs + 1); return new Date(lastMs).toISOString() }
 const DEV_DEFAULTS: Dev = { railBubble: true, swipeTick: true, pastSessions: false, qoCard: 'd4' }
 const loadDev = (): Dev => { const d = { ...DEV_DEFAULTS, ...loadJson<Partial<Dev>>(DEV, {}) }; return { railBubble: d.railBubble, swipeTick: d.swipeTick, pastSessions: d.pastSessions, qoCard: cleanQoStyle(d.qoCard) } } // RDs2: the A–Z side is fixed (left)
-const FAVS = storageKey('favs'); const SCOPE = storageKey('scope')
+const FAVS = storageKey('favs'); const SORT = storageKey('nameSort'); const SCOPE = storageKey('scope')
 const loadScope = (data: SheetState) => { const v = loadJson<{ pick?: ScopePick; loop?: boolean }>(SCOPE, {}); return { scope: validPick(data, v.pick), loop: v.loop === true } }
 const saveScope = (scope: ScopePick, loop: boolean) => localStorage.setItem(SCOPE, JSON.stringify({ pick: scope, loop }))
 const EDITS = () => storageKey(`edits-${src()}${wantsSchool() ? '-school' : ''}`); const MARKS = () => storageKey(`marks-${src()}${wantsSchool() ? '-school' : ''}`); const HINTS = storageKey('hints')
@@ -114,7 +117,7 @@ const viewOnly = () => useApp.getState().viewing !== null
 /** Wraps a write action so it does nothing while a past year is shown (F-SH-09: view-only). */
 const liveOnly = <A extends unknown[]>(fn: (...a: A) => void) => (...a: A) => { if (!viewOnly()) fn(...a) }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: loadJson(HINTS, [] as string[]), favs: loadJson(FAVS, [] as string[]).filter((x) => typeof x === 'string'), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: loadJson(HINTS, [] as string[]), favs: loadJson(FAVS, [] as string[]).filter((x) => typeof x === 'string'), nameSort: cleanSort(loadJson(SORT, null)), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
@@ -173,6 +176,7 @@ export const useApp = create<State>((set, get) => ({
     get().snapshotNow('Before restore')
     for (const op of restoreOps(get().data, snap.state, nowIso())) write(op)
   }),
+  setNameSort: (v) => { const nameSort = cleanSort(v); localStorage.setItem(SORT, JSON.stringify(nameSort)); set({ nameSort }) },
   importSetup: async (text) => {
     const { bridgeUrl: u, token: t } = parseSetup(text)
     await verifyCopy(u, t) // refuses anything that is not the test copy; nothing is stored until it passes
@@ -231,6 +235,8 @@ if (typeof window !== 'undefined') {
   setInterval(() => { const s = useApp.getState(); if (s.status === 'ok') s.snapshotNow('Auto') }, CONFIG.timing.snapshotEveryMs)
 }
 export const currentBridge = () => ({ url: bridgeUrl(), token })
+/** beta.13 (t234u): this device's connection as a setup file (the text importSetup reads), or null in demo mode. */
+export const setupFileText = (): string | null => { const t = token(); return t ? exportSetup({ bridgeUrl: bridgeUrl(), token: t }) : null }
 export const onLive = () => lastSheetId === LIVE_SHEET_ID
 export const sheetLabel = () => (onLive() ? 'live sheet' : 'test copy')
 

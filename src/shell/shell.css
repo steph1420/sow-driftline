@@ -678,3 +678,22 @@ body:has(.sow-grid thead) .sow-bar::after { content: ''; position: absolute; lef
 .sow-share__rows > .sow-share__dates, .sow-share__rows > .sow-share__tpls { flex: none; min-height: var(--dl-hit-min); gap: var(--sow-share-gap); overflow-x: auto; overflow-y: hidden; }
 .sow-share__rows .sow-fchip { flex: none; }
 .sow-share__tpls:empty { display: none; }
+/* beta.13 (t230u): name sorting. The header names the active sort with a small accent arrow; hold menu A; the Settings page */
+.sow-th__sorted { color: var(--dl-color-text); font-weight: 600; }
+.sow-th__arrow { margin-left: var(--dl-space-1); font-style: normal; color: var(--dl-color-accent); }
+.sow-cardmenu--sort .sow-sortm__row { padding: 0 var(--dl-space-2) 0 0; gap: 0; }
+.sow-sortm__pick { flex: 1; min-width: 0; min-height: var(--sow-menu-row); padding: 0 var(--dl-space-4); border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sow-sortm__row .sow-set__check { margin-right: var(--dl-space-2); }
+.sow-sortm__dir { min-width: var(--dl-space-8); min-height: var(--sow-menu-row); border: 0; background: none; color: var(--dl-color-text-faint); font: inherit; cursor: pointer; }
+.sow-sortm__dir.is-on { color: var(--dl-color-accent); font-weight: 700; }
+.sow-sort__row { gap: var(--dl-space-3); }
+.sow-sort__pick { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; border: 0; padding: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.sow-sort__tick { width: var(--dl-space-4); flex: none; color: var(--dl-color-accent); font-weight: 700; text-align: center; }
+.sow-sort__note { margin: var(--dl-space-2) var(--dl-space-5) 0; }
+/* beta.13 (t234u): Export setup file row (disabled in demo) and its sheet */
+.sow-set__row:disabled { opacity: .5; cursor: default; }
+.sow-export__txt { margin: var(--dl-space-2) var(--dl-space-5) 0; color: var(--dl-color-text); font-size: var(--dl-type-callout-size); line-height: var(--dl-type-callout-line); }
+.sow-export__warn { margin: var(--dl-space-3) var(--dl-space-5) 0; padding: var(--dl-space-2) var(--dl-space-3); border-radius: var(--dl-radius-md); background: var(--dl-chip-warning-bg); box-shadow: inset 0 0 0 1px var(--dl-color-warning); color: var(--dl-color-warning); font-size: var(--dl-type-footnote-size); } /* token-ok: 1px ring */
+.sow-export__file { align-self: flex-start; width: fit-content; margin: var(--dl-space-3) var(--dl-space-5) 0; padding: var(--dl-space-1) var(--dl-space-3); border-radius: var(--dl-radius-sm); background: var(--dl-color-track); box-shadow: inset 0 0 0 1px var(--dl-color-control-border); color: var(--dl-color-text-muted); font-size: var(--dl-type-footnote-size); } /* token-ok: 1px ring */
+.sow-export__btns { display: flex; gap: var(--dl-space-3); margin: var(--dl-space-4) var(--dl-space-5) var(--dl-space-5); }
+.sow-export__btns .dl-btn { flex: 1; }
