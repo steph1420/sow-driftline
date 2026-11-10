@@ -5,7 +5,8 @@
 // the finger 1:1 while dragged or pulled, springs back with the finger's speed, slides away on close (inside an
 // AnimatePresence) and shrinks back a step when another sheet stacks over it (`behind`).
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useIsPresent } from 'framer-motion'
+import { useBackLayer } from './useBackLayer'
 import { CONFIG } from '../config'
 import { DUR, EASE, STACK } from '../config/motion'
 import { dragCloses } from '../data/gestures'
@@ -38,6 +39,7 @@ function useDragClose(onClose: () => void) {
 }
 
 export function Sheet({ label, onClose, className = '', scrimLabel, pull, behind = false, children }: Props) {
+  const present = useIsPresent(); useBackLayer(present && pull == null, onClose) // beta.11 (t229u): Back closes the top sheet (not one being pulled up or already leaving)
   const { drag, handlers } = useDragClose(onClose); const mk = useMotion(); const on = mk.on; const ref = useRef<HTMLDivElement>(null); const [h, setH] = useState(0)
   useLayoutEffect(() => { if (ref.current) setH(ref.current.offsetHeight) }, [on])
   const style = pull != null ? { '--sow-pull': `${pull}px` } : drag != null ? { '--sow-drag': `${drag}px` } : undefined

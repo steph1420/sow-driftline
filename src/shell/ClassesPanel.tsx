@@ -2,6 +2,7 @@
 // and a collapsible LISTS section. Right: the pick's subjects with today's count and a favourite star. The left pick is
 // the chip's swipe scope; the loop toggle (top right) lets that swipe wrap round.
 import { useMemo } from 'react'
+import { useBackLayer } from '../ui/useBackLayer'
 import { useApp } from '../store/store'
 import { classLabel, focusColumn, toChecklist, toGo } from '../data/model'
 import { samePick, scopeSubjects, validPick, type ScopePick } from '../data/scope'
@@ -20,7 +21,7 @@ function useCounts(keys: string[]) {
 }
 
 export function ClassesPanel({ mini, onMini, lists, onLists, onClose }: Props) {
-  const s = useApp(); const pick = validPick(s.data, s.scope)
+  const s = useApp(); const pick = validPick(s.data, s.scope); useBackLayer(true, onClose) // beta.11 (t229u)
   const shown = scopeSubjects(s.data, pick, s.favs); const counts = useCounts(shown.map((x) => x.subjectKey))
   const all = scopeSubjects(s.data, { kind: 'all' }, s.favs)
   const picks: { pick: ScopePick; label: string; n: number; icon?: 'lines' | 'starOn' }[] = [

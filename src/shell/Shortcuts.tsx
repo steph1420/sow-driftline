@@ -10,6 +10,7 @@ import { hitIndex } from '../data/gestures'
 import { CONFIG } from '../config'
 import { Icon, type IconName } from '../ui/icons'
 import { usePress } from '../ui/usePress'
+import { useBackLayer } from '../ui/useBackLayer'
 import { buzz } from './haptics'
 
 type Mode = 'tap' | 'hold' | null
@@ -23,6 +24,7 @@ export function Shortcuts({ columns, onOpen }: { columns: boolean; onOpen: () =>
     ...(columns ? [{ id: 'cols', tone: 'accent', icon: cols === 2 ? 'col1' : 'cols', label: cols === 2 ? 'Switch to 1 column' : 'Switch to 2 columns', on: cols === 2, badge: cols } as Circle] : []),
     { id: 'search', tone: 'plain', icon: 'magnifier', label: 'Search names', on: find != null }]
   const close = () => { setMode(null); setHot(-1) }
+  useBackLayer(mode === 'tap', close) // beta.11 (t229u): Back closes the tapped-open shortcuts
   const run = (c: Circle) => { const s = useApp.getState(); buzz(s.haptics)
     if (c.id === 'pending') s.setPending(!s.pending)
     else if (c.id === 'cols') s.setView({ phoneCols: s.view.phoneCols === 2 ? 1 : 2 })

@@ -11,6 +11,7 @@ import { dayLabel, focusColumn, toChecklist } from '../../data/model'
 import { todayIso } from '../../data/today'
 import { GLYPH, Icon } from '../../ui/icons'
 import { PageHead } from '../../ui/PageHead'
+import { useBackLayer } from '../../ui/useBackLayer'
 import { TemplateMenu } from './TemplateMenu'
 import { TokenEditor } from './TokenEditor'
 
@@ -18,6 +19,7 @@ export function TemplateMaker({ onBack }: { onBack: () => void }) {
   const { set, sync, edit } = useTemplates(); const paired = useApp((s) => s.source === 'copy')
   const [selId, setSel] = useState(set.defaultId); const [renaming, setRenaming] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
+  useBackLayer(true, onBack) // beta.11 (t229u): Back returns to Settings
   const i = Math.max(0, set.templates.findIndex((t) => t.id === selId)); const tpl = set.templates[i]!
   const add = (token: string) => { const el = input.current; const at = insertAt(tpl.body, el?.selectionStart ?? tpl.body.length, el?.selectionEnd ?? tpl.body.length, token)
     edit((s) => setBody(s, tpl.id, at.body)); requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(at.caret, at.caret) }) }

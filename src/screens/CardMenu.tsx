@@ -2,6 +2,7 @@
 // beta.9 (t221u, 2A): the same menu for one date of the strip (Share, Open, Reschedule for that date), headed by the date.
 // Moment "hold" (3a): the menu grows out of the press point (≈60% → 104% → 100%) and the scrim fades in.
 import { useEffect, type CSSProperties } from 'react'
+import { useBackLayer } from '../ui/useBackLayer'
 import { motion } from 'framer-motion'
 import { Icon, type IconName } from '../ui/icons'
 import { DUR } from '../config/motion'
@@ -25,7 +26,7 @@ function useEscape(onClose: () => void) {
 }
 type ShellProps = { name: string; className: string; style: CSSProperties; origin: string; head?: string; onClose: () => void; children: React.ReactNode }
 function MenuShell({ name, className, style, origin, head, onClose, children }: ShellProps) {
-  const mk = useMoment('hold')
+  const mk = useMoment('hold'); useBackLayer(true, onClose) // beta.11 (t229u): Back closes the hold menu
   return (<>
     <motion.button className="sow-scrim sow-scrim--blur" aria-label="Close menu" onClick={onClose} initial={mk.on ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={mk.tween(DUR.fade)} />
     <motion.div className={`dl-card sow-cardmenu ${className}`.trim()} role="menu" aria-label={name} style={{ ...style, transformOrigin: origin }}

@@ -1,10 +1,11 @@
 // RDs2: holding the class chip opens the favourites picker — the starred subjects, one tap to switch.
 import { useApp } from '../store/store'
+import { useBackLayer } from '../ui/useBackLayer'
 import { classLabel } from '../data/model'
 import { scopeSubjects } from '../data/scope'
 
 export function FavPicker({ onClose }: { onClose: () => void }) {
-  const s = useApp(); const favs = scopeSubjects(s.data, { kind: 'fav' }, s.favs)
+  const s = useApp(); const favs = scopeSubjects(s.data, { kind: 'fav' }, s.favs); useBackLayer(true, onClose) // beta.11 (t229u)
   return (<>
     <button className="sow-scrim sow-scrim--clear" aria-label="Close favourites" onClick={onClose} />
     <div className="sow-fav" role="dialog" aria-label="Favourites">
