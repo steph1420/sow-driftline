@@ -1,5 +1,7 @@
 // Settings building blocks (S1): a titled group of quiet rows, a row that opens a page, and a segmented choice.
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { LayoutGroup, motion } from 'framer-motion'
+import { useMoment } from '../../ui/useMotionOn'
 import { GLYPH } from '../../ui/icons'
 
 export function Group({ title, children }: { title: string; children: ReactNode }) {
@@ -20,10 +22,14 @@ export function NavRow({ label, value, dot, onClick }: NavProps) {
 }
 
 type SegProps<T extends string> = { label: string; options: readonly { id: T; label: string }[]; value: T | null; onChange: (v: T) => void }
+/** beta.9 moment "switch" (3c): the pill is one element that slides to the picked option, stretching on the way and
+ * squashing as it lands; at rest it is the same pill as before. */
 export function Segment<T extends string>({ label, options, value, onChange }: SegProps<T>) {
-  return <div className="dl-row sow-set__row"><span aria-hidden>{label}</span><span className="sow-sp" /><div className="dl-seg" role="group" aria-label={label}>{options.map((o) =>
-    <button key={o.id} className={`dl-seg__item${o.id === value ? ' is-on' : ''}`} aria-pressed={o.id === value} onClick={() => onChange(o.id)}>
-      {o.id === value && <span className="dl-seg__pill" />}<span className="dl-seg__label">{o.label}</span></button>)}</div></div>
+  const mk = useMoment('switch'); const [moved, setMoved] = useState(false) // squash only after a pick, not on first show
+  return <div className="dl-row sow-set__row"><span aria-hidden>{label}</span><span className="sow-sp" /><LayoutGroup id={`seg-${label}`}><div className="dl-seg" role="group" aria-label={label}>{options.map((o) =>
+    <button key={o.id} className={`dl-seg__item${o.id === value ? ' is-on' : ''}`} aria-pressed={o.id === value} onClick={() => { setMoved(true); onChange(o.id) }}>
+      {o.id === value && (mk.on ? <motion.span layoutId="pill" className="dl-seg__pill" initial={moved ? undefined : false} animate={{ scaleY: [1, 0.9, 1.05, 1] }} transition={{ layout: mk.spring('snappy'), scaleY: mk.tween(0.36, { times: [0, 0.4, 0.75, 1] }) }} />
+        : <span className="dl-seg__pill" />)}<span className="dl-seg__label">{o.label}</span></button>)}</div></LayoutGroup></div>
 }
 
 type ChoiceProps<T extends string> = { label: string; options: readonly { id: T; label: string; note?: string }[]; value: T; onChange: (v: T) => void }

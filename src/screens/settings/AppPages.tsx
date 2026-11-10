@@ -1,11 +1,12 @@
 // Settings › Appearance, Backups and App pages (F-ST-02, F-ST-07..10). Developer options keep all the jargon (R14 A).
 import { sheetLabel, useApp, type Contrast } from '../../store/store'
 import { APP_VERSION, FLAVOR, FLAVOR_LABEL, channelUrl } from '../../config'
-import { Choices, Segment } from './rows'
+import { Choices, NavRow, Segment } from './rows'
+import { Switch } from '../../ui/Switch'
 import { DATE_FMTS, DATE_SUBS, fmtDate } from '../../data/dateFormat'
 import { HAPTICS, buzz } from '../../shell/haptics'
 import { QO_STYLES } from '../../data/qoCard'
-import { ANIM_SCALES, animScaleLabel, type AnimScale } from '../../config/motion'
+import { ANIM_SCALES, MOMENTS, animScaleLabel, animScaleNote, type AnimScale } from '../../config/motion'
 
 const CONTRASTS: { id: Contrast; label: string; note: string }[] = [
   { id: 'standard', label: 'Standard', note: 'Soft glass and glows' }, { id: 'high', label: 'High', note: 'Solid surfaces and stronger text' }]
@@ -91,13 +92,26 @@ export function HapticsPage() {
   return <Choices label="Haptics" options={HAPTICS} value={haptics} onChange={(h) => { setHaptics(h); buzz(h) }} />
 }
 
-/** t210u: how fast every animation runs. Off is instant; the phone's reduce-motion setting forces Off. */
-const ANIMS = ANIM_SCALES.map((k) => ({ id: String(k) as `${AnimScale}`, label: animScaleLabel(k), note: k === 0 ? 'No movement' : k === 1 ? 'Default' : k < 1 ? 'Quicker' : 'Slower' }))
+/** t210u: how fast every animation runs. Off is instant; the phone's reduce-motion setting forces Off. beta.9 (1A): ten choices. */
+const ANIMS = ANIM_SCALES.map((k) => ({ id: String(k) as `${AnimScale}`, label: animScaleLabel(k), note: animScaleNote(k) }))
 export const animName = (k: AnimScale) => animScaleLabel(k)
-export function AnimationsPage() {
-  const k = useApp((s) => s.animScale); const set = useApp((s) => s.setAnimScale)
+export const momentsValue = (m: Record<string, boolean>) => `${MOMENTS.filter((x) => m[x.id]).length} of ${MOMENTS.length} on`
+export function AnimationsPage({ onDetails }: { onDetails: () => void }) {
+  const k = useApp((s) => s.animScale); const set = useApp((s) => s.setAnimScale); const moments = useApp((s) => s.moments)
   return (<>
     <Choices label="Animation scale" options={ANIMS} value={String(k) as `${AnimScale}`} onChange={(v) => set(Number(v) as AnimScale)} />
     <p className="dl-muted sow-note">Stretches or shortens every animation. If your phone is set to reduce motion, animations stay off.</p>
+    <div className="dl-list"><NavRow label="Motion details" value={momentsValue(moments)} onClick={onDetails} /></div>
+  </>)
+}
+/** beta.9 (t221u): one switch per "weight and life" moment. Off makes that moment instant; Off above (or the phone's
+ * reduce motion) still turns every one of them off. Saved on this device. */
+export function MotionDetailsPage() {
+  const moments = useApp((s) => s.moments); const setMoment = useApp((s) => s.setMoment); const k = useApp((s) => s.animScale)
+  return (<>
+    <p className="dl-muted sow-note">{k === 0 ? 'Animations are Off, so all of these stay still for now.' : 'Turn off any movement you do not want. Each one follows the animation scale.'}</p>
+    <div className="dl-list" role="group" aria-label="Motion details">{MOMENTS.map((m, i) =>
+      <div key={m.id} className="dl-row sow-set__row"><span className="sow-set__txt"><span>{i + 1}. {m.label}</span><small className="dl-muted">{m.note}</small></span><span className="sow-sp" />
+        <Switch on={moments[m.id]} label={m.label} onChange={(on) => setMoment(m.id, on)} /></div>)}</div>
   </>)
 }

@@ -18,6 +18,10 @@ export const SPRING = {
   /** the Undo icon flip and the shortcuts ＋ turn (pre-anim/proto values, now scaled with the rest) */
   undo: { type: 'spring', stiffness: 520, damping: 32 },
   plus: { type: 'spring', stiffness: 520, damping: 30 },
+  /** beta.9: the hold menu growing out of the finger (60% → ~104% → 100%) */
+  menu: { type: 'spring', stiffness: 560, damping: 24, mass: 0.8 },
+  /** beta.9: the undo toast rising from under the dock with a soft ~6 px overshoot */
+  toast: { type: 'spring', stiffness: 420, damping: 26 },
 } as const
 export type SpringName = keyof typeof SPRING
 export const DUR = {
@@ -29,6 +33,8 @@ export const DUR = {
 } as const
 export const EASE = { out: [0.2, 0.9, 0.3, 1] as const, in: [0.4, 0, 1, 1] as const }
 export const STAGGER = { rows: 0.016, rowsMax: 16, cards: 0.07, cardsDelay: 0.1, shortcuts: 0.03 } as const
+/** beta.9 timings, seconds: the underline's glide before the Checklist opens, the wheel's coast, the confetti burst */
+export const BEAT = { underline: 0.24, wheelCoast: 0.35, burst: 0.9, toastMs: 4000 } as const
 /** fixed waits before an entrance, seconds */
 export const DELAY = { dock: 0.12 } as const
 /** px offsets things travel from */
@@ -36,14 +42,56 @@ export const SHIFT = { enter: 10, classSwitch: 32, card: 16, bar: 8, dock: 24 } 
 /** how much the sheet underneath shrinks when another sheet stacks over it (iOS card stack) */
 export const STACK = { scale: 0.94 } as const
 
-// ---- t210u Animation scale (Settings › Appearance › Animations) ----
-/** Off, 0.5×, 1× (default), 1.5×, 2×. Off = instant (the same as the phone's reduce-motion, which forces it). */
-export const ANIM_SCALES = [0, 0.5, 1, 1.5, 2] as const
+// ---- t210u Animation scale (Settings › Appearance › Animations); beta.9 (t221u, mockup 1A): the longer list ----
+/** Off, 0.25× … 5×, 1× the default. Off = instant (the same as the phone's reduce-motion, which forces it). */
+export const ANIM_SCALES = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 5] as const
 export type AnimScale = (typeof ANIM_SCALES)[number]
 export const ANIM_SCALE_DEFAULT: AnimScale = 1
-export const cleanAnimScale = (v: unknown): AnimScale => (ANIM_SCALES as readonly unknown[]).includes(v) ? (v as AnimScale) : ANIM_SCALE_DEFAULT
+/** A saved scale read back. Every beta.8 value (0, 0.5, 1, 1.5, 2) is still on the list and keeps its meaning; any
+ * other number (a hand-edited or future value) snaps to the nearest choice; anything that is not a number is 1×. */
+export function cleanAnimScale(v: unknown): AnimScale {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return ANIM_SCALE_DEFAULT
+  if (v === 0) return 0
+  return ANIM_SCALES.filter((k) => k > 0).reduce((best, k) => (Math.abs(Math.log(k / v)) < Math.abs(Math.log(best / v)) ? k : best), 1 as AnimScale)
+}
 export const animScaleLabel = (k: AnimScale) => (k === 0 ? 'Off' : `${k}×`)
-/** The scale in force: the phone's reduce-motion forces Off (0), otherwise the user's choice. */
+export const animScaleNote = (k: AnimScale) => ({ 0: 'No movement', 0.25: 'Much quicker', 0.5: 'Quicker', 0.75: 'A little quicker', 1: 'Default', 1.25: 'A little slower', 1.5: 'Slower', 2: 'Slower', 3: 'Much slower', 5: 'Very slow, to watch the motion' } as const)[k]
+
+// ---- beta.9 (t221u, 3-motion-list): the 20 "weight and life" moments, each with its own switch (Motion details) ----
+export const MOMENTS = [
+  { id: 'press', label: 'Press', note: 'Cards, rows and chips sink under the finger and spring back' },
+  { id: 'hold', label: 'Hold menu', note: 'The menu grows out of the finger; the card lifts' },
+  { id: 'cards', label: 'Overview cards settle', note: 'Cards drop in one after another' },
+  { id: 'underline', label: 'Date underline slide', note: 'Glides to the tapped date with a stretch' },
+  { id: 'count', label: 'Count roll', note: 'Done counts roll like an odometer' },
+  { id: 'alldates', label: 'All dates rows stagger', note: 'Rows slide in; the timeline draws down' },
+  { id: 'wheel', label: 'Date setter wheel', note: 'Flick to spin; it slows and clicks onto a day' },
+  { id: 'switch', label: 'Switch thumb', note: 'Squeezes, stretches as it moves, squashes on landing' },
+  { id: 'chips', label: 'Chips', note: 'The selected blob slides between filter chips' },
+  { id: 'search', label: 'Search expand', note: 'The field grows out of the icon' },
+  { id: 'toast', label: 'Undo toast', note: 'Rises with a soft bounce; flick it away' },
+  { id: 'band', label: 'Rubber-band edges', note: 'Pages stretch past the top and bottom, then spring back' },
+  { id: 'reflow', label: 'Row reflow', note: 'Rows and cards glide into their new places' },
+  { id: 'sheets', label: 'Sheets with weight', note: 'The backdrop fades as you drag a sheet down' },
+  { id: 'sharepills', label: 'Share date pills', note: 'Switching date slides the pill and crossfades the message' },
+  { id: 'dock', label: 'Dock', note: 'The pill slides with a stretch; the icon hops' },
+  { id: 'dot', label: 'Overdue dot', note: 'A slow breathing glow until you open the card' },
+  { id: 'push', label: 'Screen push and back', note: 'Pages slide in from the right; swipe from the edge to go back' },
+  { id: 'ticks', label: 'Checklist ticks', note: 'The tick pops in with a ring' },
+  { id: 'done', label: 'Empty and done states', note: 'Messages float in; a small burst at all done' },
+] as const
+export type MomentId = (typeof MOMENTS)[number]['id']
+export type Moments = Record<MomentId, boolean>
+export const MOMENTS_DEFAULT = Object.fromEntries(MOMENTS.map((m) => [m.id, true])) as Moments
+/** Saved switches read back: only real booleans count, a missing or unknown moment is on. */
+export const cleanMoments = (v: unknown): Moments => {
+  const o = v && typeof v === 'object' ? (v as Record<string, unknown>) : {}
+  return Object.fromEntries(MOMENTS.map((m) => [m.id, o[m.id] !== false])) as Moments
+}
+/** The scale one moment runs at: 0 when the phone asks for reduced motion, the global scale is Off, or its switch is off. */
+export const momentScale = (k: number, reduce: boolean, moments: Moments, id: MomentId): number => (reduce || !moments[id] ? 0 : k)
+/** The moments that are live (for the root's data-motion attribute, which the CSS-only moments key off). */
+export const liveMoments = (k: number, moments: Moments): string => (k > 0 ? MOMENTS.filter((m) => moments[m.id]).map((m) => m.id).join(' ') : '')
 export const effectiveScale = (k: AnimScale, reduce: boolean): number => (reduce ? 0 : k)
 type Spring = { type: 'spring'; stiffness: number; damping: number; mass?: number }
 /** Stretch a spring's clock by k: stiffness / k², damping / k, mass kept. The curve keeps its exact shape (same damping

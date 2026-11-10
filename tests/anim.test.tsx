@@ -35,9 +35,9 @@ function springAt(s: { stiffness: number; damping: number; mass?: number }, t: n
 }
 describe('t210u animation scale', () => {
   afterEach(() => { cleanup(); localStorage.clear(); useApp.setState({ animScale: 1 }); history.replaceState(null, '', '/') })
-  it('ANIM-03 the options are Off, 0.5×, 1×, 1.5×, 2× with 1× the default, and junk reads back as 1×', () => {
-    expect(ANIM_SCALES.map(animScaleLabel)).toEqual(['Off', '0.5×', '1×', '1.5×', '2×'])
-    expect(cleanAnimScale(undefined)).toBe(1); expect(cleanAnimScale('2')).toBe(1); expect(cleanAnimScale(3)).toBe(1); expect(cleanAnimScale(1.5)).toBe(1.5); expect(cleanAnimScale(0)).toBe(0)
+  it('ANIM-03 (beta.9: ten options) Off … 5× with 1× the default, and junk reads back as 1×', () => {
+    expect(ANIM_SCALES.map(animScaleLabel)).toEqual(['Off', '0.25×', '0.5×', '0.75×', '1×', '1.25×', '1.5×', '2×', '3×', '5×'])
+    expect(cleanAnimScale(undefined)).toBe(1); expect(cleanAnimScale('2')).toBe(1); expect(cleanAnimScale(3)).toBe(3); expect(cleanAnimScale(1.5)).toBe(1.5); expect(cleanAnimScale(0)).toBe(0)
   })
   it('ANIM-04 a spring at scale k is stiffness / k², damping / k: same shape, k times slower', () => {
     for (const k of [0.5, 1.5, 2]) for (const name of ['snappy', 'pop', 'sheet', 'settle', 'tide'] as const) {
