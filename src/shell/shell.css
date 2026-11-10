@@ -42,8 +42,13 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
 .sow-file { font-size: var(--dl-type-footnote-size); }
 .sow-grid.swipe button.t { touch-action: pan-y; } /* t121u: sideways swipe ticks, up-and-down scrolls */
 .sow-grid button.t.paint { outline: 2px solid var(--dl-color-accent); outline-offset: 2px; } /* token-ok: focus-style ring */
-.sow-grid tr.flash td.n { animation: sow-flash var(--dl-motion-slow, 1.2s) ease-out; color: var(--dl-color-accent); }
+.sow-grid tr.flash td { animation: sow-flash var(--dl-motion-slow, 1.2s) ease-out both; } /* beta.11 (t228u): the whole row fades once, then rests on no tint */
+.sow-grid tr.flash2 td { animation: sow-flash2 var(--dl-motion-slow, 1.2s) ease-out both; } /* the same fade under a second name, so lighting the same row again restarts it */
+.sow-grid tr.flash td.n { animation-name: sow-flash-n; } .sow-grid tr.flash2 td.n { animation-name: sow-flash-n2; }
 @keyframes sow-flash { from { background: var(--dl-chip-accent-bg); } to { background: transparent; } }
+@keyframes sow-flash2 { from { background: var(--dl-chip-accent-bg); } to { background: transparent; } }
+@keyframes sow-flash-n { from { background: var(--dl-chip-accent-bg); color: var(--dl-color-accent); } to { background: transparent; color: var(--dl-color-text); } }
+@keyframes sow-flash-n2 { from { background: var(--dl-chip-accent-bg); color: var(--dl-color-accent); } to { background: transparent; color: var(--dl-color-text); } }
 /* v0.6 view menu, Weeks, Overview, quick sheet */
 .sow-menu--end { left: auto; right: var(--dl-space-3); min-width: calc(var(--dl-space-16) * 4); }
 .sow-grid th.wk, .sow-grid td.wk { box-shadow: inset 2px 0 0 var(--dl-color-hairline); } /* token-ok: week divider */
@@ -117,6 +122,13 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
 .sow-ds__note { margin: var(--dl-space-2) var(--dl-space-5) 0; color: var(--dl-color-text-muted); font-size: var(--dl-type-footnote-size); text-align: center; }
 .sow-ds .sow-ds__note:first-of-type { text-align: left; }
 .sow-ds__clash { margin: var(--dl-space-2) var(--dl-space-5) 0; color: var(--dl-color-warning); font-size: var(--dl-type-footnote-size); text-align: center; }
+/* beta.11 (t227u): the warning's fixed slot. Everything sits in one grid cell; the hidden sample sets the height, the warning and note only fade */
+.sow-ds__slot { display: grid; margin: var(--dl-space-2) var(--dl-space-5) 0; font-size: var(--dl-type-footnote-size); line-height: var(--dl-type-footnote-line); text-align: center; }
+.sow-ds__slot > * { grid-area: 1 / 1; margin: 0; }
+.sow-ds .sow-ds__slot > .sow-ds__note { margin: 0; text-align: center; }
+.sow-ds__ghost { visibility: hidden; pointer-events: none; }
+.sow-ds__slot > .sow-ds__clash, .sow-ds__slot > .sow-ds__note { opacity: 0; transition: opacity var(--dl-dur-quick) ease-out; }
+.sow-ds__slot > .is-on { opacity: 1; }
 .sow-ds__btns { display: flex; gap: var(--dl-space-2); padding: var(--dl-space-3) var(--dl-space-5) var(--dl-space-5); }
 .sow-ds__cancel { min-height: var(--dl-hit-min); padding: 0 var(--dl-space-4); border-radius: var(--dl-radius-pill); border: 1px solid var(--dl-color-control-border); background: transparent; color: var(--dl-color-text); font: inherit; cursor: pointer; } /* token-ok: 1px border */
 .sow-ds__go { flex: 1; min-height: var(--dl-hit-min); border-radius: var(--dl-radius-pill); border: 0; background: var(--dl-color-accent-fill); color: var(--dl-color-on-accent); font: inherit; font-weight: 700; cursor: pointer; }
@@ -491,7 +503,6 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
 .sow-grid { --sow-tick: calc(var(--sow-tick-base) * var(--sow-k-ticks)); --sow-tick-gap: max(0px, calc((var(--dl-hit-min) - var(--sow-tick)) / 2)); --sow-row-h: calc(var(--sow-row-base) * var(--sow-k-rows)); } /* token-ok: 0 */
 .sow-grid tbody td { height: max(var(--dl-hit-min), var(--sow-row-h)); box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--dl-color-hairline) var(--sow-row-line), transparent); } /* token-ok: hairline */
 .sow-grid td.n { padding-left: var(--sow-name-pad); font-size: var(--sow-name-size); font-weight: var(--sow-name-weight); line-height: var(--dl-type-body-line); color: var(--dl-color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.sow-grid tr.sel td { background: color-mix(in srgb, var(--dl-chip-accent-bg) 70%, transparent); }
 .sow-grid tr { scroll-margin-top: calc(var(--sow-bar-height) + var(--sow-head-h)); }
 .sow-grid .t { display: inline-grid; place-items: center; width: max(var(--dl-hit-min), var(--sow-tick)); height: max(var(--dl-hit-min), var(--sow-tick)); padding: 0; border: var(--sow-tick-gap) solid transparent; background-clip: padding-box; border-radius: calc(var(--sow-tick-radius) * var(--sow-k-ticks) + var(--sow-tick-gap));
   box-shadow: inset 0 0 0 1.5px var(--dl-color-control-border); color: var(--dl-color-on-accent); font-size: var(--dl-type-footnote-size); font-weight: 700; vertical-align: middle; } /* token-ok: 1.5px ring */

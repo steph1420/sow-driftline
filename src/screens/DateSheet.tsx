@@ -28,6 +28,8 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
   const moved = mode === 'edit' && cur != null && date !== cur.date; const retopic = mode === 'edit' && cur != null && topic.trim() !== (cur.topic ?? '')
   const clash = (mode === 'edit' && moved && collides(data, subjectKey, date, current)) || (mode === 'new' && collides(data, subjectKey, date))
   const changed = mode === 'new' || moved || retopic
+  const warn = `${kind || 'This'} already has ${short(date)}. Pick another day.`; const last = useRef(''); if (clash) last.current = warn
+  const said = clash ? warn : last.current // the text stays while it fades out
   const title = viewOnly ? 'Dates' : mode === 'edit' ? 'Reschedule' : 'New date'
   const act = mode === 'new' ? `Add ${kind ? `${kind} · ` : ''}${long(date)}` : moved ? `Move to ${short(date)}` : retopic ? 'Save topic' : 'Move date'
   function go() {
@@ -56,8 +58,13 @@ export function DateSheet({ columns, current, today, onPick, onClose, subjectKey
         <p className="sow-ds__note">{kind ? `${kind} · ` : ''}Your next class day is picked for you</p>
         <div className="sow-ds__strip" role="listbox" aria-label="Next class days">{suggest.map((x, i) => { const d = chipDay(x); return <button key={x} role="option" aria-selected={x === date} className={`sow-ds__chip${x === date ? ' on' : ''}`} aria-label={`${d.dow} ${d.dm}`} onClick={() => setDate(x)}><small>{i === 0 ? 'Next class' : d.dow}</small><b>{d.dm}</b></button> })}</div></>}
       <Wheels value={date} onChange={setDate} today={today} />
-      {clash ? <p className="sow-ds__clash" role="status">{kind || 'This'} already has {short(date)}. Pick another day.</p>
-        : mode === 'new' ? <p className="sow-ds__note">Same day is fine with a different label</p> : null}
+      {/* beta.11 (t227u): one fixed slot under the wheels. The warning and the note fade in and out in it (opacity only),
+          so the sheet never changes height; a hidden sample of the warning sizes it (two lines where it would wrap). */}
+      <div className="sow-ds__slot">
+        <span className="sow-ds__ghost" aria-hidden>{kind || 'This'} already has Wed 30 Sep. Pick another day.</span>
+        <p className={`sow-ds__clash${clash ? ' is-on' : ''}`} role="status" aria-hidden={!clash || undefined}>{said}</p>
+        {mode === 'new' && <p className={`sow-ds__note${clash ? '' : ' is-on'}`} aria-hidden={clash || undefined}>Same day is fine with a different label</p>}
+      </div>
       <div className="sow-ds__btns"><button className="sow-ds__cancel" onClick={() => (mode === 'new' && start === 'edit' ? open('edit') : onClose())}>Cancel</button>
         <button className="sow-ds__go" disabled={!changed || clash} onClick={go}>{act}</button></div></>}
     </Sheet>)

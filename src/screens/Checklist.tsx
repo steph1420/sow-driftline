@@ -15,7 +15,9 @@ import { cellKey } from '../sync/ops'
 import { Hint } from './Hint'
 import { AnimatePresence, motion } from 'framer-motion'
 import { DUR, SHIFT, STAGGER } from '../config/motion'
-import { useMoment, useMotion } from '../ui/useMotionOn'
+import { useAnimScale, useMoment, useMotion } from '../ui/useMotionOn'
+import { useBackLayer } from '../ui/useBackLayer'
+import { flashClass, flashMs, type Flash } from './flash'
 import { UndoToast, type ToastMsg } from '../ui/UndoToast'
 import { Burst } from '../ui/Life'
 
@@ -55,8 +57,9 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const [keep, setKeep] = useState<Set<number> | null>(null)
   useEffect(() => { setKeep(pendingOnly && fsid ? new Set(c0.pupils.filter((p) => !c0.ticked(fsid, p.roll)).map((p) => p.roll)) : null) }, [pendingOnly, fsid, classKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const c = useMemo(() => (keep ? { ...c0, pupils: c0.pupils.filter((p) => keep.has(p.roll)) } : c0), [c0, keep])
-  const [sel, setSel] = useState<number | null>(null)
-  const [flash, setFlash] = useState(0)
+  // beta.11 (t228u/t233u): a tapped or jumped-to row flashes once and clears itself. It used to keep a solid `sel` tint
+  // until another row was picked, so the fade ended back on that tint ("fades, then sticks on").
+  const [flash, setFlash] = useState<Flash | null>(null); const animK = useAnimScale()
   const [toast, setToast] = useState<string | null>(null)
   const [dates, setDates] = useState<string | null>(null) // sessionId whose date sheet is open
   const marks = useApp((s) => s.marks); const markMode = useApp((s) => s.markMode); const lateToast = useApp((s) => s.lateToast)
@@ -79,7 +82,9 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
     look(); window.addEventListener('scroll', on, { passive: true }); return () => { window.removeEventListener('scroll', on); if (raf) cancelAnimationFrame(raf) }
   }, [c.pupils])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), CONFIG.timing.nameToastMs); return () => clearTimeout(t) }, [toast])
-  useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(0), CONFIG.timing.jumpFlashMs); return () => clearTimeout(t) }, [flash])
+  useEffect(() => { if (!flash) return; const t = setTimeout(() => setFlash(null), flashMs(animK)); return () => clearTimeout(t) }, [flash]) // eslint-disable-line react-hooks/exhaustive-deps
+  const lightRow = (r: number) => setFlash((f) => ({ row: r, n: (f?.n ?? 0) + 1 }))
+  useBackLayer(pill != null, () => setPill(null)) // beta.11 (t229u): Back closes the name search
   // Quick search: "/" anywhere; on desktop any letter/digit typed anywhere opens the pill with it.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -103,7 +108,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const one = cols.length === 1
   /** Jump: centre the name in the list viewport (near the top it stays where it lands) and highlight it. */
   function go(i: number) {
-    if (i < 0) return; setSel(i); setFlash((x) => x + 1)
+    if (i < 0) return; lightRow(i)
     const el = rows.current[i]; if (!el) return
     const r = el.getBoundingClientRect(); const head = el.closest('table')?.querySelector('thead')?.getBoundingClientRect().height ?? 0
     const top = centreScrollTop({ rowPageTop: r.top + (window.scrollY || 0), rowH: r.height, viewTop: CONFIG.layout.headerHeightPx + head, viewBottom: window.innerHeight - CONFIG.layout.dockReservePx })
@@ -154,10 +159,10 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
           <TableHead cols={head} label={keep ? `Pending · ${c.pupils.length}` : 'Names'} count={c.pupils.length} matches={matches} onDate={setDates}
             onFind={(q) => { setPill(q); if (q.trim()) find(q.trim()) }} drawer={drawer && cols0.length > 0 && c.columns.length > 1 ? { open: two, set: (o) => setView({ phoneCols: o ? 2 : 1 }) } : undefined} />
           <tbody key={sk}>{c.pupils.map((p, r) => (
-            <motion.tr key={p.roll} ref={(el: HTMLTableRowElement | null) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}
+            <motion.tr key={p.roll} ref={(el: HTMLTableRowElement | null) => { rows.current[r] = el }} className={flashClass(flash, r, animK) || undefined}
               layout={rf.on ? 'position' : false} initial={mo ? rowIn(r, was.current.dir) : false} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ ...mk.spring('settle', r * STAGGER.rows), layout: rf.spring('settle') }}>
               <td className="r dl-num">{p.roll}</td>
-              <td className="n" onClick={() => { setSel(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>
+              <td className="n" onClick={() => { lightRow(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>
               {cols.map((i, ci) => { const s = c.columns[i]!; const fut = s.date > today; const real = c.ticked(s.sessionId, p.roll)
                 const pv = !!painted && painted.roll === p.roll && painted.sids.includes(s.sessionId); const on = pv ? painted!.value : real
                 const mk = real ? marks[cellKey({ sessionId: s.sessionId, roll: p.roll })] : undefined; const lt = !!mk && isLate(mk.at, s.date, !!mk.back) === true
