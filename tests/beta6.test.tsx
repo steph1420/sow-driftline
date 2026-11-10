@@ -72,6 +72,6 @@ describe('v0.9.0-beta.6', () => {
     expect(tide).toContain('border-radius: 40% 60% 0 0 / var(--dl-space-2) var(--dl-space-2) 0 0')
     expect(tide).toContain('box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sow-qc-tone) 70%, transparent)')
     expect(tide).toContain('color-mix(in srgb, var(--sow-qc-tone) 34%, transparent), color-mix(in srgb, var(--sow-qc-tone) 14%, transparent)')
-    expect(shell).toMatch(/\.sow-qc__sw--top \{ position: absolute; top: 0; left: var\(--dl-space-4\); right: var\(--dl-space-4\);/)
+    expect(shell).toMatch(/\.sow-qc__sw--top \{ position: absolute; top: 0; left: var\(--sow-qc-radius\); right: var\(--sow-qc-radius\);/) // inset in beta.8 (BETA8-01, t201u B)
   })
 })

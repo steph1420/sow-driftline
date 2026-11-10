@@ -543,8 +543,9 @@ body:has(.sow-grid thead) .sow-bar::after { content: ''; position: absolute; lef
 .sow-qc--e1 .sow-qc__share { grid-row: 1; grid-column: 2; }
 .sow-qc--e1 .sow-qc__n { grid-row: 2; grid-column: 1 / -1; justify-self: start; align-self: end; font-size: var(--sow-qc-num); }
 .sow-qc--e1 .sow-qc__since { grid-row: 3; }
-.sow-qc__sw--top { position: absolute; top: 0; left: var(--dl-space-4); right: var(--dl-space-4); height: var(--dl-space-3); align-items: flex-start; gap: var(--dl-space-1); }
-.sow-qc__sw--top i { flex: 1; height: calc(var(--dl-space-1) / 2); border-radius: 0 0 var(--dl-radius-pill) var(--dl-radius-pill); background: var(--dl-color-track); }
+/* beta.8 (t201u, B): the bars sit one glow below the top edge and start where the corner curve ends, so the lit bar's glow stays whole inside the card; the tap strip still starts at the edge */
+.sow-qc__sw--top { position: absolute; top: 0; left: var(--sow-qc-radius); right: var(--sow-qc-radius); height: var(--dl-space-3); padding-top: var(--dl-space-2); align-items: flex-start; gap: var(--dl-space-1); }
+.sow-qc__sw--top i { flex: 1; height: calc(var(--dl-space-1) / 2); border-radius: var(--dl-radius-pill); background: var(--dl-color-track); }
 .sow-qc__sw--top i.on { background: var(--sow-qc-tone); box-shadow: 0 0 var(--dl-space-2) var(--sow-qc-tone); }
 /* E2 Roll grid: one cell per pupil */
 .sow-qc--e2 { grid-template-rows: auto auto auto auto; row-gap: var(--dl-space-2); }
