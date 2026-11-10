@@ -1,4 +1,14 @@
 # Changelog
+## 0.9.0-beta.6 (2026-11-10)
+Steve t165u. Beta only, demo data. No layout numbers from beta.4/5 changed.
+- A–Z rail: Settings › Hide unavailable letters (off by default, saved with your settings). When on, only letters that have names are shown and they spread over the rail.
+- A–Z rail grab handle: a slim faint tab sits beside the current letter; while you scrub it becomes a small accent disc that follows your finger and names the letter, the list jumps, and the phone ticks once per new letter (when haptics are on). Letters stay floating, no pill. The rail's touch strip is 44 px wide.
+- Table header: its tint and divider now run to the left screen edge, behind the rail gutter. Nothing moved (columns, #, Names, rail unchanged).
+- Quick overview "glitchy edge glow": it came from the E1 Tide card style. The fill that rises with % done had a curved (wave-shaped) top with a bright 1 px line along it, and the top switcher bars glowed and ran into the card's rounded corners. On a nearly full day (Mon 9, 22/24) the wave top sits just under the card edge, so it read as a bright yellow arc on the top of the card. The fill now has a flat, soft top with no line, and the switcher bars stay on the straight part of the top edge. The card's tinted border and ambient glow are unchanged; D4 (default) and E2–E4 were not affected.
+- Sheets (Quick overview, Reschedule/date setter, Share, Session): dragging the grab handle moves the sheet with your finger; it closes past 96 px or on a quick downward flick, otherwise it springs back. A finger that rests before letting go is not a flick. A tap on the handle still closes.
+- Sheets get a quiet backdrop instead of a flat empty area: a faint accent glow under the handle fading into a slightly raised tone, over a very light static grain. Kit tokens only, no animation, night and day.
+- Tests: 283 app (BETA6-01..07: rail letters + hide toggle + persistence, scrub handle/haptics, header extent, sheet drag close / spring back / flick / tap).
+- Rollback: set BETA_REF back to a773444 (beta.5) in sow-driftline-beta; backup branch backup/pre-v0.9.0-beta.6.
 ## 0.9.0-beta.5 (2026-11-10)
 Steve t164u: on his phone beta.4 didn't match the sizer — the class chip touched the top and the divider, and the right tick column hugged the screen edge. Beta only.
 - Why: the two only match at Display size 100 %. The sizer keeps its own settings (so it ran at 100 %) and wrote the bar height as a fixed 56 px; Beta multiplies the bar by the Display size navigation factor, but the chip was a fixed 45 px. Below 100 % the bar shrank around the chip (at 75 % the chip was taller than the bar). Narrower date columns (dates factor) also brought the right tick box closer to the edge, and a 44 px tick button in a column under 44 px hung off to the right instead of centring.

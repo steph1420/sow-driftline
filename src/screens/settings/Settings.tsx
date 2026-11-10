@@ -36,6 +36,7 @@ export function Settings() {
       <NavRow label="Display size" value={displayName(s.scale)} onClick={() => setPage('display')} />
       <NavRow label="Column dates" value={datesValue(s.view)} onClick={() => setPage('dates')} />
       <Segment label="Week groups" options={ONOFF} value={s.view.weeks ? 'on' : 'off'} onChange={(v) => s.setView({ weeks: v === 'on' })} />
+      <Segment label="Hide unavailable letters" options={ONOFF} value={s.railHide ? 'on' : 'off'} onChange={(v) => s.setRailHide(v === 'on')} />
       <NavRow label="Haptics" value={hapticsName(s.haptics)} onClick={() => setPage('haptics')} />
     </Group>
     <Group title="Sync & pairing">

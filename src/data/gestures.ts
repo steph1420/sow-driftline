@@ -25,3 +25,9 @@ export function swipeDir(dx: number, dy: number, min: number = CONFIG.timing.swi
 export function pullOpens(dy: number, vy: number, openPx: number = CONFIG.timing.quickOpenPx, flick: number = CONFIG.timing.quickFlickPxMs): boolean {
   return -dy >= openPx || (-dy >= CONFIG.timing.swipeEngagePx && -vy >= flick)
 }
+
+/** beta.6 (t165u): release of a downward drag on a sheet's grab handle. Closes past `closePx` or on a quick downward
+ * flick that has engaged (the mirror of pullOpens); otherwise the sheet springs back. */
+export function dragCloses(dy: number, vy: number, closePx: number = CONFIG.timing.sheetCloseDragPx, flick: number = CONFIG.timing.quickFlickPxMs): boolean {
+  return pullOpens(-dy, -vy, closePx, flick)
+}
