@@ -140,13 +140,16 @@ describe('RDs2 UI', () => {
     const { quickOpenPx: o, quickFlickPxMs: f, swipeEngagePx: e } = CONFIG.timing
     expect(pullOpens(-o, 0)).toBe(true); expect(pullOpens(-(o - 1), 0)).toBe(false); expect(pullOpens(-e, -f)).toBe(true); expect(pullOpens(-(e - 1), -f * 4)).toBe(false); expect(pullOpens(-40, -f / 2)).toBe(false)
     const useApp = await open(); const tab = screen.getByRole('tab', { name: 'Checklist' })
-    const p = (type: 'pointerDown' | 'pointerMove' | 'pointerUp', y: number, t: number) => fireEvent[type](tab, { clientX: 180, clientY: y, pointerId: 1, button: 0, timeStamp: t })
-    p('pointerDown', 600, 0); p('pointerMove', 560, 400); expect(useApp.getState().quickPull).toBe(40)
+    // jsdom ignores a timeStamp passed to fireEvent, so pin it: the flick test must not depend on how fast CI runs
+    let now = 0; const ts = vi.spyOn(Event.prototype, 'timeStamp', 'get').mockImplementation(() => now)
+    const p = (type: 'pointerDown' | 'pointerMove' | 'pointerUp', y: number, t: number) => { now = t; fireEvent[type](tab, { clientX: 180, clientY: y, pointerId: 1, button: 0 }) }
+    p('pointerDown', 600, 100); p('pointerMove', 560, 500); expect(useApp.getState().quickPull).toBe(40)
     const sheet = screen.getByRole('dialog', { name: 'Quick overview' }); expect(sheet.className).toContain('is-pulling'); expect(sheet.style.getPropertyValue('--sow-pull')).toBe('40px')
     p('pointerUp', 560, 800); fireEvent.click(tab); expect(useApp.getState().quick).toBe(false); expect(screen.queryByRole('dialog', { name: 'Quick overview' })).toBeNull()
     expect(useApp.getState().tab).toBe('checklist')
     p('pointerDown', 600, 1000); p('pointerMove', 560, 1100); p('pointerMove', 600 - o - 10, 1300); p('pointerUp', 600 - o - 10, 1400); fireEvent.click(tab)
     expect(useApp.getState().quick).toBe(true); expect(screen.getByRole('dialog', { name: 'Quick overview' }).className).not.toContain('is-pulling')
+    ts.mockRestore()
     act(() => useApp.getState().setQuick(false)); fireEvent.click(screen.getByRole('tab', { name: 'Overview' })); fireEvent.click(tab); expect(useApp.getState().tab).toBe('checklist'); expect(useApp.getState().quick).toBe(false)
   })
   it('RD-21 the shortcuts hold is 100 ms; the chip and Undo keep 160 ms', async () => {

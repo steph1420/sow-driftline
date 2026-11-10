@@ -6,6 +6,7 @@ Steve t150u: "Give me d4 and e1-4 as dev toggle". Beta only, demo data. Dev-only
 - Settings › Developer options › QO card style (saved on this device). Press and hold the Quick overview title (500 ms) to step to the next style; a chip names it.
 - "+N since" no longer has the dotted underline (all styles, per the mockups).
 - Tests: 271 app (QO-01..06 new; V08-P3-02 changed: the switcher is its own control).
+- CI: RD-20 (dock-tab pull) pinned its event times; jsdom ignores a passed timeStamp, so on a fast runner a short pull read as a flick (the v0.9.0-beta.3 tag commit failed the Beta deploy test step; Beta is built from the follow-up commit).
 - Rollback: set BETA_REF back to v0.9.0-beta.2 in sow-driftline-beta (backup branch backup/pre-v0.9.0-beta.3).
 ## 0.9.0-beta.2 (2026-11-10)
 Steve t145u–t147u on beta.1 ("Looks nice"). Beta only, demo data.
