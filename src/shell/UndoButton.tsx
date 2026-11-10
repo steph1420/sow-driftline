@@ -1,7 +1,8 @@
 // RDs2 Undo, way 2 (undo-v2). Tap = undo. Press and slide down: the icon flips in place (rotateX) to Redo and release
 // redoes; slide back up flips to Undo and release undoes; a quick flick down redoes; slide left = Cancel (release does
 // nothing). While the finger is down the label over the class chip names what release will do.
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useMotion } from '../ui/useMotionOn'
 import { useApp } from '../store/store'
 import { undoIntent, type UndoIntent } from '../data/gestures'
 import { Icon } from '../ui/icons'
@@ -12,7 +13,7 @@ export const REDO_HINT = 'redo'
 type Props = { intent: UndoIntent | null; onIntent: (i: UndoIntent | null) => void; onAct: () => void; onFirstUndo: () => void }
 
 export function UndoButton({ intent, onIntent, onAct, onFirstUndo }: Props) {
-  const canUndo = useApp((s) => s.canUndo); const canRedo = useApp((s) => s.canRedo); const reduce = useReducedMotion()
+  const canUndo = useApp((s) => s.canUndo); const canRedo = useApp((s) => s.canRedo); const mk = useMotion()
   const act = (i: UndoIntent) => { const s = useApp.getState(); onAct()
     if (i === 'redo' && s.canRedo) { s.redo(); buzz(s.haptics) }
     else if (i === 'undo' && s.canUndo) { s.undo(); if (!s.hints.includes(REDO_HINT)) onFirstUndo() } }
@@ -28,7 +29,7 @@ export function UndoButton({ intent, onIntent, onAct, onFirstUndo }: Props) {
   return (
     <button className={`sow-ib sow-undo${intent ? ` is-${intent}` : ''}`} disabled={!canUndo && !canRedo}
       aria-label="Undo" aria-description="Hold or slide down to redo" {...press}>
-      <motion.span className="sow-undo__flip" initial={false} animate={{ rotateX: flip }} transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 32 }}>
+      <motion.span className="sow-undo__flip" initial={false} animate={{ rotateX: flip }} transition={mk.spring('undo')}>
         <span className="sow-undo__face" aria-hidden><Icon name="undo" /></span>
         <span className="sow-undo__face sow-undo__face--back" aria-hidden><Icon name="redo" /></span>
       </motion.span>

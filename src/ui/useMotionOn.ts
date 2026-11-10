@@ -1,9 +1,13 @@
-// anim/proto: one switch for "may this animate?". Off when the OS asks for reduced motion, and in the unit-test DOM
-// (jsdom has no layout or frames, so tests see the static app). Driftline has no in-app motion setting yet; when one
-// lands, read it here and every animation follows.
+// anim/proto: one switch for "may this animate, and how slowly?". Animation scale (Settings, t210u) sets the clock;
+// the phone's reduced-motion setting forces Off, and so does the unit-test DOM (jsdom has no layout or frames).
 import { useReducedMotion } from 'framer-motion'
+import { useApp } from '../store/store'
+import { effectiveScale, motionKit, type MotionKit } from '../config/motion'
 export const motionTestEnv = () => typeof window === 'undefined' || typeof window.matchMedia !== 'function' || import.meta.env.MODE === 'test'
-export function useMotionOn(): boolean {
-  const reduce = useReducedMotion()
-  return !reduce && !motionTestEnv()
+/** The scale actually in force: 0 when reduce-motion is on (or in tests), else the user's Animation scale. */
+export function useAnimScale(): number {
+  const reduce = useReducedMotion(); const k = useApp((s) => s.animScale)
+  return effectiveScale(k, !!reduce || motionTestEnv())
 }
+export function useMotion(): MotionKit { return motionKit(useAnimScale()) }
+export function useMotionOn(): boolean { return useAnimScale() > 0 }

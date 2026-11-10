@@ -2,8 +2,9 @@
 // sheet up under the finger; release past the threshold (or a quick flick) opens it, otherwise it snaps back.
 // A tap is still a plain tab tap.
 import { useRef } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
-import { SHIFT, SPRING } from '../config/motion'
+import { motion } from 'framer-motion'
+import { DELAY, SHIFT } from '../config/motion'
+import { useMotion } from '../ui/useMotionOn'
 import { useApp, type Tab } from '../store/store'
 import { CONFIG } from '../config'
 import { pullOpens } from '../data/gestures'
@@ -31,15 +32,15 @@ function usePullUp() {
 }
 
 export function Dock() {
-  const tab = useApp((s) => s.tab); const setTab = useApp((s) => s.setTab); const reduce = useReducedMotion(); const pull = usePullUp()
+  const tab = useApp((s) => s.tab); const setTab = useApp((s) => s.setTab); const mk = useMotion(); const reduce = !mk.on; const pull = usePullUp()
   return (
-    <motion.nav className="dl-dock" role="tablist" aria-label="Sections" initial={reduce ? false : { y: SHIFT.dock, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...SPRING.settle, delay: 0.12 }}>
+    <motion.nav className="dl-dock" role="tablist" aria-label="Sections" initial={reduce ? false : { y: SHIFT.dock, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={mk.spring('settle', DELAY.dock)}>
       {TABS.map((t) => { const handle = t.id === 'checklist'
         return <button key={t.id} role="tab" aria-label={t.label} aria-selected={tab === t.id} className={`dl-dock__tab ${tab === t.id ? 'is-on' : ''}${handle ? ' sow-pull' : ''}`}
           aria-description={handle ? 'Swipe up for Quick overview' : undefined} {...(handle ? pull.handlers : undefined)}
           onClick={() => { if (handle && pull.eat.current) { pull.eat.current = false; return } setTab(t.id) }}>
-          {tab === t.id && <motion.span layoutId="dock-pill" className="dl-dock__pill" transition={reduce ? { duration: 0 } : SPRING.snappy} />}
-          <motion.span key={tab === t.id ? 'on' : 'off'} className="dl-dock__icon" aria-hidden initial={reduce || tab !== t.id ? false : { scale: 0.6, y: 3 }} animate={{ scale: 1, y: 0 }} transition={SPRING.pop}>{t.icon}</motion.span>{t.label}
+          {tab === t.id && <motion.span layoutId="dock-pill" className="dl-dock__pill" transition={mk.spring('snappy')} />}
+          <motion.span key={tab === t.id ? 'on' : 'off'} className="dl-dock__icon" aria-hidden initial={reduce || tab !== t.id ? false : { scale: 0.6, y: 3 }} animate={{ scale: 1, y: 0 }} transition={mk.spring('pop')}>{t.icon}</motion.span>{t.label}
         </button> })}
     </motion.nav>
   )

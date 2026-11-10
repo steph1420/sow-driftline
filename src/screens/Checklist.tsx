@@ -14,13 +14,14 @@ import { isLate, pillVisible } from '../data/late'
 import { cellKey } from '../sync/ops'
 import { Hint } from './Hint'
 import { AnimatePresence, motion } from 'framer-motion'
-import { DUR, SHIFT, SPRING, STAGGER } from '../config/motion'
-import { useMotionOn } from '../ui/useMotionOn'
+import { DUR, SHIFT, STAGGER } from '../config/motion'
+import { useMotion } from '../ui/useMotionOn'
 
 /** anim/proto: the check mark pops in on a tick (overshoot spring) and a ring bursts from the box; a clear shrinks it out. */
 function TickMark({ fx }: { fx: boolean }) {
-  return <>{fx && <motion.i className="sow-t__ring" aria-hidden initial={{ scale: 0.7, opacity: 0.9 }} animate={{ scale: 1.45, opacity: 0 }} transition={{ duration: DUR.ring, ease: 'easeOut' }} />}
-    <motion.span className="sow-t__mark" initial={{ scale: 0.3, opacity: 0, rotate: -18 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} exit={{ scale: 0.4, opacity: 0, transition: { duration: DUR.fade } }} transition={SPRING.pop}><Icon name="check" /></motion.span></>
+  const mk = useMotion()
+  return <>{fx && <motion.i className="sow-t__ring" aria-hidden initial={{ scale: 0.7, opacity: 0.9 }} animate={{ scale: 1.45, opacity: 0 }} transition={mk.tween(DUR.ring, { ease: 'easeOut' })} />}
+    <motion.span className="sow-t__mark" initial={{ scale: 0.3, opacity: 0, rotate: -18 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} exit={{ scale: 0.4, opacity: 0, transition: mk.tween(DUR.fade) }} transition={mk.spring('pop')}><Icon name="check" /></motion.span></>
 }
 /** anim/proto: row entrance. The first rows on screen arrive in a quick cascade (page load, class/subject switch); rows
  * further down are already in place. `dir` = which side a switched-to subject slides in from (0 = page load, rise). */
@@ -40,7 +41,7 @@ function boxAt(btns: HTMLElement[], x: number, was: number): number {
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
 export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railBubble = true, swipe = true, dateCols, drawer = false, focusSessionId = null, subjectKey = null, pendingOnly = false, onPick }: Props) {
   const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
-  const mo = useMotionOn(); const [pop, setPop] = useState<string | null>(null) // anim/proto: the cell the finger just ticked
+  const mk = useMotion(); const mo = mk.on; const [pop, setPop] = useState<string | null>(null) // anim/proto: the cell the finger just ticked
   const order = state.subjects.map((x) => x.subjectKey); const was = useRef({ key: `${classKey}|${subjectKey}`, dir: 0 })
   const sk = `${classKey}|${subjectKey}`; if (was.current.key !== sk) { const a = order.indexOf(was.current.key.split('|')[1] ?? ''), b = order.indexOf(subjectKey ?? ''); was.current = { key: sk, dir: a >= 0 && b >= 0 && b < a ? -1 : 1 } }
   const anchor = focusColumn(c0, today, focusSessionId)
@@ -146,7 +147,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
             onFind={(q) => { setPill(q); if (q.trim()) find(q.trim()) }} drawer={drawer && cols0.length > 0 && c.columns.length > 1 ? { open: two, set: (o) => setView({ phoneCols: o ? 2 : 1 }) } : undefined} />
           <tbody key={sk}>{c.pupils.map((p, r) => (
             <motion.tr key={p.roll} ref={(el: HTMLTableRowElement | null) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}
-              initial={mo ? rowIn(r, was.current.dir) : false} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ ...SPRING.settle, delay: r * STAGGER.rows }}>
+              initial={mo ? rowIn(r, was.current.dir) : false} animate={{ opacity: 1, x: 0, y: 0 }} transition={mk.spring('settle', r * STAGGER.rows)}>
               <td className="r dl-num">{p.roll}</td>
               <td className="n" onClick={() => { setSel(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>
               {cols.map((i, ci) => { const s = c.columns[i]!; const fut = s.date > today; const real = c.ticked(s.sessionId, p.roll)

@@ -7,9 +7,9 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { CONFIG } from '../config'
-import { DUR, EASE, SPRING, STACK } from '../config/motion'
+import { DUR, EASE, STACK } from '../config/motion'
 import { dragCloses } from '../data/gestures'
-import { useMotionOn } from './useMotionOn'
+import { useMotion } from './useMotionOn'
 
 /** `pull`: px a finger has pulled the sheet up so far (it follows the finger); undefined once it is open. */
 type Props = { label: string; onClose: () => void; className?: string; scrimLabel?: string; pull?: number; behind?: boolean; children: ReactNode }
@@ -38,7 +38,7 @@ function useDragClose(onClose: () => void) {
 }
 
 export function Sheet({ label, onClose, className = '', scrimLabel, pull, behind = false, children }: Props) {
-  const { drag, handlers } = useDragClose(onClose); const on = useMotionOn(); const ref = useRef<HTMLDivElement>(null); const [h, setH] = useState(0)
+  const { drag, handlers } = useDragClose(onClose); const mk = useMotion(); const on = mk.on; const ref = useRef<HTMLDivElement>(null); const [h, setH] = useState(0)
   useLayoutEffect(() => { if (ref.current) setH(ref.current.offsetHeight) }, [on])
   const style = pull != null ? { '--sow-pull': `${pull}px` } : drag != null ? { '--sow-drag': `${drag}px` } : undefined
   const state = pull != null ? ' is-pulling' : drag != null ? ' is-dragging' : ''
@@ -53,10 +53,10 @@ export function Sheet({ label, onClose, className = '', scrimLabel, pull, behind
   const scrim = pull != null ? 0.5 : drag != null ? 0.7 : 1
   return (<>
     <motion.button className={`sow-scrim${state}`} aria-label={scrimLabel ?? `Close ${label.toLowerCase()}`} onClick={onClose}
-      initial={{ opacity: 0 }} animate={{ opacity: scrim }} exit={{ opacity: 0, transition: { duration: DUR.exit } }} transition={{ duration: DUR.fade }} />
+      initial={{ opacity: 0 }} animate={{ opacity: scrim }} exit={{ opacity: 0, transition: mk.tween(DUR.exit) }} transition={mk.tween(DUR.fade)} />
     <motion.div ref={ref} className={`sow-sheet sow-sheet--m ${className}${state}`.trim()} role="dialog" aria-label={label} style={{ ...(style as CSSProperties | undefined), originY: 0 }}
-      initial={{ y: '100%' }} animate={{ y, scale: behind ? STACK.scale : 1 }} exit={{ y: '100%', transition: { duration: DUR.exit, ease: EASE.in } }}
-      transition={follow ? { y: { duration: 0 }, scale: SPRING.sheet } : SPRING.sheet}>
+      initial={{ y: '100%' }} animate={{ y, scale: behind ? STACK.scale : 1 }} exit={{ y: '100%', transition: mk.tween(DUR.exit, { ease: EASE.in }) }}
+      transition={follow ? { y: { duration: 0 }, scale: mk.spring('sheet') } : mk.spring('sheet')}>
       <button className="sow-sheet__handle" aria-label="Close (swipe down)" {...handlers}><span className="sow-sheet__grip" /></button>
       {children}
     </motion.div>

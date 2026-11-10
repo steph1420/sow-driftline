@@ -2,8 +2,8 @@
 // shared parts (count, "+N since", the 3-state window switcher, share); each style only arranges them.
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { animate, motion, useAnimate, useMotionValue } from 'framer-motion'
-import { DUR, EASE, SHIFT, SPRING, STAGGER } from '../../config/motion'
-import { useMotionOn } from '../../ui/useMotionOn'
+import { DUR, EASE, SHIFT, STAGGER } from '../../config/motion'
+import { useMotion } from '../../ui/useMotionOn'
 import { RollNumber } from '../../ui/RollNumber'
 import { SINCE_MODES, SINCE_NAME, nextSince, type SinceMode } from '../../data/since'
 import type { QoCard, QoStyle } from '../../data/qoCard'
@@ -56,30 +56,30 @@ function RecentDays(p: CardProps) {
 /** anim/proto: the E1 fill rises from the bottom on a slow liquid spring (scaleY, transform only) when the card
  * arrives, and again from its old level whenever the share done changes. At rest it is the static fill. */
 function TideFill({ pct, delay }: { pct: number; delay: number }) {
-  const on = useMotionOn(); const s = useMotionValue(on ? 0 : 1); const prev = useRef<number | null>(null)
+  const mk = useMotion(); const on = mk.on; const s = useMotionValue(on ? 0 : 1); const prev = useRef<number | null>(null)
   useEffect(() => {
     if (!on) { s.jump(1); prev.current = pct; return }
     const first = prev.current == null; const from = first ? 0 : pct ? Math.min(2, prev.current! / pct) : 1; prev.current = pct
     if (from === 1) return
-    s.jump(from); const a = animate(s, 1, { ...SPRING.tide, delay: first ? delay : 0 }); return () => a.stop()
+    s.jump(from); const a = animate(s, 1, mk.spring('tide', first ? delay : 0)); return () => a.stop()
   }, [pct, on]) // eslint-disable-line react-hooks/exhaustive-deps
   return on ? <motion.i className="sow-qc__tide" aria-hidden style={{ scaleY: s, originY: 1 }} /> : <i className="sow-qc__tide" aria-hidden />
 }
 /** anim/proto: one soft light sweep across an E1 card when new ticks land (mounted per pulse, gone when done). */
 function Glint() {
-  const [done, setDone] = useState(false); if (done) return null
-  return <motion.i className="sow-qc__glint" aria-hidden initial={{ x: '-100%', opacity: 0 }} animate={{ x: '100%', opacity: [0, 1, 0] }} transition={{ duration: DUR.glint, ease: EASE.out }} onAnimationComplete={() => setDone(true)} />
+  const mk = useMotion(); const [done, setDone] = useState(false); if (done) return null
+  return <motion.i className="sow-qc__glint" aria-hidden initial={{ x: '-100%', opacity: 0 }} animate={{ x: '100%', opacity: [0, 1, 0] }} transition={mk.tween(DUR.glint, { ease: EASE.out })} onAnimationComplete={() => setDone(true)} />
 }
 
 const BODY: Record<QoStyle, (p: CardProps) => JSX.Element> = { d4: EdgePager, e1: Tide, e2: RollGrid, e3: GhostNumeral, e4: RecentDays }
 
 export function QoCardView({ style, ...p }: CardProps & { style: QoStyle }) {
-  const Body = BODY[style]; const on = useMotionOn(); const [scope, run] = useAnimate<HTMLDivElement>(); const [pulse, setPulse] = useState(0); const last = useRef(p.card.done)
+  const Body = BODY[style]; const mk = useMotion(); const on = mk.on; const [scope, run] = useAnimate<HTMLDivElement>(); const [pulse, setPulse] = useState(0); const last = useRef(p.card.done)
   // anim/proto "alive": when new ticks land on this date the card takes one breath (and E1 glints)
   useEffect(() => { const grew = p.card.done > last.current; last.current = p.card.done; if (!grew || !on || !scope.current) return
-    setPulse((n) => n + 1); void run(scope.current, { scale: [1, 1.025, 1] }, { duration: DUR.breath, ease: 'easeInOut' }) }, [p.card.done]) // eslint-disable-line react-hooks/exhaustive-deps
+    setPulse((n) => n + 1); void run(scope.current, { scale: [1, 1.025, 1] }, mk.tween(DUR.breath, { ease: 'easeInOut' })) }, [p.card.done]) // eslint-disable-line react-hooks/exhaustive-deps
   const cls = `sow-qc sow-qc--${style}${p.card.past ? ' old' : ''}${p.card.sel ? ' sel' : ''}`; const css = { '--p': p.card.pct } as CSSProperties
   if (!on) return <div className={cls} style={css}><Body {...p} /></div>
   return <motion.div ref={scope} className={cls} style={css} initial={{ opacity: 0, y: SHIFT.card, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-    transition={{ ...SPRING.settle, delay: STAGGER.cardsDelay + (p.index ?? 0) * STAGGER.cards }}><Body {...p} pulse={pulse} /></motion.div>
+    transition={mk.spring('settle', STAGGER.cardsDelay + (p.index ?? 0) * STAGGER.cards)}><Body {...p} pulse={pulse} /></motion.div>
 }

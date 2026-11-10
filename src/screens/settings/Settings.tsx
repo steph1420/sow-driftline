@@ -12,10 +12,10 @@ import { SessionSheet } from '../SessionSheet'
 import { shownYear } from '../../data/schoolYear'
 import { todayIso } from '../../data/today'
 import { DisplayPage, displayName } from './DisplayPage'
-import { AboutPage, ContrastPage, DatesPage, DeveloperPage, HapticsPage, SnapshotsPage, UpdatesPage, aboutValue, contrastName, datesValue, hapticsName, whenLabel } from './AppPages'
+import { AboutPage, AnimationsPage, animName, ContrastPage, DatesPage, DeveloperPage, HapticsPage, SnapshotsPage, UpdatesPage, aboutValue, contrastName, datesValue, hapticsName, whenLabel } from './AppPages'
 
-type Page = 'contrast' | 'display' | 'dates' | 'haptics' | 'sync' | 'pair' | 'snapshots' | 'updates' | 'developer' | 'about'
-const TITLES: Record<Page, string> = { contrast: 'Contrast', display: 'Display size', dates: 'Column dates', haptics: 'Haptics', sync: 'Sync', pair: 'Pair a device', snapshots: 'Snapshots', updates: 'Updates', developer: 'Developer options', about: 'About' }
+type Page = 'animations' | 'contrast' | 'display' | 'dates' | 'haptics' | 'sync' | 'pair' | 'snapshots' | 'updates' | 'developer' | 'about'
+const TITLES: Record<Page, string> = { animations: 'Animations', contrast: 'Contrast', display: 'Display size', dates: 'Column dates', haptics: 'Haptics', sync: 'Sync', pair: 'Pair a device', snapshots: 'Snapshots', updates: 'Updates', developer: 'Developer options', about: 'About' }
 const ONOFF = [{ id: 'on', label: 'On' }, { id: 'off', label: 'Off' }] as const
 const THEMES = [{ id: 'night', label: 'Night' }, { id: 'day', label: 'Day' }, { id: 'system', label: 'Auto' }] as const
 
@@ -25,7 +25,7 @@ export function Settings() {
   if (page === 'templates') return <TemplateMaker onBack={() => setPage(null)} />
   if (page) return (<div className="sow-set">
     <PageHead title={TITLES[page]} backLabel="Back to Settings" onBack={() => setPage(null)} />
-    {{ contrast: <ContrastPage />, display: <DisplayPage />, dates: <DatesPage />, haptics: <HapticsPage />, sync: <SyncPage />, pair: <PairPage devices={devices} />, snapshots: <SnapshotsPage />, updates: <UpdatesPage />, developer: <DeveloperPage />, about: <AboutPage /> }[page]}
+    {{ animations: <AnimationsPage />, contrast: <ContrastPage />, display: <DisplayPage />, dates: <DatesPage />, haptics: <HapticsPage />, sync: <SyncPage />, pair: <PairPage devices={devices} />, snapshots: <SnapshotsPage />, updates: <UpdatesPage />, developer: <DeveloperPage />, about: <AboutPage /> }[page]}
   </div>)
   const latest = s.snaps[0]
   return (<div className="sow-set">
@@ -37,6 +37,7 @@ export function Settings() {
       <NavRow label="Column dates" value={datesValue(s.view)} onClick={() => setPage('dates')} />
       <Segment label="Week groups" options={ONOFF} value={s.view.weeks ? 'on' : 'off'} onChange={(v) => s.setView({ weeks: v === 'on' })} />
       <Segment label="Hide unavailable letters" options={ONOFF} value={s.railHide ? 'on' : 'off'} onChange={(v) => s.setRailHide(v === 'on')} />
+      <NavRow label="Animations" value={animName(s.animScale)} onClick={() => setPage('animations')} />
       <NavRow label="Haptics" value={hapticsName(s.haptics)} onClick={() => setPage('haptics')} />
     </Group>
     <Group title="Sync & pairing">

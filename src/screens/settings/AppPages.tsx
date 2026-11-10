@@ -5,6 +5,7 @@ import { Choices, Segment } from './rows'
 import { DATE_FMTS, DATE_SUBS, fmtDate } from '../../data/dateFormat'
 import { HAPTICS, buzz } from '../../shell/haptics'
 import { QO_STYLES } from '../../data/qoCard'
+import { ANIM_SCALES, animScaleLabel, type AnimScale } from '../../config/motion'
 
 const CONTRASTS: { id: Contrast; label: string; note: string }[] = [
   { id: 'standard', label: 'Standard', note: 'Soft glass and glows' }, { id: 'high', label: 'High', note: 'Solid surfaces and stronger text' }]
@@ -88,4 +89,15 @@ export const hapticsName = (h: ReturnType<typeof useApp.getState>['haptics']) =>
 export function HapticsPage() {
   const haptics = useApp((s) => s.haptics); const setHaptics = useApp((s) => s.setHaptics)
   return <Choices label="Haptics" options={HAPTICS} value={haptics} onChange={(h) => { setHaptics(h); buzz(h) }} />
+}
+
+/** t210u: how fast every animation runs. Off is instant; the phone's reduce-motion setting forces Off. */
+const ANIMS = ANIM_SCALES.map((k) => ({ id: String(k) as `${AnimScale}`, label: animScaleLabel(k), note: k === 0 ? 'No movement' : k === 1 ? 'Default' : k < 1 ? 'Quicker' : 'Slower' }))
+export const animName = (k: AnimScale) => animScaleLabel(k)
+export function AnimationsPage() {
+  const k = useApp((s) => s.animScale); const set = useApp((s) => s.setAnimScale)
+  return (<>
+    <Choices label="Animation scale" options={ANIMS} value={String(k) as `${AnimScale}`} onChange={(v) => set(Number(v) as AnimScale)} />
+    <p className="dl-muted sow-note">Stretches or shortens every animation. If your phone is set to reduce motion, animations stay off.</p>
+  </>)
 }
