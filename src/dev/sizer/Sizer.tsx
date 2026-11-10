@@ -22,7 +22,7 @@ export function Sizer() {
     setLift(Math.max(0, Math.min(window.innerHeight * 0.6, drag.current.lift + drag.current.y - e.clientY)))
   }
 
-  if (!open) return <button type="button" className="szr-pill" onClick={() => setOpen(true)} aria-label="Open sizer">⇲ Sizer</button>
+  if (!open) return <Pill onOpen={() => setOpen(true)} />
   return (
     <section className="szr" style={{ bottom: `${lift}px` }} aria-label="Sizer">
       <header className="szr__head" onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); drag.current = { y: e.clientY, lift } }}
@@ -47,5 +47,24 @@ export function Sizer() {
       </div>
       <p className="szr__sum">{line}</p>
     </section>
+  )
+}
+
+/** Collapsed pill: tap opens; drag moves it anywhere (position saved) so it never sits on what you're sizing. */
+function Pill({ onOpen }: { onOpen: () => void }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(() => { try { return JSON.parse(localStorage.getItem(`${KEY}:pill`) || 'null') } catch { return null } })
+  const drag = useRef<{ sx: number; sy: number; x: number; y: number; moved: boolean } | null>(null)
+  const style = pos ? { left: `${pos.x}px`, top: `${pos.y}px`, bottom: 'auto' } : undefined
+  return (
+    <button type="button" className="szr-pill" style={style} aria-label="Open sizer"
+      onPointerDown={(e) => { const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.setPointerCapture?.(e.pointerId); drag.current = { sx: e.clientX, sy: e.clientY, x: r.left, y: r.top, moved: false } }}
+      onPointerMove={(e) => {
+        const d = drag.current; if (!d) return
+        const dx = e.clientX - d.sx; const dy = e.clientY - d.sy
+        if (!d.moved && Math.hypot(dx, dy) < 6) return
+        d.moved = true; setPos({ x: Math.max(0, Math.min(window.innerWidth - 40, d.x + dx)), y: Math.max(0, Math.min(window.innerHeight - 40, d.y + dy)) })
+      }}
+      onPointerUp={() => { const d = drag.current; drag.current = null; if (d?.moved) { if (pos) localStorage.setItem(`${KEY}:pill`, JSON.stringify(pos)) } else onOpen() }}
+      onClick={(e) => { if (e.detail === 0) onOpen() /* keyboard */ }} onPointerCancel={() => { drag.current = null }}>⇲ Sizer</button>
   )
 }
