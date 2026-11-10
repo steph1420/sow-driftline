@@ -13,7 +13,7 @@ describe('P10 break-it: UI rules', () => {
   })
   // RDs2 changed BK-UI-02: the 1|2 buttons became the shortcut circle (44 px) and the Col2 edge grip (full header height)
   it('BK-UI-02 the 1|2 shortcut and the Col2 edge grip have a 44 px hit area', () => {
-    expect(shell).toMatch(/\.sow-sc \{[^}]*width: var\(--dl-hit-min\); height: var\(--dl-hit-min\)/)
+    expect(shell).toMatch(/\.sow-sc \{[^}]*width: var\(--sow-sc-size\); height: var\(--sow-sc-size\)/); expect(shell).toMatch(/--sow-sc-size: var\(--dl-hit-min\);/) // sizer: named
     expect(shell).toMatch(/--sow-head-h: max\(var\(--dl-hit-min\)/)
     expect(shell).toMatch(/\.sow-grip \{[^}]*top: 0; bottom: 0/)
   })

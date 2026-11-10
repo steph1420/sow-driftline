@@ -2,7 +2,7 @@
 import { createRoot } from 'react-dom/client'
 import { MotionGlobalConfig } from 'framer-motion'
 import { Sizer } from './Sizer'
-import { KEY, apply, load } from './sizes'
+import { apply, load } from './groups'
 import './sizer.css'
 
 export function install() {
@@ -11,7 +11,7 @@ export function install() {
   const mm = window.matchMedia.bind(window)
   window.matchMedia = (q: string) => (/prefers-reduced-motion:\s*reduce/.test(q) ? { ...mm(q), matches: true, media: q } as MediaQueryList : mm(q))
   document.documentElement.classList.add('sow-sizer-build')
-  apply(load(localStorage.getItem(KEY)), document.documentElement.style)
+  apply(load(localStorage), document.documentElement.style)
   const host = document.createElement('div'); host.id = 'sow-sizer'; document.body.appendChild(host)
   createRoot(host).render(<Sizer />)
 }
