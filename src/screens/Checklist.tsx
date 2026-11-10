@@ -105,6 +105,11 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
     }
     document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k)
   })
+  // beta.9 moment "done": a small burst when a date on screen reaches all done by a tick (not on load or a class switch).
+  // beta.14 BK-B14-06: above the no-dates return, so a class with no dates doesn't change the hook count (it blanked the app)
+  const allDone = Object.fromEntries(c0.columns.map((x) => [x.sessionId, c0.pupils.length > 0 && toGo(c0, x.sessionId) === 0]))
+  useEffect(() => { const f = full.current; full.current = { key: sk, done: allDone }; if (!f || f.key !== sk || !onTick) return
+    if (Object.entries(allDone).some(([sid, d]) => d && f.done[sid] === false)) setBurst(true) }) // eslint-disable-line react-hooks/exhaustive-deps
   if (!c.columns.length) return (
     <div className="dl-card sow-empty"><div className="sow-ico" aria-hidden>＋</div><h2 className="dl-title2">No dates yet</h2>
       <p className="dl-muted">This class has no dates on the sheet yet. Ticks appear here.</p></div>)
@@ -132,10 +137,6 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   }
   const dup = new Set(names.filter((n, i) => names.indexOf(n) !== i)) // Q-DUP-1: roll tells twins apart
   const doneOn = (sid: string) => c0.pupils.length - toGo(c0, sid)
-  // beta.9 moment "done": a small burst when a date on screen reaches all done by a tick (not on load or a class switch)
-  const allDone = Object.fromEntries(c0.columns.map((x) => [x.sessionId, c0.pupils.length > 0 && toGo(c0, x.sessionId) === 0]))
-  useEffect(() => { const f = full.current; full.current = { key: sk, done: allDone }; if (!f || f.key !== sk || !onTick) return
-    if (Object.entries(allDone).some(([sid, d]) => d && f.done[sid] === false)) setBurst(true) }) // eslint-disable-line react-hooks/exhaustive-deps
   const matches = pill?.trim() ? rankMatches(pill.trim(), c.pupils.map((p) => ({ roll: p.roll, name: p.name }))).length : 0
   const head: HeadCol[] = cols.map((i, ci) => { const s = c.columns[i]!; return { sessionId: s.sessionId, date: s.date, kind: s.kind, topic: s.topic, done: doneOn(s.sessionId), total: c0.pupils.length, past: s.date < today, sel: i === anchor.index, second: two && ci === 0, week: weekStart(i) } })
   const sheet = c0.columns.find((x) => x.sessionId === dates)

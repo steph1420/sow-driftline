@@ -84,8 +84,11 @@ const did = (k: Step) => { order.push(k); redoOrder = []; redoEdits = [] }
 let left: { date: string; at: number } | null = null
 /** 'now' for the late rule; ?today= stills pretend it is midday that day. */
 export const nowMs = () => { const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('today') : null; return q ? Date.parse(`${q}T12:00:00+05:30`) : Date.now() }
-const demoOps = (): Op[] => { try { return JSON.parse(localStorage.getItem(demoTicksKey()) || '[]') } catch { return [] } }
+const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? v : []) // beta.14 BK-B14-08: a stored value of the wrong shape must not stop the app opening
+const demoOps = (): Op[] => { try { return list<Op>(JSON.parse(localStorage.getItem(demoTicksKey()) || '[]')) } catch { return [] } }
 let engine: ReturnType<typeof createEngine> | null = null
+/** beta.14 BK-B14-04: the old engine is stopped, not just forgotten (its retry timer kept saving and set the save dot in demo). */
+const dropEngine = () => { engine?.stop(); engine = null }
 let poller: ReturnType<typeof createPoller> | null = null
 function syncLoop(on: boolean) {
   poller?.stop(); poller = null; if (!on) return
@@ -117,7 +120,7 @@ const viewOnly = () => useApp.getState().viewing !== null
 /** Wraps a write action so it does nothing while a past year is shown (F-SH-09: view-only). */
 const liveOnly = <A extends unknown[]>(fn: (...a: A) => void) => (...a: A) => { if (!viewOnly()) fn(...a) }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: loadJson(HINTS, [] as string[]), favs: loadJson(FAVS, [] as string[]).filter((x) => typeof x === 'string'), nameSort: cleanSort(loadJson(SORT, null)), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, viewing: null as string | null, hints: list<string>(loadJson(HINTS, [])).filter((x) => typeof x === 'string'), favs: list<string>(loadJson(FAVS, [])).filter((x) => typeof x === 'string'), nameSort: cleanSort(loadJson(SORT, null)), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
@@ -180,7 +183,7 @@ export const useApp = create<State>((set, get) => ({
   importSetup: async (text) => {
     const { bridgeUrl: u, token: t } = parseSetup(text)
     await verifyCopy(u, t) // refuses anything that is not the test copy; nothing is stored until it passes
-    localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh()
+    localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); dropEngine(); await get().refresh()
   },
   setView: (v) => { const view = { ...get().view, ...v }; localStorage.setItem(VIEW, JSON.stringify(view)); set({ view }) },
   setQuick: (quick) => set({ quick, quickPull: 0 }),
@@ -197,8 +200,8 @@ export const useApp = create<State>((set, get) => ({
     set({ viewing: next, focus: null, find: null, pending: false, ...shape(pastSchoolState(yearById(next), yearOf(todayIso()))) })
   },
   setToken: (t) => localStorage.setItem(TOKEN, t),
-  unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); engine = null; set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(demoBase(), demoOps())) }) },
-  pair: async (code) => { const u = COPY_BRIDGE_URL; const t = await claimPair(u, code, undefined, get().deviceName); localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); engine = null; await get().refresh() },
+  unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); dropEngine(); set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(demoBase(), demoOps())) }) },
+  pair: async (code) => { const u = COPY_BRIDGE_URL; const t = await claimPair(u, code, undefined, get().deviceName); localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); dropEngine(); await get().refresh() },
   refresh: async () => {
     const paired = !!token()
     const rs = paired ? sheetBridgeSource(bridgeUrl(), token) : fakeSource(applyOps(demoBase(), demoOps()))
@@ -211,7 +214,7 @@ export const useApp = create<State>((set, get) => ({
     }
     catch (e) { set({ status: 'error', error: e instanceof Error ? e.message : String(e) }) }
   },
-  reset: () => { syncLoop(false); engine = null; order = []; redoOrder = []; redoEdits = []; left = null; live = null; set({ ...initial(), ...flags() }) },
+  reset: () => { syncLoop(false); dropEngine(); order = []; redoOrder = []; redoEdits = []; left = null; live = null; set({ ...initial(), ...flags() }) },
 }))
 
 const flags = () => { const h = hist(); return { canUndo: h.canUndo() || order[order.length - 1] === 'edit', canRedo: h.canRedo() || redoOrder[redoOrder.length - 1] === 'edit', snaps: listSnapshots(localStorage, snapKey()) } }

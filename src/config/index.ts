@@ -13,8 +13,8 @@ export const CONFIG = {
   namespace: namespaceFor(FLAVOR),
   idbName: 'sow-driftline',
   storageVersion: 1,
-  timing: { pendingGraceMs: 3000, panelSettlePx: 24, panelSettleMs: 120, updateCheckMs: 5 * 60 * 1000, nameToastMs: 2600, railBubbleMs: 650, saveRetryMs: 15000, snapshotEveryMs: 10 * 60 * 1000, quickSyncMs: 4000, gripSnapMinPx: 8, swipeEngagePx: 10, swipeExtendPx: 28, swipeExtendFrac: 0.6, jumpFlashMs: 1200, sheetOpenDragPx: 64, sheetCloseDragPx: 96, flickRestMs: 120, holdMs: 500, pressMs: 160, shortcutHoldMs: 100, devHoldMs: 500, quickOpenPx: 96, quickFlickPxMs: 0.5, undoSlidePx: 16, undoCancelPx: 28, prefsPushMs: 2000, stillToComeShown: 5, modeKeepMs: 20000 },
-  data: { snapshotsMax: 12, undoMax: 200 },
+  timing: { pendingGraceMs: 3000, panelSettlePx: 24, panelSettleMs: 120, updateCheckMs: 5 * 60 * 1000, nameToastMs: 2600, railBubbleMs: 650, saveRetryMs: 15000, snapshotEveryMs: 10 * 60 * 1000, quickSyncMs: 4000, gripSnapMinPx: 8, swipeEngagePx: 10, swipeExtendPx: 28, swipeExtendFrac: 0.6, jumpFlashMs: 1200, sheetOpenDragPx: 64, sheetCloseDragPx: 96, flickRestMs: 120, holdMs: 500, pressMs: 160, shortcutHoldMs: 100, devHoldMs: 500, quickOpenPx: 96, quickFlickPxMs: 0.5, undoSlidePx: 16, undoCancelPx: 28, prefsPushMs: 2000, bridgeTimeoutMs: 60000, stillToComeShown: 5, modeKeepMs: 20000 },
+  data: { snapshotsMax: 12, undoMax: 200, snapshotBudgetChars: 1_000_000 }, // beta.14: snapshots never take more than ~1M of the ~5M-character storage
   layout: { phoneMaxDateCols: 1, desktopDateCols: 9, desktopCalmDateCols: 3, phoneNameShare: 0.5, headerHeightPx: 56, dockReservePx: 82, desktopMinWidthPx: 1000, desktopScaleDivisor: 600, desktopScaleMax: 2.4 },
 } as const
 

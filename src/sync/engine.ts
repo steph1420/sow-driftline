@@ -19,16 +19,18 @@ export function broadcast(name: string): Channel | undefined {
 
 export function createEngine(o: Opts) {
   const box = new Outbox(o.storage, o.key); let status: SaveStatus = box.list().length ? 'offline' : 'saved'; let t: ReturnType<typeof setTimeout> | undefined
-  const tell = (s: SaveStatus) => { status = s; o.onStatus?.(s, box.list().length) }
-  o.channel?.listen((m) => { const x = m as { ops?: Op[]; state?: SheetState }; if (x.ops) o.onState((s) => applyOps(s, x.ops!)); if (x.state) o.onState((s) => mergeNewest(s, x.state!, box.list())) })
-  const schedule = (ms: number) => { clearTimeout(t); t = setTimeout(() => void flush(), ms) }
+  let dead = false // beta.14 BK-B14-04: a replaced engine (Back to demo, a new pairing) must not save, retry or report any more
+  const tell = (s: SaveStatus) => { if (dead) return; status = s; o.onStatus?.(s, box.list().length) }
+  o.channel?.listen((m) => { if (dead) return; const x = m as { ops?: Op[]; state?: SheetState }; if (x.ops) o.onState((s) => applyOps(s, x.ops!)); if (x.state) o.onState((s) => mergeNewest(s, x.state!, box.list())) })
+  const schedule = (ms: number) => { clearTimeout(t); if (!dead) t = setTimeout(() => void flush(), ms) }
   async function flush(): Promise<void> {
-    clearTimeout(t)
+    clearTimeout(t); if (dead) return
     await o.lock('sow-driftline:push', async () => {
+      if (dead) return
       const ops = box.list(); if (!ops.length) { tell('saved'); return }
       tell('saving')
       try {
-        const st = await o.push(ops); box.ack(ops)
+        const st = await o.push(ops); box.ack(ops); if (dead) return
         o.onState((s) => mergeNewest(s, st, box.list())); o.channel?.post({ state: st }); tell(box.list().length ? 'saving' : 'saved')
         if (box.list().length) schedule(0)
       } catch (e) { tell(/offline/i.test(String(e)) ? 'offline' : 'error'); if (o.retryMs) schedule(o.retryMs) }
@@ -36,6 +38,8 @@ export function createEngine(o: Opts) {
   }
   return {
     status: () => status, waiting: () => box.list().length, flush,
+    /** Retire this engine: no more saves, retries, status or merges from it. What waits in the outbox stays there. */
+    stop() { dead = true; clearTimeout(t) },
     /** A tick on this device: shown at once, queued, told to other tabs, saved after the grace. */
     local(op: Op) { box.add(op); o.onState((s) => applyOps(s, [op])); o.channel?.post({ ops: [op] }); tell('saving'); if (o.graceMs > 0) schedule(o.graceMs) },
     adoptPull: (remote: SheetState) => mergePending(remote, box.list()),

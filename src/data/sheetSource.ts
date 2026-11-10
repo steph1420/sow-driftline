@@ -1,6 +1,6 @@
 // Sheet adapter, TEST COPY ONLY. Reads: ping/pull/pairClaim. D2 adds one write: tick-only `push`, after a ping proves the COPY.
 import type { RosterSource, SheetState } from './contract'
-import { FLAVOR, type Flavor } from '../config'
+import { CONFIG, FLAVOR, type Flavor } from '../config'
 export const COPY_SHEET_ID = '1iIGXOzdW9NTqLxWnBwI6UkpwOKyihQxvrG8L1v6njYI'
 export const LIVE_SHEET_ID = '1vGXltIwxto-KGZr1ygSDk9EEM0m5rkLySXshZMdv4UQ'
 /** Test-copy bridge address (not a secret). The token arrives only by pairing on the device. */
@@ -9,16 +9,19 @@ export const COPY_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxU01l41
 export const allowedSheets = (_f: Flavor = FLAVOR): string[] => [COPY_SHEET_ID]
 const refuse = (_f: Flavor) => new Error('This bridge is not the test copy · the app works with the test copy only')
 export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim', 'devicesList', 'prefsPull']
-type Fetcher = (u: string, init: { method: string; headers: Record<string, string>; body: string; redirect: 'follow' }) => Promise<Response>
+type Fetcher = (u: string, init: { method: string; headers: Record<string, string>; body: string; redirect: 'follow'; signal?: AbortSignal }) => Promise<Response>
 
 export const WRITE_ACTIONS: readonly string[] = ['push', 'deviceRevoke', 'deviceRename', 'prefsPush']
 export async function call<T>(url: string, body: Record<string, unknown>, fetcher: Fetcher = fetch as unknown as Fetcher, write = false): Promise<T> {
   if (!(READ_ACTIONS.includes(String(body.action)) || (write && WRITE_ACTIONS.includes(String(body.action))))) throw new Error(`Blocked: “${String(body.action)}” is not allowed`)
   let res: Response
-  try { res = await fetcher(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow' }) }
+  // beta.14 BK-B14-05: a request that never answers is given up after bridgeTimeoutMs (it held the one save lock, so no later tick saved)
+  const signal = typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(CONFIG.timing.bridgeTimeoutMs) : undefined
+  try { res = await fetcher(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow', ...(signal ? { signal } : {}) }) }
   catch { throw new Error('You’re offline') }
   if (!res.ok) throw new Error(`Sheet answered ${res.status}`)
-  const j = (await res.json()) as { ok?: boolean; error?: string }
+  let j: { ok?: boolean; error?: string }
+  try { j = (await res.json()) as typeof j } catch { throw new Error('The sheet sent an unexpected reply · try again in a minute') } // beta.14 BK-B14-03: an Apps Script HTML error page
   if (!j.ok) throw new Error(j.error === 'bad token' ? 'This device is no longer paired' : `Sheet: ${j.error ?? 'error'}`)
   return j as T
 }
@@ -57,10 +60,17 @@ export function copyWriter(url: string, token: () => string | null, fetcher?: Fe
   return async (ops: Op[]): Promise<SheetState> => {
     const t = token(); if (!t) throw new Error('Not paired yet')
     await assertCopy(url, t, fetcher, flavor) // tick cells only, via the existing bridge push; no struct/schema ops ever
-    const r = await call<{ state?: SheetState }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ticks: ops.map((o) => ({ subjectKey: o.subjectKey, date: o.date, topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt })) }, fetcher, true)
+    const r = await call<{ state?: SheetState }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ticks: ops.map((o) => ({ subjectKey: o.subjectKey, date: sheetDate(o), topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt })) }, fetcher, true)
     if (!r.state) throw new Error('Sheet: no state in reply')
     return r.state
   }
+}
+/** beta.14 BK-B14-01: the date the sheet files a tick under. A date moved on this device (edits stay on the device)
+ * keeps its sheet row, whose id is `subjectKey|yyyy-mm-dd`; sending the moved date made the bridge start a second
+ * session on the new day and split the ticks. The id's date keeps every tick on the session it belongs to. */
+export function sheetDate(o: Pick<Op, 'sessionId' | 'subjectKey' | 'date'>): string {
+  const m = o.sessionId.startsWith(o.subjectKey + '|') ? /^(\d{4}-\d{2}-\d{2})/.exec(o.sessionId.slice(o.subjectKey.length + 1)) : null
+  return m ? m[1]! : o.date
 }
 /** Setup-file connect: only accepted if that bridge is the COPY. */
 export async function verifyCopy(url: string, token: string, fetcher?: Fetcher) { await assertCopy(url, token, fetcher) }
