@@ -90,7 +90,6 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
 .sow-blob { display: flex; flex-direction: column; align-items: center; gap: var(--dl-space-1); font: inherit; font-size: var(--dl-type-footnote-size); color: var(--dl-color-text-muted); text-decoration: none; background: transparent; border: 0; cursor: pointer; }
 .sow-blob i { width: var(--dl-space-12); height: var(--dl-space-12); border-radius: var(--dl-radius-pill); display: grid; place-items: center; font-style: normal; font-size: var(--dl-type-title2-size, var(--dl-type-headline-size)); color: var(--dl-color-on-accent); }
 .sow-blob.wa i { background: color-mix(in srgb, var(--dl-color-positive) 85%, var(--dl-color-bg)); }
-.sow-blob.keep i { background: color-mix(in srgb, var(--dl-color-warning) 85%, var(--dl-color-bg)); }
 .sow-blob.mail i { background: var(--dl-color-accent); }
 .sow-blob.sms i { background: color-mix(in srgb, var(--dl-color-text-muted) 70%, var(--dl-color-bg)); }
 .sow-blob i.txt { font-size: var(--dl-type-caption-size); font-weight: 800; letter-spacing: .04em; }
@@ -654,3 +653,13 @@ body:has(.sow-grid thead) .sow-bar::after { content: ''; position: absolute; lef
 @keyframes sow-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(1.35); } }
 [data-motion~="alldates"] .sow-ad__item:nth-child(-n + 16) .sow-ad__row::before { transform-origin: top; animation: sow-draw var(--dl-dur-calm) var(--dl-ease-settle) both; animation-delay: calc(var(--i, 0) * 16ms * var(--sow-anim-k)); }
 @keyframes sow-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* ---- beta.10 (t224u "space wars"): the share sheet's rows never squeeze. The sheet scrolls instead of shrinking its
+   children (a shrunk chip row clipped its pills to their ring sides, the stray "( )"); date pills and template chips sit
+   in one block 6 px apart (sizer gap 6), each row scrolls sideways on its own. ---- */
+:root { --sow-share-gap: calc(var(--dl-space-1) * 1.5); } /* 6 */
+.sow-share > * { flex-shrink: 0; }
+.sow-share__rows { display: flex; flex-direction: column; gap: var(--sow-share-gap); }
+.sow-share__rows > .sow-share__dates, .sow-share__rows > .sow-share__tpls { flex: none; min-height: var(--dl-hit-min); gap: var(--sow-share-gap); overflow-x: auto; overflow-y: hidden; }
+.sow-share__rows .sow-fchip { flex: none; }
+.sow-share__tpls:empty { display: none; }

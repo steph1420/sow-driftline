@@ -113,17 +113,17 @@ describe('V07-S3 quick overview', () => {
     const d = open(); feS3.click(wS3(d).getByRole('button', { name: 'Close' })); expect(scrS3.queryByRole('dialog')).toBeNull()
   })
   it('V07-S3-05 no Waiting box', () => { const d = open(); expect(d.textContent).not.toMatch(/waiting/i) })
-  it('V07-S3b-02 computer without a share sheet: Copy, WhatsApp, Keep only (no Mail, Messages or More)', () => {
+  it('V07-S3b-02 (beta.10: no Keep) computer without a share sheet: Copy and WhatsApp only (no Keep, Mail, Messages or More)', () => {
     const s = share(); expect(wS3(s).getByRole('button', { name: 'Copy' })).toBeTruthy()
     expect((wS3(s).getByRole('link', { name: /whatsapp/i }) as HTMLAnchorElement).href).toMatch(/^https:\/\/wa\.me\/\?text=/)
-    expect(wS3(s).queryByRole('link', { name: /^mail$/i })).toBeNull(); expect(wS3(s).getByRole('button', { name: /keep/i })).toBeTruthy()
+    expect(wS3(s).queryByRole('link', { name: /^mail$/i })).toBeNull(); expect(wS3(s).queryByRole('button', { name: /keep/i })).toBeNull()
     expect(wS3(s).queryByRole('link', { name: /messages/i })).toBeNull(); expect(wS3(s).queryByRole('button', { name: /more apps/i })).toBeNull()
   })
   it('V07-S3b-03 (t96u) targets per device', async () => {
     const { shareTargets } = await import('../src/data/shareTargets')
-    expect(shareTargets({ phone: true, canShare: true })).toEqual(['whatsapp', 'keep', 'sms', 'more'])
-    expect(shareTargets({ phone: false, canShare: false })).toEqual(['whatsapp', 'keep'])
-    expect(shareTargets({ phone: false, canShare: true })).toEqual(['whatsapp', 'keep', 'more'])
+    expect(shareTargets({ phone: true, canShare: true })).toEqual(['whatsapp', 'sms', 'more'])
+    expect(shareTargets({ phone: false, canShare: false })).toEqual(['whatsapp'])
+    expect(shareTargets({ phone: false, canShare: true })).toEqual(['whatsapp', 'more'])
   })
 })
 
