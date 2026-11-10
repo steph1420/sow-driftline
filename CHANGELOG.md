@@ -1,4 +1,11 @@
 # Changelog
+## 0.9.0-beta.11 (2026-11-10)
+Steve t227u-t233u, t238u "Proceed". Beta only, demo data.
+- Row focus: a tap, A-Z rail jump or search hit now flashes the whole row once and fades away for good; it no longer sticks on (long-standing bug). Motion Off = no flash.
+- Reschedule: the yellow "already has" warning sits in a fixed slot and fades in, so the sheet no longer jumps.
+- Phone Back: goes back one step inside the app (sheets, hold menus, panels, Settings sub-pages, All dates, name search) instead of leaving the page; leaves only at a tab's root.
+- Tests: 322 app.
+- Rollback: set BETA_REF back to be2fcbb (beta.10); backup branch backup/pre-v0.9.0-beta.11.
 ## 0.9.0-beta.10 (2026-11-10)
 Steve t224u ("Space wars!"). Beta only, demo data.
 - Share sheet: the date pills and the template chips now sit in their own rows, 6 px apart, and never squeeze or clip each other; each row scrolls sideways. The stray "( )" marks (clipped pill edges) are gone.
