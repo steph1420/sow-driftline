@@ -142,7 +142,7 @@
 .sow-ib.sow-bare { background: none; border: 0; box-shadow: none; }
 /* the dock: lower profile with the navigation factor, tabs never under 44 px */
 .dl-dock { padding: calc(var(--dl-space-1) * 1.5 * var(--sow-k-nav)); }
-.dl-dock__tab { min-height: max(var(--dl-hit-min), calc(var(--dl-hit-comfortable) * var(--sow-k-nav))); min-width: calc(var(--dl-space-16) * var(--sow-k-nav)); }
+.dl-dock__tab { min-height: var(--sow-dock-tab-h); min-width: calc(var(--dl-space-16) * var(--sow-k-nav)); }
 .dl-dock__icon { font-size: max(var(--sow-min-text), calc(17px * var(--sow-k-nav))); } /* token-ok: vendor icon size × navigation */
 @media (max-width: 420px) { .dl-dock__tab { min-width: calc(var(--dl-space-16) * 1.2 * var(--sow-k-nav)); padding: calc(var(--dl-space-1) * var(--sow-k-nav)) calc(var(--dl-space-2) * 1.25 * var(--sow-k-nav)); } } /* token-ok: vendor phone breakpoint */
 .sow-ds__opts { display: contents; }
@@ -308,8 +308,12 @@
 
 /* ===== RDs2 (t140u): top bar, Classes panel, Undo way 2, shortcuts, A5 table header, Col2 drawer, left A–Z rail. Kit tokens only. ===== */
 :root { --sow-bar-height: max(var(--dl-hit-min), calc(var(--dl-hit-comfortable) * var(--sow-k-nav))); --sow-head-h: max(var(--dl-hit-min), calc(var(--dl-hit-min) * var(--sow-k-dates)));
-  --sow-rail-x: var(--dl-space-2); --sow-rail-w: var(--dl-space-4); --sow-gutter: calc(var(--sow-rail-x) + var(--sow-rail-w) + var(--dl-space-2)); }
-.sow-bar { position: sticky; top: 0; z-index: var(--dl-z-header); height: var(--sow-bar-height); display: flex; align-items: center; gap: var(--dl-space-1); padding: 0 var(--dl-space-2) 0 var(--sow-rail-x); background: var(--dl-header-bg); box-shadow: 0 1px 0 var(--dl-color-hairline); } /* token-ok: 1px hairline */
+  --sow-rail-x: var(--dl-space-2); --sow-rail-w: var(--dl-space-4); --sow-rail-gap: var(--dl-space-2); --sow-gutter: calc(var(--sow-rail-x) + var(--sow-rail-w) + var(--sow-rail-gap));
+  /* named layout sizes (one place to read or tune them; the dev sizer build overrides these on :root) */
+  --sow-chip-x: var(--sow-rail-x); --sow-roll-w: calc(var(--dl-space-8) + var(--dl-space-1)); --sow-name-pad: var(--dl-space-3); --sow-name-size: var(--dl-type-body-size);
+  --sow-row-base: var(--dl-hit-comfortable); --sow-tick-base: var(--dl-space-6); --sow-date-col: calc(var(--dl-space-12) + var(--dl-space-2));
+  --sow-dock-tab-h: max(var(--dl-hit-min), calc(var(--dl-hit-comfortable) * var(--sow-k-nav))); }
+.sow-bar { position: sticky; top: 0; z-index: var(--dl-z-header); height: var(--sow-bar-height); display: flex; align-items: center; gap: var(--dl-space-1); padding: 0 var(--dl-space-2) 0 var(--sow-chip-x); background: var(--dl-header-bg); box-shadow: 0 1px 0 var(--dl-color-hairline); } /* token-ok: 1px hairline */
 .sow-bar .sow-ib svg { width: var(--dl-space-5); height: var(--dl-space-5); }
 .sow-scrim--clear { background: transparent; }
 /* class chip: 36 drawn, 44 hit; ≡ always, ⌄/⌃, scope dots on the lower edge */
@@ -420,15 +424,15 @@
 .sow-main--list { padding-top: 0; padding-right: 0; padding-left: var(--sow-gutter); gap: 0; }
 .sow-grid table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 .sow-grid th, .sow-grid td { text-align: center; padding: 0; }
-.sow-grid .r { width: calc(var(--dl-space-8) + var(--dl-space-1)); color: var(--dl-color-text-faint); font-size: var(--dl-type-footnote-size); font-variant-numeric: tabular-nums; }
+.sow-grid .r { width: var(--sow-roll-w); color: var(--dl-color-text-faint); font-size: var(--dl-type-footnote-size); font-variant-numeric: tabular-nums; }
 .sow-grid .n { text-align: left; }
-.sow-grid { --sow-tick-col: calc((var(--dl-space-12) + var(--dl-space-2)) * var(--sow-k-dates)); }
+.sow-grid { --sow-tick-col: calc(var(--sow-date-col) * var(--sow-k-dates)); }
 .sow-grid .d, .sow-grid td:not(.n):not(.r) { width: var(--sow-tick-col); }
 .sow-grid thead th { position: sticky; top: var(--sow-bar-height); z-index: 1; height: var(--sow-head-h); background: var(--dl-header-bg); box-shadow: inset 0 -1px 0 var(--dl-color-hairline); font-weight: 500; } /* token-ok: hairline */
 .sow-grid thead th.d { position: sticky; }
-.sow-th__names { position: relative; width: 100%; min-height: var(--sow-head-h); display: flex; align-items: center; justify-content: space-between; padding: 0 0 0 var(--dl-space-3); border: 0; background: none; color: var(--dl-color-text-muted); font: inherit; font-size: var(--dl-type-footnote-size); font-weight: 500; cursor: pointer; }
+.sow-th__names { position: relative; width: 100%; min-height: var(--sow-head-h); display: flex; align-items: center; justify-content: space-between; padding: 0 0 0 var(--sow-name-pad); border: 0; background: none; color: var(--dl-color-text-muted); font: inherit; font-size: var(--dl-type-footnote-size); font-weight: 500; cursor: pointer; }
 .sow-th__names svg { width: var(--dl-hit-min); height: var(--dl-space-4); color: var(--dl-color-text-faint); flex: none; }
-.sow-th__find { display: flex; align-items: center; gap: var(--dl-space-2); min-height: var(--sow-head-h); padding-left: var(--dl-space-3); box-shadow: inset 0 -2px 0 var(--dl-color-accent); color: var(--dl-color-accent); } /* token-ok: underline */
+.sow-th__find { display: flex; align-items: center; gap: var(--dl-space-2); min-height: var(--sow-head-h); padding-left: var(--sow-name-pad); box-shadow: inset 0 -2px 0 var(--dl-color-accent); color: var(--dl-color-accent); } /* token-ok: underline */
 .sow-th__find > svg { width: var(--dl-space-4); height: var(--dl-space-4); flex: none; }
 .sow-th__find input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--dl-color-text); font: inherit; font-size: var(--dl-type-callout-size); }
 .sow-th__find input::-webkit-search-cancel-button { appearance: none; }
@@ -444,9 +448,9 @@
 .sow-grip i { width: 3px; height: var(--dl-space-5); border-radius: var(--dl-radius-pill) 0 0 var(--dl-radius-pill); background: var(--dl-color-text-faint); opacity: .35; } /* token-ok: 3 px edge grip (spec) */
 .sow-grip.is-open i { background: var(--dl-color-accent); opacity: .8; }
 /* rows: the kit's 48 px rows; the tick box draws at 24 inside a 44 px button */
-.sow-grid { --sow-tick: calc(var(--dl-space-6) * var(--sow-k-ticks)); --sow-tick-gap: max(0px, calc((var(--dl-hit-min) - var(--sow-tick)) / 2)); --sow-row-h: calc(var(--dl-hit-comfortable) * var(--sow-k-rows)); } /* token-ok: 0 */
+.sow-grid { --sow-tick: calc(var(--sow-tick-base) * var(--sow-k-ticks)); --sow-tick-gap: max(0px, calc((var(--dl-hit-min) - var(--sow-tick)) / 2)); --sow-row-h: calc(var(--sow-row-base) * var(--sow-k-rows)); } /* token-ok: 0 */
 .sow-grid tbody td { height: max(var(--dl-hit-min), var(--sow-row-h)); box-shadow: inset 0 -1px 0 var(--dl-color-hairline); } /* token-ok: hairline */
-.sow-grid td.n { padding-left: var(--dl-space-3); font-size: var(--dl-type-body-size); line-height: var(--dl-type-body-line); color: var(--dl-color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.sow-grid td.n { padding-left: var(--sow-name-pad); font-size: var(--sow-name-size); line-height: var(--dl-type-body-line); color: var(--dl-color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .sow-grid tr.sel td { background: color-mix(in srgb, var(--dl-chip-accent-bg) 70%, transparent); }
 .sow-grid tr { scroll-margin-top: calc(var(--sow-bar-height) + var(--sow-head-h)); }
 .sow-grid .t { display: inline-grid; place-items: center; width: max(var(--dl-hit-min), var(--sow-tick)); height: max(var(--dl-hit-min), var(--sow-tick)); padding: 0; border: var(--sow-tick-gap) solid transparent; background-clip: padding-box; border-radius: calc(var(--dl-radius-sm) * var(--sow-k-ticks) + var(--sow-tick-gap));

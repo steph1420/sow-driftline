@@ -50,7 +50,7 @@ describe('P1 checklist chrome (RDs2)', () => {
     const tok = Object.fromEntries([...readFileSync('src/vendor/driftline/tokens.css', 'utf8').matchAll(/(--dl-[\w-]+):\s*(\d+)px/g)].map((m) => [m[1], +m[2]!]))
     const css = readFileSync('src/shell/shell.css', 'utf8')
     const px = (v: string) => [...v.matchAll(/var\((--dl-[\w-]+)\)/g)].reduce((a, m) => a + tok[m[1]!]!, 0)
-    const col = css.match(/--sow-tick-col:\s*calc\(\((.+?)\) \* var\(--sow-k-dates\)\);/)!; expect(px(col[1]!)).toBe(56)
+    expect(css).toMatch(/--sow-tick-col:\s*calc\(var\(--sow-date-col\) \* var\(--sow-k-dates\)\);/); const col = css.match(/--sow-date-col:\s*calc\((.+?)\);/)!; expect(px(col[1]!)).toBe(56) // sizer: named
     expect(css).toMatch(/\.sow-grid \.t \{[^}]*width: max\(var\(--dl-hit-min\), var\(--sow-tick\)\)/)
     expect(css).toMatch(/\.sow-th__date \{[^}]*min-height: var\(--sow-head-h\)/)
   })

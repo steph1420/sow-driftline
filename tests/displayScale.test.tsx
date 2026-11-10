@@ -62,15 +62,15 @@ describe('P11 display size', () => {
     expect(shell).not.toMatch(/\bzoom\s*:/)
   })
   it('V08-P11-07 CSS: tickboxes draw smaller but keep a 44 px hit area; rows never drop below 44 px', () => {
-    expect(shell).toMatch(/--sow-tick:\s*calc\(var\(--dl-space-6\) \* var\(--sow-k-ticks\)\)/) // RDs2: 24 px box (kit), 44 px button
+    expect(shell).toMatch(/--sow-tick:\s*calc\(var\(--sow-tick-base\) \* var\(--sow-k-ticks\)\)/); expect(shell).toMatch(/--sow-tick-base: var\(--dl-space-6\);/) // RDs2: 24 px box (kit), 44 px button
     expect(shell).toMatch(/\.sow-grid \.t\s*\{[^}]*width:\s*max\(var\(--dl-hit-min\), var\(--sow-tick\)\)/)
     expect(shell).toMatch(/\.sow-grid \.t\s*\{[^}]*border:\s*var\(--sow-tick-gap\) solid transparent/)
     expect(shell).toMatch(/\.sow-grid tbody td\s*\{[^}]*height:\s*max\(var\(--dl-hit-min\), var\(--sow-row-h\)\)/)
   })
   it('V08-P11-08 CSS: navigation (bar, controls, dock) and date headers follow their factors with 44 px floors', () => {
     expect(shell).toMatch(/--sow-bar-height:\s*max\(var\(--dl-hit-min\), calc\(var\(--dl-hit-comfortable\) \* var\(--sow-k-nav\)\)\)/) // RDs2: 48 px bar
-    expect(shell).toMatch(/\.dl-dock__tab\s*\{[^}]*min-height:\s*max\(var\(--dl-hit-min\), calc\(var\(--dl-hit-comfortable\) \* var\(--sow-k-nav\)\)\)/)
-    expect(shell).toMatch(/--sow-tick-col:\s*calc\(\(var\(--dl-space-12\) \+ var\(--dl-space-2\)\) \* var\(--sow-k-dates\)\)/) // RDs2: 56 px date columns
+    expect(shell).toMatch(/\.dl-dock__tab\s*\{[^}]*min-height:\s*var\(--sow-dock-tab-h\)/); expect(shell).toMatch(/--sow-dock-tab-h: max\(var\(--dl-hit-min\), calc\(var\(--dl-hit-comfortable\) \* var\(--sow-k-nav\)\)\)/)
+    expect(shell).toMatch(/--sow-tick-col:\s*calc\(var\(--sow-date-col\) \* var\(--sow-k-dates\)\)/); expect(shell).toMatch(/--sow-date-col: calc\(var\(--dl-space-12\) \+ var\(--dl-space-2\)\);/) // RDs2: 56 px date columns
     expect(shell).toMatch(/--sow-head-h: max\(var\(--dl-hit-min\), calc\(var\(--dl-hit-min\) \* var\(--sow-k-dates\)\)\)/)
   })
 })

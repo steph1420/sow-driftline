@@ -7,6 +7,8 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // Stable = /sow-driftline/. Beta repo builds with DL_BASE=/sow-driftline-beta/ VITE_DL_FLAVOR=beta.
 const BASE = process.env.DL_BASE || '/sow-driftline/'
 const BETA = process.env.VITE_DL_FLAVOR === 'beta'
+// Dev sizer build (own Pages site): no service worker, so it never caches over or under Beta on the shared origin.
+const SIZER = process.env.VITE_DL_SIZER === '1'
 
 export default defineConfig({
   base: BASE,
@@ -14,6 +16,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      disable: SIZER,
       registerType: 'prompt', // F-SH-06: never reload mid-work (src/sync/updates.ts)
       injectRegister: false,
       includeAssets: ['favicon.svg', 'pwa-192.png', 'pwa-512.png'],

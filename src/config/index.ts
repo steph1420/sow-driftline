@@ -9,8 +9,10 @@ export const FLAVOR_LABEL = FLAVOR === 'beta' ? 'Beta' : 'Stable'
 export const channelUrl = (ch: Flavor, origin = location.origin) => `${origin}/${ch === 'beta' ? 'sow-driftline-beta' : 'sow-driftline'}/`
 /** v0.5: Beta and Stable share the github.io origin, so they must never share keys (token, outbox, tabs channel). */
 export const namespaceFor = (f: Flavor) => (f === 'beta' ? 'sow-driftline-beta' : 'sow-driftline')
+/** Dev sizer build (VITE_DL_SIZER=1, own Pages site): keeps its own keys, so it always runs on demo data and never touches Beta's. */
+export const SIZER = import.meta.env.VITE_DL_SIZER === '1'
 export const CONFIG = {
-  namespace: namespaceFor(FLAVOR),
+  namespace: SIZER ? 'sow-driftline-sizer' : namespaceFor(FLAVOR),
   idbName: 'sow-driftline',
   storageVersion: 1,
   timing: { pendingGraceMs: 3000, panelSettlePx: 24, panelSettleMs: 120, updateCheckMs: 5 * 60 * 1000, nameToastMs: 2600, railBubbleMs: 650, saveRetryMs: 15000, snapshotEveryMs: 10 * 60 * 1000, quickSyncMs: 4000, gripSnapMinPx: 8, swipeEngagePx: 10, swipeExtendPx: 28, swipeExtendFrac: 0.6, jumpFlashMs: 1200, sheetOpenDragPx: 64, holdMs: 500, pressMs: 160, shortcutHoldMs: 100, devHoldMs: 500, quickOpenPx: 96, quickFlickPxMs: 0.5, undoSlidePx: 16, undoCancelPx: 28, prefsPushMs: 2000, stillToComeShown: 5, modeKeepMs: 20000 },
