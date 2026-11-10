@@ -33,7 +33,7 @@ export function Overview() {
   const [session, setSession] = useState(false); const year = shownYear(viewing, today)
   const [filter, setFilter] = useState<Filter>({ classKey: null, kind: null })
   const [menu, setMenu] = useState<{ card: Card; at: DOMRect } | null>(null)
-  const [dmenu, setDmenu] = useState<{ card: Card; d: OvDate; at: DOMRect; box: DOMRect } | null>(null) // 2A: one date held
+  const [dmenu, setDmenu] = useState<{ card: Card; d: OvDate; at: DOMRect; box: DOMRect } | null>(null) // 2A: one date held (beta.12: or an All dates row)
   const [toast, setToast] = useState<ToastMsg | null>(null); const doneToast = useCallback(() => setToast(null), [])
   const said = (text: string) => setToast({ id: Date.now(), text, undo: /^(Moved|Added|Topic)/.test(text) ? () => useApp.getState().undo() : undefined })
   const [sheet, setSheet] = useState<Open>(null); const [all, setAll] = useState<string | null>(null)
@@ -44,7 +44,8 @@ export function Overview() {
   const dact = (m: NonNullable<typeof dmenu>, a: DateAction) => { setDmenu(null); if (a === 'open') openSession(m.card.classKey, m.d.sessionId); else setSheet({ kind: a === 'share' ? 'share' : 'edit', card: m.card, sid: m.d.sessionId }) }
   const chip = (label: string, on: boolean, next: Filter) => <Chip key={label} label={label} on={on} onClick={() => setFilter(next)} />
   return (<div className="sow-ov">
-    {allCard ? <Push className="sow-push" onBack={() => setAll(null)}><AllDates card={allCard} today={today} onBack={() => setAll(null)} onOpen={(sid) => openSession(allCard.classKey, sid)} onAdd={() => setSheet({ kind: 'new', card: allCard })} onShare={(sid) => setSheet({ kind: 'share', card: allCard, sid })} /></Push>
+    {allCard ? <Push className="sow-push" onBack={() => setAll(null)}><AllDates card={allCard} today={today} onBack={() => setAll(null)} onOpen={(sid) => openSession(allCard.classKey, sid)} onAdd={() => setSheet({ kind: 'new', card: allCard })} onShare={(sid) => setSheet({ kind: 'share', card: allCard, sid })}
+      held={dmenu?.card.subjectKey === allCard.subjectKey ? dmenu.d.sessionId : null} onHold={(d, el) => { const r = el.getBoundingClientRect(); setDmenu({ card: allCard, d, at: r, box: r }) }} /></Push>
       : <>
         <header className="sow-ovh"><h1 className="sow-ovh__title">Overview</h1>
           <span className="sow-ovh__date">{dateLabel(today)}{yearSwitch && <> · <button className={`sow-ovh__year${viewing ? ' past' : ''}`} aria-label={`Session, ${year.label}`} onClick={() => setSession(true)}>{year.label} <i aria-hidden>{GLYPH.down}</i></button></>}</span></header>

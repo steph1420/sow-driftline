@@ -107,8 +107,11 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
 
 /* v0.7.0 S6 (step 5): date sheet, single-date phone list */
 .sow-ds { gap: var(--dl-space-3); }
-.sow-ds__strip { display: flex; gap: var(--dl-space-2); overflow-x: auto; padding: var(--dl-space-1) var(--dl-space-3) var(--dl-space-3); scroll-snap-type: x proximity; }
-.sow-ds__chip { flex: none; scroll-snap-align: center; min-width: 6.5rem; /* token-ok */ display: flex; flex-direction: column; align-items: center; gap: var(--dl-space-1); padding: var(--dl-space-2) var(--dl-space-3); border-radius: var(--dl-radius-lg); background: var(--dl-color-bg); box-shadow: inset 0 0 0 1px var(--dl-color-hairline); color: var(--dl-color-text); font: inherit; cursor: pointer; } /* token-ok */
+/* beta.12 (t240u): the pill strip never shrinks (a scroller's min-height is 0, so the 85vh sheet squeezed it when the
+   year picker opened); it keeps two lines + focus ring room and scrolls sideways with no visible scrollbar. */
+.sow-ds__strip { display: flex; flex-shrink: 0; min-height: calc(var(--sow-ds-pill-h) + var(--dl-space-1) + var(--dl-space-3)); gap: var(--dl-space-2); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: var(--dl-space-1) var(--dl-space-3) var(--dl-space-3); scroll-snap-type: x proximity; }
+.sow-ds__strip::-webkit-scrollbar { display: none; }
+.sow-ds__chip { flex: none; scroll-snap-align: center; min-width: 6.5rem; /* token-ok */ min-height: var(--sow-ds-pill-h); flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--dl-space-1); padding: var(--dl-space-2) var(--dl-space-3); border-radius: var(--dl-radius-lg); background: var(--dl-color-bg); box-shadow: inset 0 0 0 1px var(--dl-color-hairline); color: var(--dl-color-text); font: inherit; cursor: pointer; } /* token-ok */
 .sow-ds__chip small { font-size: var(--dl-type-caption-size); color: var(--dl-color-text-muted); }
 .sow-ds__chip b { font-size: var(--dl-type-callout-size); }
 .sow-ds__chip.old small { color: var(--dl-color-warning); }
@@ -228,8 +231,9 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
 .sow-scrim--blur { z-index: var(--dl-z-sheet); backdrop-filter: blur(var(--dl-blur-card)); -webkit-backdrop-filter: blur(var(--dl-blur-card)); }
 .sow-cardmenu { position: fixed; z-index: calc(var(--dl-z-sheet) + 1); margin-top: var(--dl-space-2); min-width: calc(var(--dl-space-16) * 4); padding: var(--dl-space-1) 0; background: var(--dl-color-surface-solid); box-shadow: 0 var(--dl-space-3) var(--dl-space-8) var(--dl-color-shadow); }
 .sow-cardmenu.up { margin: 0 0 var(--dl-space-2); }
-.sow-cardmenu .dl-row { font-size: var(--dl-type-body-size); color: var(--dl-color-text); }
-.sow-cardmenu .dl-row svg { color: var(--dl-color-text-muted); }
+/* beta.12 (t240u): every menu row the same compact height (48); icons one small size (Open's check has no width of its own). */
+.sow-cardmenu .dl-row { min-height: var(--sow-menu-row); flex: none; font-size: var(--dl-type-body-size); color: var(--dl-color-text); }
+.sow-cardmenu .dl-row svg { color: var(--dl-color-text-muted); width: var(--sow-menu-icon); height: var(--sow-menu-icon); flex: none; }
 .sow-cardmenu .dl-row + .dl-row::before { left: 0; }
 .sow-ad { display: flex; flex-direction: column; gap: var(--dl-space-2); }
 .sow-page__head { display: flex; align-items: center; gap: var(--dl-space-2); margin-left: calc(var(--dl-space-3) * -1); }
@@ -353,6 +357,8 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
   --sow-tick-stroke: 3; --sow-col-gap: 0px; /* token-ok: 0 */
   --sow-edge-min: calc(var(--dl-space-3) + var(--dl-space-1) / 4); /* beta.5: the right-most tick box never sits closer than 13 px to the screen edge (the sizer look at 100 %) */
   --sow-qc-pill-h: var(--dl-space-8); /* 32 (44) */
+  --sow-menu-row: calc(var(--dl-hit-min) + var(--dl-space-1)); --sow-menu-icon: var(--dl-space-5); /* beta.12: 48 · 20 */
+  --sow-ds-pill-h: calc(var(--dl-space-2) * 2 + var(--dl-space-1) + var(--dl-type-caption-line) + var(--dl-type-callout-line)); /* beta.12: 2 lines, 60 */
   --sow-qc-pad: var(--dl-space-3); --sow-qc-radius: var(--dl-radius-xl); --sow-qc-num: var(--dl-type-title1-size); --sow-qc-pill-font: var(--dl-type-callout-size); --sow-qc-dot: var(--dl-space-1);
   --sow-dock-tab-h: max(var(--dl-hit-min), calc(var(--dl-hit-comfortable) * var(--sow-k-nav)));
   --sow-dock-font: var(--dl-type-caption-size); --sow-dock-tab-px: calc(var(--dl-space-2) * 1.25); --sow-strip-w: var(--dl-space-12); --sow-strip-h: calc(var(--dl-space-1) + var(--dl-space-1) / 4); --sow-strip-op: 70%;
@@ -627,8 +633,6 @@ body:has(.sow-grid thead) .sow-bar::after { content: ''; position: absolute; lef
 .sow-share__dot { position: absolute; top: var(--dl-space-2); right: var(--dl-space-2); width: var(--dl-space-1); height: var(--dl-space-1); border-radius: var(--dl-radius-pill); background: var(--dl-color-warning); }
 .sow-share__all { flex: none; min-height: var(--dl-hit-min); padding: 0 var(--dl-space-2); border: 0; background: none; color: var(--dl-color-text-faint); font: inherit; font-size: var(--dl-type-callout-size); cursor: pointer; }
 .sow-ad__item { position: relative; }
-.sow-ad__item .sow-ad__n { margin-right: calc(var(--dl-hit-min) - var(--dl-space-3)); }
-.sow-ad__share { position: absolute; top: 50%; right: calc(var(--dl-space-2) + var(--dl-space-4)); width: var(--dl-hit-min); height: var(--dl-hit-min); margin-top: calc(var(--dl-hit-min) / -2); color: var(--dl-color-text-muted); opacity: 0.8; }
 
 /* ---- beta.9 chips: one sliding blob per group (Chips.tsx); at rest it is the chip's own fill ---- */
 .sow-fchip { position: relative; isolation: isolate; }

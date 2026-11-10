@@ -57,10 +57,11 @@ describe('beta.9 sharing (2A, 2B, 2C)', () => {
     const before = within(pills).getAllByRole('button', { name: /^Share / }).length; fireEvent.click(screen.getByRole('button', { name: 'All dates to share' }))
     expect(within(pills).getAllByRole('button', { name: /^Share / }).length).toBeGreaterThan(before)
   })
-  it('B9-06 (2C) every All dates row has a share icon that opens the share sheet on that date', async () => {
+  it('B9-06 (2C, beta.12 t240u) an All dates row shares that date through its hold menu (the row share icon is gone)', async () => {
     await ov(); fireEvent.click(screen.getByRole('button', { name: 'All dates, KG-A English HW' }))
-    const rows = document.querySelectorAll('.sow-ad__row'); expect(document.querySelectorAll('.sow-ad__share').length).toBe(rows.length)
-    fireEvent.click(screen.getByRole('button', { name: 'Share Mon 2 Nov' })); expect(screen.getByRole('dialog', { name: /^Share · Mon 2 · KG-A English HW/ })).toBeTruthy()
+    expect(document.querySelectorAll('.sow-ad__share').length).toBe(0)
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Mon 2 Nov,/ })); fireEvent.click(screen.getByRole('menuitem', { name: 'Share' }))
+    expect(screen.getByRole('dialog', { name: /^Share · Mon 2 · KG-A English HW/ })).toBeTruthy()
   })
 })
 
