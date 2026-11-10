@@ -4,7 +4,7 @@
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
 import { DELAY, SHIFT } from '../config/motion'
-import { useMotion } from '../ui/useMotionOn'
+import { useMoment, useMotion } from '../ui/useMotionOn'
 import { useApp, type Tab } from '../store/store'
 import { CONFIG } from '../config'
 import { pullOpens } from '../data/gestures'
@@ -32,15 +32,15 @@ function usePullUp() {
 }
 
 export function Dock() {
-  const tab = useApp((s) => s.tab); const setTab = useApp((s) => s.setTab); const mk = useMotion(); const reduce = !mk.on; const pull = usePullUp()
+  const tab = useApp((s) => s.tab); const setTab = useApp((s) => s.setTab); const mk = useMotion(); const reduce = !mk.on; const pull = usePullUp(); const dk = useMoment('dock'); const moved = useRef(false) // beta.9: pill stretch + icon hop, after a tab change only
   return (
     <motion.nav className="dl-dock" role="tablist" aria-label="Sections" initial={reduce ? false : { y: SHIFT.dock, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={mk.spring('settle', DELAY.dock)}>
       {TABS.map((t) => { const handle = t.id === 'checklist'
         return <button key={t.id} role="tab" aria-label={t.label} aria-selected={tab === t.id} className={`dl-dock__tab ${tab === t.id ? 'is-on' : ''}${handle ? ' sow-pull' : ''}`}
           aria-description={handle ? 'Swipe up for Quick overview' : undefined} {...(handle ? pull.handlers : undefined)}
-          onClick={() => { if (handle && pull.eat.current) { pull.eat.current = false; return } setTab(t.id) }}>
-          {tab === t.id && <motion.span layoutId="dock-pill" className="dl-dock__pill" transition={mk.spring('snappy')} />}
-          <motion.span key={tab === t.id ? 'on' : 'off'} className="dl-dock__icon" aria-hidden initial={reduce || tab !== t.id ? false : { scale: 0.6, y: 3 }} animate={{ scale: 1, y: 0 }} transition={mk.spring('pop')}>{t.icon}</motion.span>{t.label}
+          onClick={() => { if (handle && pull.eat.current) { pull.eat.current = false; return } moved.current = true; setTab(t.id) }}>
+          {tab === t.id && <motion.span layoutId="dock-pill" className="dl-dock__pill" initial={moved.current ? undefined : false} animate={dk.on ? { scaleX: [1.18, 1], scaleY: [0.9, 1] } : undefined} transition={{ ...dk.spring('snappy'), scaleX: dk.spring('pop'), scaleY: dk.spring('pop') }} />}
+          <motion.span key={tab === t.id ? 'on' : 'off'} className="dl-dock__icon" aria-hidden initial={!dk.on || tab !== t.id ? false : { scale: 0.6, y: 3 }} animate={dk.on && tab === t.id ? { scale: 1, y: [0, -4, 0] } : { scale: 1, y: 0 }} transition={{ ...dk.spring('pop'), y: dk.tween(0.32, { times: [0, 0.4, 1], ease: 'easeOut' }) }}>{t.icon}</motion.span>{t.label}
         </button> })}
     </motion.nav>
   )

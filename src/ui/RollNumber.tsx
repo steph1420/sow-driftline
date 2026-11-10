@@ -2,12 +2,12 @@
 // number, plain text (no wrapper), so counts look exactly as before; the rolling wrapper only exists mid-roll.
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { useMotion } from './useMotionOn'
+import { useMoment } from './useMotionOn'
 
 type Roll = { from: number; to: number; dir: number; n: number }
 /** `suffix` is drawn in the same text run at rest ("22/24" stays one string, so kerning is unchanged). */
 export function RollNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
-  const mk = useMotion(); const on = mk.on; const prev = useRef(value); const [roll, setRoll] = useState<Roll | null>(null)
+  const mk = useMoment('count'); const on = mk.on; const prev = useRef(value); const [roll, setRoll] = useState<Roll | null>(null)
   if (value !== prev.current) { const from = prev.current; prev.current = value
     if (on) setRoll((r) => ({ from: r ? r.to : from, to: value, dir: value > from ? 1 : -1, n: (r?.n ?? 0) + 1 })) }
   if (!on || !roll || roll.to !== value) return <>{`${value}${suffix}`}</>

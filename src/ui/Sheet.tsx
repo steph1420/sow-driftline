@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
 import { CONFIG } from '../config'
 import { DUR, EASE, STACK } from '../config/motion'
 import { dragCloses } from '../data/gestures'
-import { useMotion } from './useMotionOn'
+import { useMoment, useMotion } from './useMotionOn'
 
 /** `pull`: px a finger has pulled the sheet up so far (it follows the finger); undefined once it is open. */
 type Props = { label: string; onClose: () => void; className?: string; scrimLabel?: string; pull?: number; behind?: boolean; children: ReactNode }
@@ -50,10 +50,11 @@ export function Sheet({ label, onClose, className = '', scrimLabel, pull, behind
     </div>
   </>)
   const y = pull != null ? (h ? Math.max(0, h - pull) : '100%') : drag ?? 0; const follow = pull != null || drag != null
-  const scrim = pull != null ? 0.5 : drag != null ? 0.7 : 1
+  const wt = useMoment('sheets') // beta.9: the backdrop follows the drag (fades as the sheet goes down / rises as it is pulled up)
+  const scrim = pull != null ? (wt.on && h ? Math.min(1, pull / h) : 0.5) : drag != null ? (wt.on && h ? Math.max(0.15, 1 - drag / h) : 0.7) : 1
   return (<>
     <motion.button className={`sow-scrim${state}`} aria-label={scrimLabel ?? `Close ${label.toLowerCase()}`} onClick={onClose}
-      initial={{ opacity: 0 }} animate={{ opacity: scrim }} exit={{ opacity: 0, transition: mk.tween(DUR.exit) }} transition={mk.tween(DUR.fade)} />
+      initial={{ opacity: 0 }} animate={{ opacity: scrim }} exit={{ opacity: 0, transition: mk.tween(DUR.exit) }} transition={pull != null || drag != null ? (wt.on ? { duration: 0 } : mk.tween(DUR.fade)) : mk.tween(DUR.fade)} />
     <motion.div ref={ref} className={`sow-sheet sow-sheet--m ${className}${state}`.trim()} role="dialog" aria-label={label} style={{ ...(style as CSSProperties | undefined), originY: 0 }}
       initial={{ y: '100%' }} animate={{ y, scale: behind ? STACK.scale : 1 }} exit={{ y: '100%', transition: mk.tween(DUR.exit, { ease: EASE.in }) }}
       transition={follow ? { y: { duration: 0 }, scale: mk.spring('sheet') } : mk.spring('sheet')}>

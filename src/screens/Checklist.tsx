@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CONFIG } from '../config'
 import type { SheetState } from '../data/contract'
 import { AzRail, firstRowFor, letterOf } from './AzRail'
@@ -15,11 +15,13 @@ import { cellKey } from '../sync/ops'
 import { Hint } from './Hint'
 import { AnimatePresence, motion } from 'framer-motion'
 import { DUR, SHIFT, STAGGER } from '../config/motion'
-import { useMotion } from '../ui/useMotionOn'
+import { useMoment, useMotion } from '../ui/useMotionOn'
+import { UndoToast, type ToastMsg } from '../ui/UndoToast'
+import { Burst } from '../ui/Life'
 
 /** anim/proto: the check mark pops in on a tick (overshoot spring) and a ring bursts from the box; a clear shrinks it out. */
 function TickMark({ fx }: { fx: boolean }) {
-  const mk = useMotion()
+  const mk = useMoment('ticks') // beta.9: its own switch in Motion details
   return <>{fx && <motion.i className="sow-t__ring" aria-hidden initial={{ scale: 0.7, opacity: 0.9 }} animate={{ scale: 1.45, opacity: 0 }} transition={mk.tween(DUR.ring, { ease: 'easeOut' })} />}
     <motion.span className="sow-t__mark" initial={{ scale: 0.3, opacity: 0, rotate: -18 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} exit={{ scale: 0.4, opacity: 0, transition: mk.tween(DUR.fade) }} transition={mk.spring('pop')}><Icon name="check" /></motion.span></>
 }
@@ -42,6 +44,8 @@ const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
 export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railBubble = true, swipe = true, dateCols, drawer = false, focusSessionId = null, subjectKey = null, pendingOnly = false, onPick }: Props) {
   const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
   const mk = useMotion(); const mo = mk.on; const [pop, setPop] = useState<string | null>(null) // anim/proto: the cell the finger just ticked
+  const tk = useMoment('ticks'); const rf = useMoment('reflow'); const [undo, setUndo] = useState<ToastMsg | null>(null); const doneUndo = useCallback(() => setUndo(null), []) // beta.9
+  const [burst, setBurst] = useState(false); const full = useRef<{ key: string; done: Record<string, boolean> } | null>(null)
   const order = state.subjects.map((x) => x.subjectKey); const was = useRef({ key: `${classKey}|${subjectKey}`, dir: 0 })
   const sk = `${classKey}|${subjectKey}`; if (was.current.key !== sk) { const a = order.indexOf(was.current.key.split('|')[1] ?? ''), b = order.indexOf(subjectKey ?? ''); was.current = { key: sk, dir: a >= 0 && b >= 0 && b < a ? -1 : 1 } }
   const anchor = focusColumn(c0, today, focusSessionId)
@@ -112,6 +116,10 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   }
   const dup = new Set(names.filter((n, i) => names.indexOf(n) !== i)) // Q-DUP-1: roll tells twins apart
   const doneOn = (sid: string) => c0.pupils.length - toGo(c0, sid)
+  // beta.9 moment "done": a small burst when a date on screen reaches all done by a tick (not on load or a class switch)
+  const allDone = Object.fromEntries(c0.columns.map((x) => [x.sessionId, c0.pupils.length > 0 && toGo(c0, x.sessionId) === 0]))
+  useEffect(() => { const f = full.current; full.current = { key: sk, done: allDone }; if (!f || f.key !== sk || !onTick) return
+    if (Object.entries(allDone).some(([sid, d]) => d && f.done[sid] === false)) setBurst(true) }) // eslint-disable-line react-hooks/exhaustive-deps
   const matches = pill?.trim() ? rankMatches(pill.trim(), c.pupils.map((p) => ({ roll: p.roll, name: p.name }))).length : 0
   const head: HeadCol[] = cols.map((i, ci) => { const s = c.columns[i]!; return { sessionId: s.sessionId, date: s.date, kind: s.kind, topic: s.topic, done: doneOn(s.sessionId), total: c0.pupils.length, past: s.date < today, sel: i === anchor.index, second: two && ci === 0, week: weekStart(i) } })
   const sheet = c0.columns.find((x) => x.sessionId === dates)
@@ -147,7 +155,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
             onFind={(q) => { setPill(q); if (q.trim()) find(q.trim()) }} drawer={drawer && cols0.length > 0 && c.columns.length > 1 ? { open: two, set: (o) => setView({ phoneCols: o ? 2 : 1 }) } : undefined} />
           <tbody key={sk}>{c.pupils.map((p, r) => (
             <motion.tr key={p.roll} ref={(el: HTMLTableRowElement | null) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}
-              initial={mo ? rowIn(r, was.current.dir) : false} animate={{ opacity: 1, x: 0, y: 0 }} transition={mk.spring('settle', r * STAGGER.rows)}>
+              layout={rf.on ? 'position' : false} initial={mo ? rowIn(r, was.current.dir) : false} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ ...mk.spring('settle', r * STAGGER.rows), layout: rf.spring('settle') }}>
               <td className="r dl-num">{p.roll}</td>
               <td className="n" onClick={() => { setSel(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>
               {cols.map((i, ci) => { const s = c.columns[i]!; const fut = s.date > today; const real = c.ticked(s.sessionId, p.roll)
@@ -156,13 +164,13 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
                 return <td key={s.sessionId} className={[weekStart(i) && 'wk', two && ci === 0 && 'c2'].filter(Boolean).join(' ') || undefined}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}${pv ? ' paint' : ''}${lt && on ? ' late' : ''}`} data-r={r} data-c={ci} aria-pressed={real} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${real ? (lt ? 'done, late' : 'done') : 'not yet'}`}
                     onPointerDown={(e) => down(e, s.sessionId, p.roll, real)} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { paint.current = null; setPainted(null) }}
                     onClick={() => { if (eatClick.current) { eatClick.current = false; return } setPop(real ? null : `${s.sessionId}|${p.roll}`); onTick(s.sessionId, p.roll) }}>
-                    {mo ? <AnimatePresence initial={false}>{on && <TickMark key="m" fx={pop === `${s.sessionId}|${p.roll}`} />}</AnimatePresence> : on ? <Icon name="check" /> : null}</button>
+                    {tk.on ? <AnimatePresence initial={false}>{on && <TickMark key="m" fx={pop === `${s.sessionId}|${p.roll}`} />}</AnimatePresence> : on ? <Icon name="check" /> : null}</button>
                   : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? <Icon name="check" /> : null}</span>}</td> })}
             </motion.tr>))}</tbody>
         </table>
       </div>
       <AzRail names={names} onJump={go} current={letter} bubble={railBubble} />
-      {sheet && <DateSheet viewOnly={!onTick} columns={c0.columns} current={sheet.sessionId} today={today} onPick={(sid) => onPick?.(sid)} onClose={() => setDates(null)} subjectKey={subjectKey ?? ''} kind={sheet.kind} ticks={doneOn(sheet.sessionId)} onDone={setToast} />}
+      {sheet && <DateSheet viewOnly={!onTick} columns={c0.columns} current={sheet.sessionId} today={today} onPick={(sid) => onPick?.(sid)} onClose={() => setDates(null)} subjectKey={subjectKey ?? ''} kind={sheet.kind} ticks={doneOn(sheet.sessionId)} onDone={(text) => setUndo({ id: Date.now(), text, undo: /^(Moved|Added|Topic)/.test(text) ? () => useApp.getState().undo() : undefined })} />}
       {/* v0.7.0 S9 (F-LT-02): mode pill, only once this date's due time has passed */}
       {onTick && pillVisible(focus.date, nowMs()) && <button className={`sow-mode ${markMode}`} aria-pressed={markMode === 'back'} aria-label={markMode === 'late' ? 'Marking late submissions, tap for back-date' : 'Marking on back-date, tap for late submissions'}
         onClick={() => useApp.getState().setMarkMode(markMode === 'late' ? 'back' : 'late')}><i aria-hidden>{GLYPH.clock}</i><span>{markMode === 'late' ? 'Marking late submissions' : 'Marking on back-date'}</span><span className="sow-mode__sw" aria-hidden /></button>}
@@ -170,6 +178,8 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
         <i aria-hidden>{GLYPH.clock}</i><span><b>Late Submission</b><small>Marked after {new Date(focus.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')} · swipe to dismiss</small></span></div></div>}
       {onTick && !sheet && <Hint ids={['swipe', 'grip', 'quick']} />}
       {toast && <div className="dl-toast-region"><div className="dl-toast dl-tone--accent" role="status"><span className="dl-toast__dot" />{toast}</div></div>}
+      <UndoToast msg={undo} onDone={doneUndo} />
+      {burst && <Burst onDone={() => setBurst(false)} />}
     </>
   )
 }

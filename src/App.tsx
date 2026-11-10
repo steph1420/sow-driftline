@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { MotionConfig, motion } from 'framer-motion'
-import { DUR, cssDurations } from './config/motion'
+import { DUR, cssDurations, liveMoments } from './config/motion'
+import { useRubberBand } from './ui/useRubberBand'
 import { useAnimScale, useMotion } from './ui/useMotionOn'
 import { sheetLabel, useApp } from './store/store'
 import { Bar } from './shell/Bar'
@@ -37,13 +38,16 @@ export function App() {
   useEffect(() => { for (const [k, v] of Object.entries(scaleVars(scale))) document.documentElement.style.setProperty(k, v) }, [scale])
   const mk = useMotion(); const animK = useAnimScale() // t210u: Animation scale
   useEffect(() => { const css = cssDurations(animK); const root = document.documentElement.style; for (const n of ['--dl-dur-instant', '--dl-dur-quick', '--dl-dur-calm', '--dl-dur-deliberate', '--dl-motion-slow']) root.removeProperty(n); if (css) for (const [n, v] of Object.entries(css)) root.setProperty(n, v) }, [animK])
+  const moments = useApp((s) => s.moments) // beta.9: the CSS-only moments key off <html data-motion>; the scale is --sow-anim-k
+  useEffect(() => { const r = document.documentElement; r.dataset.motion = liveMoments(animK, moments); r.style.setProperty('--sow-anim-k', String(animK || 1)) }, [animK, moments])
+  const band = useRubberBand()
   const first = useRef(true); useEffect(() => { first.current = false }, []) // anim/proto: the first paint of a tab rises with its rows; later tab changes crossfade
   const layout = wide ? 'desktop' : 'phone'; const dateCols = dateColsFor({ layout, landscape: land, weeks: view.weeks, phoneCols: view.phoneCols })
   const drawer = layout === 'phone' && !(view.weeks && land) // RDs2: 1 or 2 dates, the second a drawer (Col2)
   return (
     <MotionConfig reducedMotion={animK === 0 ? 'always' : 'user'}>
       {tab === 'checklist' && <Bar columns={drawer} />}{/* the class bar belongs to Checklist only (v0.7j Overview, v0.8 S1 Settings) */}
-      <motion.main key={tab} className={`sow-main${tab === 'checklist' ? ' sow-main--list' : ''}`} initial={first.current ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={mk.tween(DUR.fade)}>
+      <motion.main key={tab} className={`sow-main${tab === 'checklist' ? ' sow-main--list' : ''}`} initial={first.current ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={mk.tween(DUR.fade)} style={{ y: band }}>
         {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} today={todayIso()} layout={layout} jump={jump} focusSessionId={focus} onTick={viewOnly ? undefined : tick} onTickMany={viewOnly ? undefined : useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateCols} drawer={drawer} railBubble={dev.railBubble} />}
         {tab === 'overview' && <Overview />}
         {tab === 'settings' && <Settings />}
