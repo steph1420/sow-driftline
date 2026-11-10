@@ -1,4 +1,8 @@
 # Changelog
+## 0.9.0-beta.10 (2026-11-10)
+Steve t224u ("Space wars!"). Beta only, demo data.
+- Share sheet: the date pills and the template chips now sit in their own rows, 6 px apart, and never squeeze or clip each other; each row scrolls sideways. The stray "( )" marks (clipped pill edges) are gone.
+- Share targets: Keep removed. A phone shows Copy, WhatsApp, Messages and More in one row.
 ## 0.9.0-beta.9 (2026-11-10)
 Steve t212u, t219u-t223u. Beta only, demo data.
 - Animations scale: Off, 0.25x, 0.5x, 0.75x, 1x (default), 1.25x, 1.5x, 2x, 3x, 5x. beta.8 values carry over.
