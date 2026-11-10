@@ -1,4 +1,12 @@
 # Changelog
+## 0.9.0-beta.7 (2026-11-10)
+Steve t167u: "I told you to fix the edge glow not the fill... Revert the look and also remove the texture." Beta only, demo data.
+- Quick overview card: the E1 Tide fill (curved crest + bright line) and the top pager bars are back to exactly the beta.5 look. All five card styles (D4, E1–E4), night and day, render pixel-identical to beta.5 (20 card renders compared). No glow/edge element changed this time.
+- Sheets (Quick overview, Reschedule, Share, Session): the grain texture is gone; the faint accent gradient stays.
+- Unchanged from beta.6: sheet drag-to-close / spring-back, A–Z rail hide toggle + grab handle, header to the left edge.
+- Glitch candidates are annotated in rds2/build-v0.9.0-beta.7/annotated-candidates.png for Steve to pick before anything is changed.
+- Tests: 282 app (BETA6-06/07 replaced by BETA7-01: no grain, beta.5 fill and bar values).
+- Rollback: set BETA_REF back to f80a108 (beta.6) in sow-driftline-beta; backup branch backup/pre-v0.9.0-beta.7.
 ## 0.9.0-beta.6 (2026-11-10)
 Steve t165u. Beta only, demo data. No layout numbers from beta.4/5 changed.
 - A–Z rail: Settings › Hide unavailable letters (off by default, saved with your settings). When on, only letters that have names are shown and they spread over the rail.

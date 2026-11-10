@@ -65,14 +65,13 @@ describe('v0.9.0-beta.6', () => {
     expect(shell).toMatch(/\.sow-sheet\.is-dragging \{ transform: translateY\(var\(--sow-drag\)\); transition: none; \}/)
     expect(shell).toMatch(/\.sow-sheet \{ transition: transform var\(--dl-dur-quick\) var\(--dl-ease-settle\); \}/)
   })
-  it('BETA6-06 Quick overview E1: no curved crest or bright surface line; edge segments clear the rounded corners', () => {
-    const tide = shell.match(/\.sow-qc__tide \{([^}]*)\}/)![1]!
-    expect(tide).not.toMatch(/border-radius|box-shadow/)
-    expect(shell).toMatch(/\.sow-qc__sw--top \{[^}]*left: var\(--sow-qc-radius\); right: var\(--sow-qc-radius\)/)
-  })
-  it('BETA6-07 sheets get a static gradient + light grain surface (tokens only, no animation)', () => {
+  it('BETA7-01 sheets: static accent gradient, no grain; Quick overview E1 fill and top bars are the beta.5 look', () => {
     const rule = shell.match(/\.sow-sheet \{ background-color: var\(--dl-color-bg\);([^}]*)\}/)![1]!
-    expect(rule).toContain('var(--sow-grain)'); expect(rule).toContain('radial-gradient('); expect(rule).not.toMatch(/animation/)
-    expect(shell).toMatch(/--sow-grain: url\("data:image\/svg\+xml,[^"]*feTurbulence[^"]*"\)/)
+    expect(rule).toContain('radial-gradient('); expect(rule).not.toMatch(/animation|url\(/); expect(shell).not.toMatch(/--sow-grain|feTurbulence/)
+    const tide = shell.match(/\.sow-qc__tide \{([^}]*)\}/)![1]!
+    expect(tide).toContain('border-radius: 40% 60% 0 0 / var(--dl-space-2) var(--dl-space-2) 0 0')
+    expect(tide).toContain('box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sow-qc-tone) 70%, transparent)')
+    expect(tide).toContain('color-mix(in srgb, var(--sow-qc-tone) 34%, transparent), color-mix(in srgb, var(--sow-qc-tone) 14%, transparent)')
+    expect(shell).toMatch(/\.sow-qc__sw--top \{ position: absolute; top: 0; left: var\(--dl-space-4\); right: var\(--dl-space-4\);/)
   })
 })
