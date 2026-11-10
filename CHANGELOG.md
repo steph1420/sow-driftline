@@ -1,4 +1,10 @@
 # Changelog
+## 0.9.0-beta.13 (2026-11-10)
+Steve t230u, t234u-t235u, t240u (menu A), t241u "Build". Beta only, demo data.
+- Sort names: A-Z, Roll or Pending, each up or down. Settings > Session & names > Sort names, or press and hold # or Names in the table header. The header shows the active sort. Saved per device.
+- Export setup file: Settings > Sync & pairing. Save file or Share the same file Sync opens; keep it private. Greyed out in demo mode.
+- Tests: 345 app.
+- Rollback: set BETA_REF back to 78ec627 (beta.12); backup branch backup/pre-v0.9.0-beta.13.
 ## 0.9.0-beta.12 (2026-11-10)
 Steve t240u. Beta only, demo data.
 - All dates: the share icon on each row is gone; press and hold a row for the date menu (Share, Open, Reschedule).
