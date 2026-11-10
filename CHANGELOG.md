@@ -1,4 +1,15 @@
 # Changelog
+## 0.9.0-beta.14 (2026-11-10)
+Steve t243u break-it run on the test copy. Beta only; the live sheet was never touched.
+- Reschedule then tick (connected): the tick now stays on that date's own sheet row. Before, the sheet got a second date and the app showed two columns.
+- A class or subject with no dates yet no longer blanks the app when you open it or add its first date.
+- Snapshots now use at most about 1 MB of phone storage. With a term of data, 12 full copies filled the storage, and after that some taps were not saved.
+- Back to demo, or connecting again, fully stops the old connection. Before, it kept retrying and showed a save error in demo.
+- A sheet request that never answers now gives up after 60 s and retries, so later ticks still save.
+- Plain messages for a busy sheet ("unexpected reply") and for an empty or odd setup file. A setup file saved with a BOM now opens.
+- Damaged saved settings no longer stop the app from opening.
+- Tests: 358 app.
+- Rollback: set BETA_REF back to 2c53610 (beta.13); backup branch backup/pre-v0.9.0-beta.14.
 ## 0.9.0-beta.13 (2026-11-10)
 Steve t230u, t234u-t235u, t240u (menu A), t241u "Build". Beta only, demo data.
 - Sort names: A-Z, Roll or Pending, each up or down. Settings > Session & names > Sort names, or press and hold # or Names in the table header. The header shows the active sort. Saved per device.
