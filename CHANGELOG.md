@@ -1,4 +1,11 @@
 # Changelog
+## 0.9.0-beta.8 (2026-11-10)
+Steve t201u (B), t206u, t210u, t211u "Go". Beta only, demo data. Static looks unchanged at rest.
+- Quick overview E1 card: the top pager bars sit 8 px below the top edge and 28 px in from the sides, rounded at both ends, so the lit bar's glow is no longer clipped by the corner (glitch B). D4, E2-E4 unchanged.
+- Animations (framer-motion, transform/opacity only): page enter, class/subject switch slide, tick pop with rolling counts, spring A-Z disc, dock tab change, quick overview spring open/drag-back with card stagger, alive cards (fill rise, breath, glint, +N count), share sheet stacking over the quick overview.
+- Settings > Appearance > Animations: Off, 0.5x, 1x (default), 1.5x, 2x. Scales every duration, delay, stagger and spring; phone reduce-motion forces Off. Saved per device.
+- Tests: 292 app.
+- Rollback: set BETA_REF back to 1906800 (beta.7) in sow-driftline-beta; backup branch backup/pre-v0.9.0-beta.8.
 ## 0.9.0-beta.7 (2026-11-10)
 Steve t167u: "I told you to fix the edge glow not the fill... Revert the look and also remove the texture." Beta only, demo data.
 - Quick overview card: the E1 Tide fill (curved crest + bright line) and the top pager bars are back to exactly the beta.5 look. All five card styles (D4, E1–E4), night and day, render pixel-identical to beta.5 (20 card renders compared). No glow/edge element changed this time.
