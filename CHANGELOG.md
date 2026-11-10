@@ -1,4 +1,11 @@
 # Changelog
+## 0.9.0-beta.4 (2026-11-10)
+Steve t160u ("GO"): his sizer v2 picks become the layout. Beta only, demo data; the sizer panel is not in this build (it lives on dev/sizer).
+- Layout (beta.3 → beta.4): top bar 48 → 56 px; class chip inset 8 → 5, height 36 → 45; A–Z rail inset 8 → 7, width 16 → 12, letters 13 → 18 px, no end padding (0), gap to # 8 → 6; header 44 → 46; rows 48 → 47; # column 36 → 20, # → Names 12 → 3; date columns 56 → 52; tick box 24 → 25, corner radius 10 → 6; Quick overview date pill 44 → 32 high; space above the dock 88 → 82. Name font (16) and dock tabs (48) unchanged; everything else as beta.3.
+- Every layout size is now a named --sow-* var in one :root block of shell.css (kit-token sums; text sizes still follow Display size › Text, bars/rows/ticks their own factors).
+- No accidental text selection: UI chrome (bar, headers, dock, buttons, rail, sheets) can't be selected, shows no grey tap flash and no iOS long-press callout. Student names, inputs and text areas stay selectable.
+- Tests: 273 app (BETA4-01 sizes from the CSS, BETA4-02 selection rules; V08-P1-07, V08-P11-07/08, RD-23 updated for the new sizes).
+- Rollback: set BETA_REF back to f2e02d5 (beta.3 build) in sow-driftline-beta; backup branch backup/pre-v0.9.0-beta.4.
 ## 0.9.0-beta.3 (2026-11-10)
 Steve t150u: "Give me d4 and e1-4 as dev toggle". Beta only, demo data. Dev-only, easy to remove.
 - Quick overview day card in five styles (spec rds2/qo-card-v1 D4, qo-card-v2 E1–E4): D4 Edge pager (default), E1 Tide (the card fills to % done; animates only when motion is allowed), E2 Roll grid (one cell per pupil, bright = new in the window), E3 Ghost numeral (fading count, date down the left edge, corner arc switcher), E4 Recent days (bars for the last 5 dates of the subject, this one lit).

@@ -173,8 +173,8 @@ describe('RDs2 UI', () => {
     const svg = document.querySelector('tbody button.t.on svg')!; expect(svg.querySelectorAll('path')).toHaveLength(1)
     expect(svg.getAttribute('stroke-linecap')).toBe('round'); expect(svg.getAttribute('stroke-linejoin')).toBe('round'); expect(document.querySelector('tbody button.t.on')!.textContent).toBe('')
     const css = readFileSync('src/shell/shell.css', 'utf8')
-    expect(css).toMatch(/\.sow-bar \{[^}]*padding: 0 var\(--dl-space-2\) 0 var\(--sow-rail-x\)/)
-    expect(css).toMatch(/--sow-gutter: calc\(var\(--sow-rail-x\) \+ var\(--sow-rail-w\) \+ var\(--dl-space-2\)\)/)
-    expect(css).toMatch(/\.sow-grid \.r \{ width: calc\(var\(--dl-space-8\) \+ var\(--dl-space-1\)\)/)
+    expect(css).toMatch(/\.sow-bar \{[^}]*padding: 0 var\(--sow-bar-pad-r\) 0 var\(--sow-chip-x\)/); expect(css).toMatch(/--sow-bar-pad-r: var\(--dl-space-2\);/)
+    expect(css).toMatch(/--sow-gutter: calc\(var\(--sow-rail-x\) \+ var\(--sow-rail-w\) \+ var\(--sow-rail-gap\)\)/)
+    expect(css).toMatch(/\.sow-grid \.r \{ width: var\(--sow-roll-w\)/) // sizes: BETA4-01
   })
 })
