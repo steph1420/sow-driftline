@@ -100,7 +100,7 @@ describe('P3 quick overview (Q2e + Q3-since) and share stack', () => {
   it('V08-P3-02 tapping "+N since" cycles this hour → today → since open, with three dots', async () => {
     await quick(1); const d = screen.getByRole('dialog', { name: 'Quick overview' })
     const btn = () => within(d).getByRole('button', { name: /^\+\d+ (since|this hour|today)/ })
-    expect(btn().querySelectorAll('.sow-qc__dots i').length).toBe(3)
+    expect(within(d).getByRole('button', { name: /^Window: since open \(1 of 3\)/ }).querySelectorAll('i').length).toBe(3) // beta.3: the switcher is its own control (D4 pager)
     fireEvent.click(btn()); expect(btn().textContent).toMatch(/this hour/)
     fireEvent.click(btn()); expect(btn().textContent).toMatch(/today/); expect(btn().textContent).toMatch(/^\+14 today/)
     fireEvent.click(btn()); expect(btn().textContent).toMatch(/since \d\d:\d\d/)

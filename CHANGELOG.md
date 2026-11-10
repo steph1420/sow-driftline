@@ -1,4 +1,12 @@
 # Changelog
+## 0.9.0-beta.3 (2026-11-10)
+Steve t150u: "Give me d4 and e1-4 as dev toggle". Beta only, demo data. Dev-only, easy to remove.
+- Quick overview day card in five styles (spec rds2/qo-card-v1 D4, qo-card-v2 E1–E4): D4 Edge pager (default), E1 Tide (the card fills to % done; animates only when motion is allowed), E2 Roll grid (one cell per pupil, bright = new in the window), E3 Ghost numeral (fading count, date down the left edge, corner arc switcher), E4 Recent days (bars for the last 5 dates of the subject, this one lit).
+- One card model (data/qoCard.ts: date, done/total, %, +since, every pupil's status, recent dates) and one small component per style (screens/qo/QoCards.tsx). The 3-window switcher (since open · this hour · today) is its own control in every style; "+N since" still cycles it too; share as before.
+- Settings › Developer options › QO card style (saved on this device). Press and hold the Quick overview title (500 ms) to step to the next style; a chip names it.
+- "+N since" no longer has the dotted underline (all styles, per the mockups).
+- Tests: 271 app (QO-01..06 new; V08-P3-02 changed: the switcher is its own control).
+- Rollback: set BETA_REF back to v0.9.0-beta.2 in sow-driftline-beta (backup branch backup/pre-v0.9.0-beta.3).
 ## 0.9.0-beta.2 (2026-11-10)
 Steve t145u–t147u on beta.1 ("Looks nice"). Beta only, demo data.
 - Columns swapped: the primary (selected) date is the rightmost column, flush right; the second (earlier) date opens to its LEFT. Swipe left on a date header opens it, swipe right closes it; the right-edge grip and the 1/2 shortcut still toggle it. Desktop/landscape already ran oldest → newest, so the newest date is rightmost everywhere.

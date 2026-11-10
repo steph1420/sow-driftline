@@ -495,7 +495,7 @@ Add these to the address: `?demo`, `?today=YYYY-MM-DD`, `?side=night|day`.
 ---
 
 ## 11. RDs2 checklist (v0.9.0, Beta)
-- **Status:** BETA (v0.9.0-beta.2), Steve t121u–t145u. Replaces the G5d chrome (F-SH-01, F-CL-02/03/06 controls row, pill chip, ⋮ menu, sync dot in the bar).
+- **Status:** BETA (v0.9.0-beta.3), Steve t121u–t150u. Replaces the G5d chrome (F-SH-01, F-CL-02/03/06 controls row, pill chip, ⋮ menu, sync dot in the bar).
 - **Top bar:** class chip "≡ KG-A · English HW ⌄" at the rail inset (8 px). Tap: Classes panel (CLASSES strip All · Fav · classes · LISTS, collapsible; subjects with done/total and ★; loop). Hold 160 ms: favourites. Swipe sideways: next/previous subject in the scope (stops at the ends unless loop).
 - **Undo:** tap = undo; press and slide down = Redo (icon flips), slide left = Cancel; a solid label over the chip says what release does ("Nothing to redo" when there is none).
 - **Shortcuts ＋:** tap opens Pending · 1/2 · Search straight down; hold 100 ms, slide and release picks one.
@@ -505,4 +505,5 @@ Add these to the address: `?demo`, `?today=YYYY-MM-DD`, `?side=night|day`.
 - **A–Z rail:** left, all letters (missing ones dimmed, current one blue), ends above the dock.
 - **Quick overview:** swipe up from the Checklist dock tab (the sheet follows the finger, opens past 96 px or on a quick flick, else snaps back; a tap stays a tab tap), the strip above the dock, or ⇧O.
 - **Settings › Appearance:** Column dates (10/11 · Tue 10 · 10 Nov; Count · Topic), Week groups, Haptics (Off · Light · Normal · Strong).
+- **Quick overview card (dev-only, t150u):** five styles D4 · E1 · E2 · E3 · E4 in Settings › Developer options › QO card style, or hold the Quick overview title to step through them.
 - **Not yet:** smart lists (LISTS shows only a disabled "+ New list").

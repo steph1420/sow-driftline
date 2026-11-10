@@ -1,4 +1,5 @@
 // Single state owner (06 rule 2). D2: ticks with auto-save to the TEST COPY (paired) or on-device demo.
+import { cleanQoStyle, type QoStyle } from '../data/qoCard'
 import { create } from 'zustand'
 import { storageKey } from '../config'
 import { SCALE_DEFAULT, cleanScale, type DisplayScale } from '../shell/displayScale'
@@ -47,7 +48,7 @@ type State = {
 }
 export type View = { weeks: boolean; phoneCols: 1 | 2; dateFmt: DateFmt; dateSub: DateSub } // t122u: phoneCols; RDs2: header date format + subtext
 export type Marks = Record<string, { at: string; back?: boolean }>
-export type Dev = { railBubble: boolean; swipeTick: boolean; pastSessions: boolean }
+export type Dev = { railBubble: boolean; swipeTick: boolean; pastSessions: boolean; qoCard: QoStyle } // t150u: qoCard is dev-only
 const PREFS = storageKey('prefs'); const TOKEN = storageKey('copyToken'); const BRIDGE = storageKey('copyBridge'); const DEV = storageKey('dev')
 const demoTicksKey = () => storageKey(wantsSchool() ? 'demoTicksSchool' : 'demoTicks')
 const demoBase = () => (wantsSchool() ? schoolState(todayIso(), Math.min(nowMs(), Date.now())) /* never stamp demo ticks in the future: newer-wins must keep real taps */ : DEMO_STATE); const VIEW = storageKey('view')
@@ -61,8 +62,8 @@ const snapKey = () => storageKey(`snapshots-${src()}`)
 const bridgeUrl = () => localStorage.getItem(BRIDGE) || COPY_BRIDGE_URL
 let lastMs = 0 // strictly increasing, so a quick Undo→Redo is never seen as “older”
 const nowIso = () => { lastMs = Math.max(Date.now(), lastMs + 1); return new Date(lastMs).toISOString() }
-const DEV_DEFAULTS: Dev = { railBubble: true, swipeTick: true, pastSessions: false }
-const loadDev = (): Dev => { const d = { ...DEV_DEFAULTS, ...loadJson<Partial<Dev>>(DEV, {}) }; return { railBubble: d.railBubble, swipeTick: d.swipeTick, pastSessions: d.pastSessions } } // RDs2: the A–Z side is fixed (left)
+const DEV_DEFAULTS: Dev = { railBubble: true, swipeTick: true, pastSessions: false, qoCard: 'd4' }
+const loadDev = (): Dev => { const d = { ...DEV_DEFAULTS, ...loadJson<Partial<Dev>>(DEV, {}) }; return { railBubble: d.railBubble, swipeTick: d.swipeTick, pastSessions: d.pastSessions, qoCard: cleanQoStyle(d.qoCard) } } // RDs2: the A–Z side is fixed (left)
 const FAVS = storageKey('favs'); const SCOPE = storageKey('scope')
 const loadScope = (data: SheetState) => { const v = loadJson<{ pick?: ScopePick; loop?: boolean }>(SCOPE, {}); return { scope: validPick(data, v.pick), loop: v.loop === true } }
 const saveScope = (scope: ScopePick, loop: boolean) => localStorage.setItem(SCOPE, JSON.stringify({ pick: scope, loop }))

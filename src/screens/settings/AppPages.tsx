@@ -4,6 +4,7 @@ import { APP_VERSION, FLAVOR, FLAVOR_LABEL, channelUrl } from '../../config'
 import { Choices, Segment } from './rows'
 import { DATE_FMTS, DATE_SUBS, fmtDate } from '../../data/dateFormat'
 import { HAPTICS, buzz } from '../../shell/haptics'
+import { QO_STYLES } from '../../data/qoCard'
 
 const CONTRASTS: { id: Contrast; label: string; note: string }[] = [
   { id: 'standard', label: 'Standard', note: 'Soft glass and glows' }, { id: 'high', label: 'High', note: 'Solid surfaces and stronger text' }]
@@ -52,6 +53,8 @@ export function DeveloperPage() {
       <Segment label="Letter bubble" options={onOff} value={flag(dev.railBubble)} onChange={(v) => setDev({ railBubble: bool(v) })} />
       <Segment label="Past sessions (preview)" options={onOff} value={flag(dev.pastSessions)} onChange={(v) => setDev({ pastSessions: bool(v) })} />
     </div>
+    <Choices label="QO card style" options={QO_STYLES} value={dev.qoCard} onChange={(qoCard) => setDev({ qoCard })} />
+    <p className="dl-muted sow-note">Dev only (t150u). Press and hold the Quick overview title to step through the styles.</p>
     <div className="dl-list">
       <div className="dl-row sow-set__row"><span>Release channel</span><span className="sow-sp" />
         {(['stable', 'beta'] as const).map((x) => <a key={x} href={channelUrl(x)} className={`dl-btn ${FLAVOR === x ? 'dl-btn--primary' : 'dl-btn--secondary'}`} aria-current={FLAVOR === x ? 'page' : undefined}>{x === 'stable' ? 'Stable' : 'Beta'}</a>)}</div>
