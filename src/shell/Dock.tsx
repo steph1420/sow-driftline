@@ -3,6 +3,7 @@
 // A tap is still a plain tab tap.
 import { useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { SHIFT, SPRING } from '../config/motion'
 import { useApp, type Tab } from '../store/store'
 import { CONFIG } from '../config'
 import { pullOpens } from '../data/gestures'
@@ -32,14 +33,14 @@ function usePullUp() {
 export function Dock() {
   const tab = useApp((s) => s.tab); const setTab = useApp((s) => s.setTab); const reduce = useReducedMotion(); const pull = usePullUp()
   return (
-    <nav className="dl-dock" role="tablist" aria-label="Sections">
+    <motion.nav className="dl-dock" role="tablist" aria-label="Sections" initial={reduce ? false : { y: SHIFT.dock, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...SPRING.settle, delay: 0.12 }}>
       {TABS.map((t) => { const handle = t.id === 'checklist'
         return <button key={t.id} role="tab" aria-label={t.label} aria-selected={tab === t.id} className={`dl-dock__tab ${tab === t.id ? 'is-on' : ''}${handle ? ' sow-pull' : ''}`}
           aria-description={handle ? 'Swipe up for Quick overview' : undefined} {...(handle ? pull.handlers : undefined)}
           onClick={() => { if (handle && pull.eat.current) { pull.eat.current = false; return } setTab(t.id) }}>
-          {tab === t.id && <motion.span layoutId="dock-pill" className="dl-dock__pill" transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }} />}
-          <span className="dl-dock__icon" aria-hidden>{t.icon}</span>{t.label}
+          {tab === t.id && <motion.span layoutId="dock-pill" className="dl-dock__pill" transition={reduce ? { duration: 0 } : SPRING.snappy} />}
+          <motion.span key={tab === t.id ? 'on' : 'off'} className="dl-dock__icon" aria-hidden initial={reduce || tab !== t.id ? false : { scale: 0.6, y: 3 }} animate={{ scale: 1, y: 0 }} transition={SPRING.pop}>{t.icon}</motion.span>{t.label}
         </button> })}
-    </nav>
+    </motion.nav>
   )
 }

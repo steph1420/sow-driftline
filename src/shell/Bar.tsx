@@ -1,6 +1,9 @@
 // RDs2 top bar (t140u, portrait kept clean): class chip on the left; Undo, then the shortcuts button on the right.
 // No sync dot (sync is automatic; Settings › Sync shows its state).
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { SHIFT, SPRING } from '../config/motion'
+import { useMotionOn } from '../ui/useMotionOn'
 import { useApp } from '../store/store'
 import { scopeSubjects, validPick } from '../data/scope'
 import type { UndoIntent } from '../data/gestures'
@@ -19,9 +22,9 @@ export function Bar({ columns }: { columns: boolean }) {
   const [intent, setIntent] = useState<UndoIntent | null>(null); const [hint, setHint] = useState(false)
   useEffect(() => { if (!hint) return; const t = setTimeout(() => setHint(false), CONFIG.timing.nameToastMs); return () => clearTimeout(t) }, [hint])
   const keys = scopeSubjects(data, validPick(data, scope), favs).map((x) => x.subjectKey)
-  const close = () => setOpen(null)
+  const close = () => setOpen(null); const mo = useMotionOn()
   return (
-    <header className={`sow-bar${intent ? ' is-acting' : ''}`}>
+    <motion.header className={`sow-bar${intent ? ' is-acting' : ''}`} initial={mo ? { opacity: 0, y: -SHIFT.bar } : false} animate={{ opacity: 1, y: 0 }} transition={SPRING.settle}>{/* anim/proto: the bar settles in with the rows */}
       <ClassChip open={open === 'classes'} scope={{ count: keys.length, index: keys.indexOf(subject) }} onTap={() => setOpen(open === 'classes' ? null : 'classes')} onHold={() => setOpen('favs')} />
       {intent && <UndoOverlay intent={intent} />}
       <span className="sow-sp" />
@@ -30,5 +33,5 @@ export function Bar({ columns }: { columns: boolean }) {
       {open === 'classes' && <ClassesPanel mini={mini} onMini={setMini} lists={lists} onLists={setLists} onClose={close} />}
       {open === 'favs' && <FavPicker onClose={close} />}
       {hint && !intent && <div className="sow-peek" role="status"><span>Hold or swipe down to redo</span></div>}
-    </header>)
+    </motion.header>)
 }

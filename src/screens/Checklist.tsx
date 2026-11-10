@@ -13,6 +13,18 @@ import { useApp, nowMs } from '../store/store'
 import { isLate, pillVisible } from '../data/late'
 import { cellKey } from '../sync/ops'
 import { Hint } from './Hint'
+import { AnimatePresence, motion } from 'framer-motion'
+import { DUR, SHIFT, SPRING, STAGGER } from '../config/motion'
+import { useMotionOn } from '../ui/useMotionOn'
+
+/** anim/proto: the check mark pops in on a tick (overshoot spring) and a ring bursts from the box; a clear shrinks it out. */
+function TickMark({ fx }: { fx: boolean }) {
+  return <>{fx && <motion.i className="sow-t__ring" aria-hidden initial={{ scale: 0.7, opacity: 0.9 }} animate={{ scale: 1.45, opacity: 0 }} transition={{ duration: DUR.ring, ease: 'easeOut' }} />}
+    <motion.span className="sow-t__mark" initial={{ scale: 0.3, opacity: 0, rotate: -18 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} exit={{ scale: 0.4, opacity: 0, transition: { duration: DUR.fade } }} transition={SPRING.pop}><Icon name="check" /></motion.span></>
+}
+/** anim/proto: row entrance. The first rows on screen arrive in a quick cascade (page load, class/subject switch); rows
+ * further down are already in place. `dir` = which side a switched-to subject slides in from (0 = page load, rise). */
+const rowIn = (r: number, dir: number) => r >= STAGGER.rowsMax ? false : ({ opacity: 0, x: dir * SHIFT.classSwitch, y: dir ? 0 : SHIFT.enter })
 
 type Props = { state: SheetState; classKey: string; today: string; layout: Layout; jump?: number
   onTick?: (sessionId: string, roll: number) => void; onTickMany?: (sessionId: string, rolls: number[], value: boolean) => void
@@ -28,6 +40,9 @@ function boxAt(btns: HTMLElement[], x: number, was: number): number {
 const d0 = (iso: string) => { const f = fmtDay(iso); return `${f.dow} ${f.dm}` }
 export function Checklist({ state, classKey, today, layout, jump = 0, onTick, onTickMany, railBubble = true, swipe = true, dateCols, drawer = false, focusSessionId = null, subjectKey = null, pendingOnly = false, onPick }: Props) {
   const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
+  const mo = useMotionOn(); const [pop, setPop] = useState<string | null>(null) // anim/proto: the cell the finger just ticked
+  const order = state.subjects.map((x) => x.subjectKey); const was = useRef({ key: `${classKey}|${subjectKey}`, dir: 0 })
+  const sk = `${classKey}|${subjectKey}`; if (was.current.key !== sk) { const a = order.indexOf(was.current.key.split('|')[1] ?? ''), b = order.indexOf(subjectKey ?? ''); was.current = { key: sk, dir: a >= 0 && b >= 0 && b < a ? -1 : 1 } }
   const anchor = focusColumn(c0, today, focusSessionId)
   const [end, setEnd] = useState(anchor.index)
   // S4b "Pending only": rows still to come in for the focused date. The set is fixed when switched on (or the date changes), so a row doesn't vanish mid-tap.
@@ -129,8 +144,9 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
         <table onKeyDown={keyGrid}>
           <TableHead cols={head} label={keep ? `Pending · ${c.pupils.length}` : 'Names'} count={c.pupils.length} matches={matches} onDate={setDates}
             onFind={(q) => { setPill(q); if (q.trim()) find(q.trim()) }} drawer={drawer && cols0.length > 0 && c.columns.length > 1 ? { open: two, set: (o) => setView({ phoneCols: o ? 2 : 1 }) } : undefined} />
-          <tbody>{c.pupils.map((p, r) => (
-            <tr key={p.roll} ref={(el) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}>
+          <tbody key={sk}>{c.pupils.map((p, r) => (
+            <motion.tr key={p.roll} ref={(el: HTMLTableRowElement | null) => { rows.current[r] = el }} className={`${sel === r ? 'sel' : ''}${sel === r && flash ? ' flash' : ''}`}
+              initial={mo ? rowIn(r, was.current.dir) : false} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ ...SPRING.settle, delay: r * STAGGER.rows }}>
               <td className="r dl-num">{p.roll}</td>
               <td className="n" onClick={() => { setSel(r); setToast(dup.has(p.name) ? `${p.name} · roll ${p.roll}` : p.name) }}>{p.name}{dup.has(p.name) && <small className="sow-roll">#{p.roll}</small>}</td>
               {cols.map((i, ci) => { const s = c.columns[i]!; const fut = s.date > today; const real = c.ticked(s.sessionId, p.roll)
@@ -138,9 +154,10 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
                 const mk = real ? marks[cellKey({ sessionId: s.sessionId, roll: p.roll })] : undefined; const lt = !!mk && isLate(mk.at, s.date, !!mk.back) === true
                 return <td key={s.sessionId} className={[weekStart(i) && 'wk', two && ci === 0 && 'c2'].filter(Boolean).join(' ') || undefined}>{onTick ? <button className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}${pv ? ' paint' : ''}${lt && on ? ' late' : ''}`} data-r={r} data-c={ci} aria-pressed={real} aria-label={`${p.name}${dup.has(p.name) ? ` roll ${p.roll}` : ''}, ${d0(s.date)}, ${real ? (lt ? 'done, late' : 'done') : 'not yet'}`}
                     onPointerDown={(e) => down(e, s.sessionId, p.roll, real)} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { paint.current = null; setPainted(null) }}
-                    onClick={() => { if (eatClick.current) { eatClick.current = false; return } onTick(s.sessionId, p.roll) }}>{on ? <Icon name="check" /> : null}</button>
+                    onClick={() => { if (eatClick.current) { eatClick.current = false; return } setPop(real ? null : `${s.sessionId}|${p.roll}`); onTick(s.sessionId, p.roll) }}>
+                    {mo ? <AnimatePresence initial={false}>{on && <TickMark key="m" fx={pop === `${s.sessionId}|${p.roll}`} />}</AnimatePresence> : on ? <Icon name="check" /> : null}</button>
                   : <span className={`t ${fut && !on ? 'fut' : on ? 'on' : ''}`} aria-label={on ? 'Done' : 'Not yet'}>{on ? <Icon name="check" /> : null}</span>}</td> })}
-            </tr>))}</tbody>
+            </motion.tr>))}</tbody>
         </table>
       </div>
       <AzRail names={names} onJump={go} current={letter} bubble={railBubble} />

@@ -8,6 +8,7 @@ import { dateLabel } from '../data/model'
 import { fmtDate } from '../data/dateFormat'
 import { swipeDir } from '../data/gestures'
 import { GLYPH, Icon } from '../ui/icons'
+import { RollNumber } from '../ui/RollNumber'
 
 export type HeadCol = { sessionId: string; date: string; kind: string; topic: string; done: number; total: number; past: boolean; sel: boolean; second: boolean; week: boolean }
 type Props = { cols: HeadCol[]; label: string; count: number; matches: number; onFind: (q: string) => void; onDate: (sessionId: string) => void; drawer?: { open: boolean; set: (open: boolean) => void } }
@@ -29,7 +30,7 @@ export function TableHead({ cols, label, count, matches, onFind, onDate, drawer 
               onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); setFind(null) } }} />
             {find.trim() && <span className="sow-th__n dl-num">{matches} of {count}</span>}
             <button className="sow-ib sow-bare" aria-label="Close search" onClick={() => setFind(null)}>{GLYPH.close}</button></div>}</th>
-      {cols.map((c, i) => { const sub = subtext === 'topic' ? c.topic || '—' : `${c.done}/${c.total}`
+      {cols.map((c, i) => { const sub = subtext === 'topic' ? c.topic || '—' : <RollNumber value={c.done} suffix={`/${c.total}`} /> // anim/proto: the count rolls
         const tone = c.done === c.total ? ' full' : c.past ? ' old' : ''
         return <th key={c.sessionId} scope="col" className={`d${c.sel ? ' sel' : ''}${c.second ? ' c2' : ''}${c.week ? ' wk' : ''}`}>
           <button className={`sow-th__date${tone}`} aria-label={`Dates, ${[c.kind, dateLabel(c.date)].filter(Boolean).join(' ')}`} aria-description={`${c.done} of ${c.total} done${c.topic ? `, ${c.topic}` : ''}`}

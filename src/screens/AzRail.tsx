@@ -4,6 +4,9 @@
 // beta.6 grab handle: a slim tab beside the current letter; while scrubbing it follows the finger as a small disc
 // naming the letter (haptic tick per letter when haptics are on). The big bubble stays a developer option.
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { AnimatePresence, motion, useSpring } from 'framer-motion'
+import { SPRING } from '../config/motion'
+import { useMotionOn } from '../ui/useMotionOn'
 import { CONFIG } from '../config'
 import { useApp } from '../store/store'
 import { buzz } from '../shell/haptics'
@@ -42,13 +45,21 @@ export function AzRail({ names, onJump, current = null, bubble = true }: Props) 
     place(); window.addEventListener('resize', place); return () => window.removeEventListener('resize', place)
   }, [current, key])
   const thumbY = fingerY ?? restY
+  // anim/proto: the handle / disc rides a tight spring toward the finger (or the current letter) instead of teleporting
+  const mo = useMotionOn(); const off = useSpring(0, SPRING.follow); const prevY = useRef<number | null>(null) // FLIP: CSS keeps top = target, the spring carries the leftover offset to 0
+  useLayoutEffect(() => { if (thumbY == null) { prevY.current = null; return } if (mo && prevY.current != null && prevY.current !== thumbY) { off.jump(off.get() + prevY.current - thumbY); off.set(0) } prevY.current = thumbY }, [thumbY, mo]) // eslint-disable-line react-hooks/exhaustive-deps
+  const active = fingerY != null
   return (
     <nav ref={ref} className="sow-rail" aria-label="Jump by letter"
       onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); at(e.clientY) }}
       onPointerMove={(e) => { if (e.buttons || e.pointerType === 'touch' || last.current) at(e.clientY) }}
       onPointerUp={end} onPointerCancel={end}>
       {letters.map((L) => <span key={L} data-l={L} aria-hidden={!present.has(L) || undefined} className={!present.has(L) ? 'off' : L === lit ? 'on' : undefined}>{L}</span>)}
-      {thumbY != null && <i className={`sow-rail__thumb${fingerY != null ? ' is-active' : ''}`} data-testid="az-thumb" aria-hidden style={{ '--y': `${thumbY}px` } as CSSProperties}>{fingerY != null ? hud : null}</i>}
+      {thumbY != null && (mo
+        ? <motion.i key={active ? 'disc' : 'rest'} className={`sow-rail__thumb${active ? ' is-active' : ''}`} data-testid="az-thumb" aria-hidden style={{ '--y': `${thumbY}px`, y: off } as never}
+            transformTemplate={(_, t) => (t === 'none' || !t ? 'translateY(-50%)' : `translateY(-50%) ${t}`)} initial={active ? { scale: 0.4, opacity: 0 } : { opacity: 0 }} animate={{ scale: 1, opacity: active ? 1 : 0.45 }} transition={SPRING.snappy}>
+            {active && <AnimatePresence initial={false} mode="popLayout"><motion.span key={hud} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -8, opacity: 0 }} transition={SPRING.snappy}>{hud}</motion.span></AnimatePresence>}</motion.i>
+        : <i className={`sow-rail__thumb${fingerY != null ? ' is-active' : ''}`} data-testid="az-thumb" aria-hidden style={{ '--y': `${thumbY}px` } as CSSProperties}>{fingerY != null ? hud : null}</i>)}
       {bubble && hud && <div className="sow-bubble" data-testid="az-bubble" aria-hidden>{hud}</div>}
     </nav>)
 }

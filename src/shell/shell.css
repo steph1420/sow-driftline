@@ -72,6 +72,8 @@ input, textarea, [contenteditable="true"], .sow-grid td.n, .sow-selectable { -we
 @media (prefers-reduced-motion: reduce) { .sow-sheet { transition: none; } }
 .sow-sheet.is-pulling { transform: translateY(max(0px, calc(100% - var(--sow-pull)))); transition: none; } /* token-ok: zero */
 .sow-scrim.is-pulling { opacity: .5; }
+/* anim/proto: a framer-driven sheet owns its transform (no CSS transition fighting the spring) */
+.sow-sheet.sow-sheet--m { transition: none; }
 .sow-scrim { position: fixed; inset: 0; z-index: var(--dl-z-sheet); background: color-mix(in srgb, var(--dl-color-bg) 55%, transparent); border: 0; }
 .sow-sheet { position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: calc(var(--dl-space-16) * 10); max-height: 85vh; overflow: auto; z-index: var(--dl-z-sheet); display: flex; flex-direction: column; gap: var(--dl-space-3); padding: var(--dl-space-2) var(--dl-space-3) calc(var(--dl-space-6) + env(safe-area-inset-bottom)); border-radius: var(--dl-radius-xl) var(--dl-radius-xl) 0 0; background: var(--dl-color-bg); box-shadow: var(--dl-color-shadow); touch-action: pan-y; }
 .sow-sheet__grip { align-self: center; margin: var(--dl-space-1) 0; }
@@ -537,8 +539,7 @@ body:has(.sow-grid thead) .sow-bar::after { content: ''; position: absolute; lef
 .sow-qc--e1 { position: relative; overflow: hidden; isolation: isolate; grid-template-rows: auto 1fr auto; }
 .sow-qc__tide { position: absolute; inset: auto 0 0 0; height: calc(var(--p) * 1%); z-index: -1; border-radius: 40% 60% 0 0 / var(--dl-space-2) var(--dl-space-2) 0 0;
   background: linear-gradient(180deg, color-mix(in srgb, var(--sow-qc-tone) 34%, transparent), color-mix(in srgb, var(--sow-qc-tone) 14%, transparent)); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sow-qc-tone) 70%, transparent); } /* token-ok: 1px surface line */
-@media (prefers-reduced-motion: no-preference) { .sow-qc__tide { animation: sow-tide var(--dl-dur-calm) var(--dl-ease-settle) both; transition: height var(--dl-dur-calm) var(--dl-ease-settle); } }
-@keyframes sow-tide { from { height: 0; } }
+/* anim/proto: the tide rises with a framer spring on scaleY (transform only, see QoCards Tide); no CSS height animation */
 .sow-qc--e1 .sow-qc__pill { min-height: var(--dl-space-8); }
 .sow-qc--e1 .sow-qc__share { grid-row: 1; grid-column: 2; }
 .sow-qc--e1 .sow-qc__n { grid-row: 2; grid-column: 1 / -1; justify-self: start; align-self: end; font-size: var(--sow-qc-num); }
@@ -588,3 +589,12 @@ body:has(.sow-grid thead) .sow-bar::after { content: ''; position: absolute; lef
 .sow-qc__sw--edge { position: absolute; left: 0; right: 0; bottom: 0; height: var(--dl-space-2); align-items: flex-end; }
 .sow-qc__sw--edge i { flex: 1; height: calc(var(--dl-space-1) / 2); border-radius: 0; }
 .sow-qc__sw--edge i.on { background: var(--sow-qc-tone); box-shadow: 0 0 var(--dl-space-3) var(--sow-qc-tone); }
+
+/* anim/proto (t206u) motion helpers: nothing here changes a resting look */
+.sow-rolln { position: relative; display: inline-block; }
+.sow-rolln__v { display: inline-block; }
+.sow-grid .t { position: relative; }
+.sow-t__ring { position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 2px var(--dl-color-accent); pointer-events: none; } /* token-ok: ring */
+.sow-t__mark { display: inline-grid; place-items: center; }
+.sow-qc__glint { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(105deg, transparent 30%, color-mix(in srgb, var(--sow-qc-tone) 26%, transparent) 50%, transparent 70%); }
+.sow-rolln__out { position: absolute; left: 0; top: 0; }

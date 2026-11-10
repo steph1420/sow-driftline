@@ -1,12 +1,18 @@
 // Bottom sheet shell: scrim, dialog and a grab handle. One place for every sheet (Quick overview, dates, share, session).
 // beta.6 (t165u): dragging the handle moves the sheet with the finger; it closes past sheetCloseDragPx or on a quick
 // downward flick, otherwise it springs back. A tap on the handle still closes.
-import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
+// anim/proto (t206u): the sheet is a framer-motion element: it springs up on open (from where a pull left it), follows
+// the finger 1:1 while dragged or pulled, springs back with the finger's speed, slides away on close (inside an
+// AnimatePresence) and shrinks back a step when another sheet stacks over it (`behind`).
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { motion } from 'framer-motion'
 import { CONFIG } from '../config'
+import { DUR, EASE, SPRING, STACK } from '../config/motion'
 import { dragCloses } from '../data/gestures'
+import { useMotionOn } from './useMotionOn'
 
 /** `pull`: px a finger has pulled the sheet up so far (it follows the finger); undefined once it is open. */
-type Props = { label: string; onClose: () => void; className?: string; scrimLabel?: string; pull?: number; children: ReactNode }
+type Props = { label: string; onClose: () => void; className?: string; scrimLabel?: string; pull?: number; behind?: boolean; children: ReactNode }
 
 /** Handle drag: down-only offset in px while engaged, null otherwise. */
 function useDragClose(onClose: () => void) {
@@ -31,15 +37,28 @@ function useDragClose(onClose: () => void) {
   return { drag, handlers }
 }
 
-export function Sheet({ label, onClose, className = '', scrimLabel, pull, children }: Props) {
-  const { drag, handlers } = useDragClose(onClose)
+export function Sheet({ label, onClose, className = '', scrimLabel, pull, behind = false, children }: Props) {
+  const { drag, handlers } = useDragClose(onClose); const on = useMotionOn(); const ref = useRef<HTMLDivElement>(null); const [h, setH] = useState(0)
+  useLayoutEffect(() => { if (ref.current) setH(ref.current.offsetHeight) }, [on])
   const style = pull != null ? { '--sow-pull': `${pull}px` } : drag != null ? { '--sow-drag': `${drag}px` } : undefined
   const state = pull != null ? ' is-pulling' : drag != null ? ' is-dragging' : ''
-  return (<>
+  if (!on) return (<>
     <button className={`sow-scrim${state}`} aria-label={scrimLabel ?? `Close ${label.toLowerCase()}`} onClick={onClose} />
     <div className={`sow-sheet ${className}${state}`.trim()} role="dialog" aria-label={label} style={style as CSSProperties | undefined}>
       <button className="sow-sheet__handle" aria-label="Close (swipe down)" {...handlers}><span className="sow-sheet__grip" /></button>
       {children}
     </div>
+  </>)
+  const y = pull != null ? (h ? Math.max(0, h - pull) : '100%') : drag ?? 0; const follow = pull != null || drag != null
+  const scrim = pull != null ? 0.5 : drag != null ? 0.7 : 1
+  return (<>
+    <motion.button className={`sow-scrim${state}`} aria-label={scrimLabel ?? `Close ${label.toLowerCase()}`} onClick={onClose}
+      initial={{ opacity: 0 }} animate={{ opacity: scrim }} exit={{ opacity: 0, transition: { duration: DUR.exit } }} transition={{ duration: DUR.fade }} />
+    <motion.div ref={ref} className={`sow-sheet sow-sheet--m ${className}${state}`.trim()} role="dialog" aria-label={label} style={{ ...(style as CSSProperties | undefined), originY: 0 }}
+      initial={{ y: '100%' }} animate={{ y, scale: behind ? STACK.scale : 1 }} exit={{ y: '100%', transition: { duration: DUR.exit, ease: EASE.in } }}
+      transition={follow ? { y: { duration: 0 }, scale: SPRING.sheet } : SPRING.sheet}>
+      <button className="sow-sheet__handle" aria-label="Close (swipe down)" {...handlers}><span className="sow-sheet__grip" /></button>
+      {children}
+    </motion.div>
   </>)
 }

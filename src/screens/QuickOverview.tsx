@@ -3,6 +3,7 @@
 // v0.9.0-beta.3 (t150u, dev-only): the card is drawn in one of five styles (Settings › Developer options › QO card
 // style); holding the title steps to the next style with a toast naming it.
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { CONFIG } from '../config'
 import { nowMs, useApp } from '../store/store'
 import { focusColumn, toChecklist, visibleCols, type Layout } from '../data/model'
@@ -29,17 +30,17 @@ export function QuickOverview({ layout, dateCols }: { layout: Layout; dateCols: 
   const today = todayIso(); const c = toChecklist(data, cls, subject); const anchor = focusColumn(c, today, focus)
   const cols = visibleCols(c.columns.length, anchor.index, layout, dateCols).map((i) => c.columns[i]!)
   const from = sinceStart(mode, { openedAt, now: nowMs() })
-  if (!open && !pull) return (
-    <button className="sow-grabber" aria-label="Quick overview (swipe up)" onClick={() => setQuick(true)}
-      onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && y0.current - e.clientY > CONFIG.timing.sheetOpenDragPx) { y0.current = null; setQuick(true) } }} onPointerUp={() => { y0.current = null }}><i /></button>)
+  const shown = open || !!pull // anim/proto: the sheet stays in an AnimatePresence so closing slides it away
   return (<>
-    <Sheet label="Quick overview" onClose={() => setQuick(false)} className="sow-qo" pull={open ? undefined : pull}>
+    {!shown && <button className="sow-grabber" aria-label="Quick overview (swipe up)" onClick={() => setQuick(true)}
+      onPointerDown={(e) => { y0.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId) }} onPointerMove={(e) => { if (y0.current != null && y0.current - e.clientY > CONFIG.timing.sheetOpenDragPx) { y0.current = null; setQuick(true) } }} onPointerUp={() => { y0.current = null }}><i /></button>}
+    <AnimatePresence>{shown && <Sheet key="qo" label="Quick overview" onClose={() => setQuick(false)} className="sow-qo" pull={open ? undefined : pull} behind={!!share}>
       <div className="sow-sheet__head"><h2 className="sow-sheet__title sow-qo__title" aria-description="Hold to try the next card style (developer)" {...cycle}>Quick overview</h2>
         {toast && <span className="sow-qo__toast" role="status">{toast}</span>}<button className="sow-x" aria-label="Close" onClick={() => setQuick(false)}>{GLYPH.close}</button></div>
-      <div className={`sow-qcs${cols.length > 1 ? ' two' : ''}`}>{cols.map((s) =>
-        <QoCardView key={s.sessionId} style={style} card={qoCard(c, data.ticks, s.sessionId, { from, today, selId: c.columns[anchor.index]?.sessionId ?? null })}
+      <div className={`sow-qcs${cols.length > 1 ? ' two' : ''}`}>{cols.map((s, i) =>
+        <QoCardView key={s.sessionId} index={i} style={style} card={qoCard(c, data.ticks, s.sessionId, { from, today, selId: c.columns[anchor.index]?.sessionId ?? null })}
           mode={mode} words={sinceWords(mode, openedAt)} onNext={() => setMode(nextSince(mode))} onShare={() => setShare(s.sessionId)} />)}</div>
-    </Sheet>
-    {share && <ShareSheet sessionId={share} onClose={() => setShare(null)} />}
+    </Sheet>}</AnimatePresence>
+    <AnimatePresence>{share && <ShareSheet key={share} sessionId={share} onClose={() => setShare(null)} />}</AnimatePresence>
   </>)
 }

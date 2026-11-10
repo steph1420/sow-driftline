@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { MotionConfig, motion } from 'framer-motion'
+import { DUR } from './config/motion'
+import { motionTestEnv } from './ui/useMotionOn'
 import { sheetLabel, useApp } from './store/store'
 import { Bar } from './shell/Bar'
 import { Dock } from './shell/Dock'
@@ -32,20 +35,21 @@ export function App() {
     apply(); mq?.addEventListener?.('change', apply); return () => mq?.removeEventListener?.('change', apply)
   }, [side, contrast])
   useEffect(() => { for (const [k, v] of Object.entries(scaleVars(scale))) document.documentElement.style.setProperty(k, v) }, [scale])
+  const first = useRef(true); useEffect(() => { first.current = false }, []) // anim/proto: the first paint of a tab rises with its rows; later tab changes crossfade
   const layout = wide ? 'desktop' : 'phone'; const dateCols = dateColsFor({ layout, landscape: land, weeks: view.weeks, phoneCols: view.phoneCols })
   const drawer = layout === 'phone' && !(view.weeks && land) // RDs2: 1 or 2 dates, the second a drawer (Col2)
   return (
-    <>
+    <MotionConfig reducedMotion={motionTestEnv() ? 'always' : 'user'}>
       {tab === 'checklist' && <Bar columns={drawer} />}{/* the class bar belongs to Checklist only (v0.7j Overview, v0.8 S1 Settings) */}
-      <main className={`sow-main${tab === 'checklist' ? ' sow-main--list' : ''}`}>
+      <motion.main key={tab} className={`sow-main${tab === 'checklist' ? ' sow-main--list' : ''}`} initial={first.current ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: DUR.fade }}>
         {tab === 'checklist' && <Checklist state={data} classKey={cls} subjectKey={subject} pendingOnly={pending} onPick={useApp.getState().pickSession} today={todayIso()} layout={layout} jump={jump} focusSessionId={focus} onTick={viewOnly ? undefined : tick} onTickMany={viewOnly ? undefined : useApp.getState().tickMany} swipe={dev.swipeTick} dateCols={dateCols} drawer={drawer} railBubble={dev.railBubble} />}
         {tab === 'overview' && <Overview />}
         {tab === 'settings' && <Settings />}
         <p className="sow-foot">Driftline · {FLAVOR_LABEL} · v{APP_VERSION} · {source === 'copy' ? sheetLabel() : 'demo data'}</p>
-      </main>
+      </motion.main>
       {tab === 'checklist' && <QuickOverview layout={layout} dateCols={dateCols} />}
       {tab !== 'settings' && <PastPill />}
       <Dock />
-    </>
+    </MotionConfig>
   )
 }
