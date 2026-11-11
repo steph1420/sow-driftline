@@ -31,10 +31,10 @@ export function sheetBridgeSource(url: string, token: () => string | null, fetch
     kind: 'sheet',
     async pull() {
       const t = token(); if (!t) throw new Error('Not paired yet')
-      const p = await call<{ sheetId?: string }>(url, { action: 'ping', token: t }, fetcher)
+      const p = await call<{ sheetId?: string; caps?: unknown }>(url, { action: 'ping', token: t }, fetcher)
       if (!allowedSheets(flavor).includes(String(p.sheetId))) throw refuse(flavor)
-      lastSheetId = String(p.sheetId)
-      return call<SheetState>(url, { action: 'pull', token: t }, fetcher)
+      lastSheetId = String(p.sheetId); lastCaps = capsOf(p)
+      return call<SheetState>(url, { action: 'pull', token: t, ...(lastCaps.includes('marks') ? { withMarks: true } : {}) }, fetcher)
     },
   }
 }
@@ -48,11 +48,24 @@ export async function claimPair(url: string, code: string, fetcher?: Fetcher, de
 }
 
 import type { Op } from '../sync/ops'
-import { editsToPush, type SessionEdit } from './edits'
+import { editsToPush, type SessionEdit, type Struct } from './edits'
+import type { MarkOp } from '../sync/marks'
+import type { PushResult, Refusal } from '../sync/engine'
+/** beta.17 (t250u): what the bridge says it can do (ping `caps`, bridge v2+); [] for older bridges. */
+export let lastCaps: string[] = []
+const capsOf = (p: { caps?: unknown }) => (Array.isArray(p.caps) ? p.caps.filter((x): x is string => typeof x === 'string') : [])
+export const bridgeHas = (cap: string) => lastCaps.includes(cap)
+/** The bridge's refusal text for a rename (0.44 … dl.2): "<to> already has a session — <from> not moved". */
+const REFUSED = /^(\d{4}-\d{2}-\d{2}) already has a session — (\d{4}-\d{2}-\d{2}) not moved$/
+export function refusedRenames(structs: Struct[], rejected: unknown, state: SheetState): Refusal[] {
+  const msgs = (Array.isArray(rejected) ? rejected : []).map((m) => REFUSED.exec(String(m))).filter((m): m is RegExpExecArray => !!m)
+  return structs.flatMap((x) => (x.kind === 'rename' && msgs.some((m) => m[1] === x.to && m[2] === x.from) && state.sessions.some((y) => y.sessionId === `${x.subjectKey}|${x.from}`)
+    ? [{ subjectKey: x.subjectKey, from: x.from, to: x.to }] : []))
+}
 async function assertCopy(url: string, t: string, fetcher?: Fetcher, flavor: Flavor = FLAVOR) {
-  const p = await call<{ sheetId?: string }>(url, { action: 'ping', token: t }, fetcher)
+  const p = await call<{ sheetId?: string; caps?: unknown }>(url, { action: 'ping', token: t }, fetcher)
   if (!allowedSheets(flavor).includes(String(p.sheetId))) throw refuse(flavor)
-  lastSheetId = String(p.sheetId)
+  lastSheetId = String(p.sheetId); lastCaps = capsOf(p)
 }
 /** Sheet id of the last successful ping (devices are disabled on LIVE). */
 export let lastSheetId: string | null = null
@@ -60,15 +73,22 @@ export let lastSheetId: string | null = null
  *  tick cells, and since beta.16 (t245u) date edits as `structs` (rename, delete) and `sessions` (add a date, topic),
  *  which bridge 0.40+ already applies (structs first, then ticks, then sessions). */
 export function copyWriter(url: string, token: () => string | null, fetcher?: Fetcher, flavor: Flavor = FLAVOR) {
-  return async (ops: Op[], edits: SessionEdit[] = []): Promise<SheetState> => {
+  return async (ops: Op[], edits: SessionEdit[] = [], marks: MarkOp[] = []): Promise<PushResult> => {
     const t = token(); if (!t) throw new Error('Not paired yet')
     await assertCopy(url, t, fetcher, flavor)
-    const { structs, sessions } = editsToPush(edits)
-    // beta.16: ids follow the sheet (a move re-keys the session), so a tick goes under its session's date
-    const r = await call<{ state?: SheetState }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ticks: ops.map((o) => ({ subjectKey: o.subjectKey, date: o.date || sheetDate(o), topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt })),
-      ...(structs.length ? { structs } : {}), ...(sessions.length ? { sessions } : {}) }, fetcher, true)
-    if (!r.state) throw new Error('Sheet: no state in reply')
-    return r.state
+    const withMarks = bridgeHas('marks') ? { withMarks: true } : {}
+    const { structs, sessions } = editsToPush(edits); let refused: Refusal[] = []; let last: SheetState | null = null
+    const push = async (b: Record<string, unknown>) => { const r = await call<{ state?: SheetState; rejected?: unknown }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ...withMarks, ...b }, fetcher, true)
+      if (!r.state) throw new Error('Sheet: no state in reply'); last = r.state; return r }
+    // beta.17 (t250u): date moves go first, on their own. If the sheet refuses one (that day is taken there), the ticks,
+    // topic and marks of that date are sent under the date it kept, so they never land on the other date's row.
+    if (structs.length) { const r = await push({ structs }); refused = refusedRenames(structs, r.rejected, r.state!) }
+    const back = (subjectKey: string, date: string) => refused.find((x) => x.subjectKey === subjectKey && x.to === date)?.from ?? date
+    const tk = ops.map((o) => { const d = o.date || sheetDate(o); return { subjectKey: o.subjectKey, date: back(o.subjectKey, d), topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt } })
+    const ss = sessions.map((x) => ({ ...x, date: back(x.subjectKey, x.date) }))
+    const mk = bridgeHas('marks') ? marks.map((m) => ({ subjectKey: m.subjectKey, date: back(m.subjectKey, m.date), roll: m.roll, at: m.at, back: m.back, updatedAt: m.updatedAt })) : [] // dl.1: marks stay on the device
+    if (tk.length || ss.length || mk.length || !last) await push({ ticks: tk, ...(ss.length ? { sessions: ss } : {}), ...(mk.length ? { marks: mk } : {}) })
+    return refused.length ? { ...last!, refused } : last!
   }
 }
 /** beta.14 BK-B14-01: the date the sheet files a tick under. A date moved on this device (edits stay on the device)

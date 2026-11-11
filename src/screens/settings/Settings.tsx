@@ -1,6 +1,6 @@
 // v0.8 Settings (S1, F-ST-01): replaces More. Quiet grouped rows with chevrons; each opens a full page with ‹ back.
 // Sync and Updates show a status dot only. Rows for later phases appear with them (names: Phase 5); Session only with its flag (F-ST-04).
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { setupFileText, useApp, type Side } from '../../store/store'
 import { sortLabel } from '../../data/sortNames'
 import { SortPage } from './SortPage'
@@ -28,6 +28,7 @@ export function Settings() {
   const s = useApp(); const [page, setPage] = useState<Page | 'templates' | null>(null); const devices = useDevices(); const templates = useTemplates((t) => t.set.templates.length)
   const [session, setSession] = useState(false)
   const [exp, setExp] = useState<string | null>(null); const [toast, setToast] = useState<ToastMsg | null>(null); const doneToast = useCallback(() => setToast(null), []) // beta.13 export
+  const notice = useApp((s) => s.notice); useEffect(() => { if (notice) { setToast(notice); useApp.setState({ notice: null }) } }, [notice]) // beta.17 (t250u): a move the sheet refused
   const paired = s.source === 'copy' && s.viewing === null
   if (page === 'templates') return <TemplateMaker onBack={() => setPage(null)} />
   if (page) return (<Push key={page} className="sow-set" onBack={() => setPage(page === 'motion' ? 'animations' : null)}>

@@ -9,9 +9,11 @@
 var SCHEMA = 1
 // Bridge v2 = 0.51.0-dl.1 (t245u): 0.46.2 (deployed on LIVE and the test copy) + device registry (0.50.0-dl.1) + setup-file
 // maker + `caps` on ping. Purely additive: every 0.46.2 action, field and sheet column is unchanged, so the old app (sow v0.47.1) keeps working.
-var BRIDGE_VERSION = '0.51.0-dl.1'
+// 0.51.0-dl.2 (t250u): + late/back-date marks in a hidden `Marks` tab (push `marks`, pull/push `withMarks`). Additive: old apps
+// never send or ask for marks, and every dl.1 action, field and column is unchanged.
+var BRIDGE_VERSION = '0.51.0-dl.2'
 /** What this bridge can do, for apps that want to check before using a feature (ping → caps). */
-var CAPS = ['ticks', 'roster', 'structs', 'sessions', 'subs', 'prefs', 'pairing', 'devices', 'setupFile']
+var CAPS = ['ticks', 'roster', 'structs', 'sessions', 'subs', 'prefs', 'pairing', 'devices', 'setupFile', 'marks']
 var T = { roster: 'Roster', subjects: 'Subjects', sessions: 'Sessions', ticks: 'Ticks', entry: 'Entry', dash: 'Dashboard', meta: '_Meta' }
 var H = {
   roster: ['classKey', 'roll', 'name', 'status', 'leftOn', 'note', 'updatedAt'],
@@ -257,7 +259,7 @@ function buildTabs_(ss) {
 }
 
 // ───────────────────────── state + push ─────────────────────────
-function state_(ss) {
+function state_(ss, withMarks) {
   return {
     ok: true,
     schema: SCHEMA,
@@ -266,6 +268,7 @@ function state_(ss) {
     roster: read_(ss, T.roster, 7).map(function (r) { return { classKey: r[0], roll: Number(r[1]), name: String(r[2]), status: r[3] === 'Left' ? 'Left' : 'Active', updatedAt: toIsoStamp_(r[6]) } }),
     sessions: read_(ss, T.sessions, 8).map(function (r) { return { sessionId: r[0], subjectKey: r[1], classKey: r[2], date: r[3] instanceof Date ? isoDate_(r[3]) : String(r[3]), topic: String(r[4] || ''), status: r[5] || 'Open', updatedAt: toIsoStamp_(r[7]) } }),
     ticks: ticksRead_(ss).map(function (r) { return { tickId: r[0], sessionId: r[1], subjectKey: r[2], classKey: r[3], roll: Number(r[4]), set: r[5] === true, updatedAt: toIsoStamp_(r[6]), sub: r[8] === true, subOff: r[8] === 'off' } }),
+    marks: withMarks ? marksRead_(ss).map(markOut_) : undefined
   }
 }
 
@@ -298,12 +301,13 @@ function applyStructs_(ss, structs, subjects, rejected, off) {
       if (j >= 0) { rejected.push(isoDate_(dt) + ' already has a session — ' + isoDate_(df) + ' not moved'); return }
       srows[i][0] = to; srows[i][3] = dt; srows[i][7] = at
       ticks.forEach(function (t) { if (t[1] === from) { t[1] = to; t[0] = tickId_(to, Number(t[4])) } })
+      marksMove_(ss, from, to) // dl.2: marks follow their ticks
       tb[from] = at; delete tb[to]; changed = true; done++
     } else if (o.kind === 'delete') {
       var dd = dateFromIso_(o.date)
       if (!dd) { rejected.push('bad delete ' + JSON.stringify(o)); return }
       var sid = sessionId_(o.subjectKey, isoDate_(dd)), k = find(sid)
-      if (k >= 0) { srows.splice(k, 1); ticks = ticks.filter(function (t) { return t[1] !== sid }); changed = true }
+      if (k >= 0) { srows.splice(k, 1); ticks = ticks.filter(function (t) { return t[1] !== sid }); changed = true; marksMove_(ss, sid, null) }
       if (!tb[sid] || tb[sid] < at) tb[sid] = at
       done++
     } else rejected.push('unknown struct ' + o.kind)
@@ -389,8 +393,10 @@ function applyPush_(ss, ops, by) {
     })
     if (rosterApplied) write_(ss, T.roster, 7, roster)
   }
+  var marksApplied = 0
+  if (ops.marks && ops.marks.length) marksApplied = applyMarks_(ss, ops.marks, off, rejected, tb)
   meta_(ss, 'lastPush', nowIso_())
-  return { applied: applied, ignored: ignored, rejected: rejected, sessionsApplied: sessionsApplied, structApplied: structApplied, offsetMs: off }
+  return { applied: applied, ignored: ignored, rejected: rejected, sessionsApplied: sessionsApplied, structApplied: structApplied, offsetMs: off, marksApplied: marksApplied }
 }
 
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON) }
@@ -525,7 +531,7 @@ function route_(body) {
   if (body.action === 'pairStart') return withLock_(function () { return pairStart_(Date.now()) })
   if (body.action === 'pairCancel') return withLock_(function () { PropertiesService.getScriptProperties().deleteProperty(PAIR_KEY); return { ok: true } })
   var ss = SpreadsheetApp.getActiveSpreadsheet()
-  if (body.action === 'pull') return state_(ss)
+  if (body.action === 'pull') return state_(ss, body.withMarks === true)
   if (body.action === 'prefsPull') return withLock_(function () { return { ok: true, prefs: prefsRead_(ss) } })
   if (body.action === 'prefsPush') return withLock_(function () {
     var r = prefsPush_(ss, body.rows, body.deviceId)
@@ -536,7 +542,7 @@ function route_(body) {
     lock.waitLock(20000)
     try {
       var r = applyPush_(ss, body, 'app')
-      return { ok: true, applied: r.applied, ignored: r.ignored, rejected: r.rejected, sessionsApplied: r.sessionsApplied, structApplied: r.structApplied === undefined ? 0 : r.structApplied, offsetMs: r.offsetMs, state: state_(ss) }
+      return { ok: true, applied: r.applied, ignored: r.ignored, rejected: r.rejected, sessionsApplied: r.sessionsApplied, structApplied: r.structApplied === undefined ? 0 : r.structApplied, offsetMs: r.offsetMs, marksApplied: r.marksApplied, state: state_(ss, body.withMarks === true) }
     } finally { lock.releaseLock() }
   }
   return { ok: false, error: 'unknown action' }
@@ -626,6 +632,7 @@ function removeSubject_(ss, key, nowIso) {
   // backup exists → now remove
   write_(ss, T.subjects, 7, read_(ss, T.subjects, 7).filter(function (r) { return r[0] !== key }))
   write_(ss, T.sessions, 8, ses.filter(function (r) { return r[1] !== key }))
+  var gone = {}; mine.s.forEach(function (r) { gone[r[0]] = true }); if (ss.getSheetByName(MARKS_TAB)) marksWrite_(ss, marksRead_(ss).filter(function (m) { return !gone[m[1]] }))
   ticksWrite_(ss, tic.filter(function (r) { return r[2] !== key }))
   var out = { key: key, url: b.getUrl(), downloadUrl: 'https://docs.google.com/spreadsheets/d/' + b.getId() + '/export?format=xlsx', sessions: mine.s.length, ticks: mine.t.length }
   meta_(ss, 'removed ' + key, nowIso + ' backup ' + out.url)
@@ -683,4 +690,60 @@ function menuSetupFile() {
   try { text = setupFile_(ScriptApp.getService().getUrl(), token_(), ss.getUrl()) } catch (e) { ui.alert('Setup file', String(e && e.message || e), ui.ButtonSet.OK); return }
   meta_(ss, 'setupFileMadeAt', nowIso_())
   ui.showModalDialog(HtmlService.createHtmlOutput(setupFileHtml_(text)).setWidth(420).setHeight(200), 'App setup file')
+}
+
+// ───────────────────────── late / back-date marks (0.51.0-dl.2, t250u) ─────────────────────────
+// Hidden `Marks` tab, one row per tick cell that has (or had) a mark: tickId | sessionId | markedAt | backDated | updatedAt | deviceId.
+// markedAt = when the tick was marked (ISO), blank = mark cleared (kept as a tombstone so an older mark can't come back).
+// backDated TRUE = "marked on back-date" (counts as on time). Newer updatedAt wins per tickId. Moves/deletes of a session carry its marks.
+var MARKS_TAB = 'Marks'
+var MARKS_H = ['tickId', 'sessionId', 'markedAt', 'backDated', 'updatedAt', 'deviceId']
+function marksSheet_(ss) {
+  var s = ss.getSheetByName(MARKS_TAB)
+  if (!s) { s = ss.insertSheet(MARKS_TAB); header_(s, MARKS_H); s.getRange(2, 3, 999, 1).setNumberFormat('@'); s.getRange(2, 5, 999, 1).setNumberFormat('@'); s.hideSheet() }
+  return s
+}
+/** Rows as arrays; [] when the tab doesn't exist yet (it is only made on the first mark write). */
+function marksRead_(ss) {
+  var s = ss.getSheetByName(MARKS_TAB); if (!s || s.getLastRow() < 2) return []
+  return s.getRange(2, 1, s.getLastRow() - 1, 6).getValues().filter(function (r) { return r[0] !== '' && r[0] != null })
+    .map(function (r) { return [String(r[0]), String(r[1]), toIsoStamp_(r[2]), r[3] === true, toIsoStamp_(r[4]), String(r[5] || '')] })
+}
+function marksWrite_(ss, rows) {
+  var s = marksSheet_(ss), last = s.getLastRow()
+  ensureRows_(s, rows.length + 1)
+  if (last >= 2) s.getRange(2, 1, last - 1, 6).clearContent()
+  if (rows.length) s.getRange(2, 1, rows.length, 6).setValues(rows)
+}
+function markOut_(r) { var roll = Number(String(r[0]).split('|').pop()); return { tickId: r[0], sessionId: r[1], roll: roll, at: r[2], back: r[3] === true, updatedAt: r[4] } }
+/** A session moved (to = new id) or deleted (to = null): its marks go with it. */
+function marksMove_(ss, from, to) {
+  if (!ss.getSheetByName(MARKS_TAB)) return
+  var rows = marksRead_(ss), changed = false, out = []
+  rows.forEach(function (m) {
+    if (m[1] !== from) { out.push(m); return }
+    changed = true
+    if (to) { m[1] = to; m[0] = tickId_(to, Number(String(m[0]).split('|').pop())); out.push(m) }
+  })
+  if (changed) marksWrite_(ss, out.filter(function (m, i) { return !out.some(function (x, j) { return j > i && x[0] === m[0] && String(x[4]) >= String(m[4]) }) }))
+}
+/** marks: [{ subjectKey, date, roll, at ('' = cleared), back, updatedAt }]. Only for sessions that exist (never makes one). */
+function applyMarks_(ss, marks, off, rejected, tb) {
+  var subjects = {}; read_(ss, T.subjects, 7).forEach(function (r) { subjects[r[0]] = true })
+  var sessions = {}; read_(ss, T.sessions, 8).forEach(function (r) { sessions[r[0]] = true })
+  var rows = marksRead_(ss), idx = {}, applied = 0
+  rows.forEach(function (m, i) { idx[m[0]] = i })
+  marks.forEach(function (k) {
+    var d = dateFromIso_(k && k.date), roll = Number(k && k.roll), at = k && k.updatedAt ? capShifted_(k.updatedAt, off) : ''
+    if (!k || !subjects[k.subjectKey] || !d || !(roll > 0) || Math.floor(roll) !== roll || !at || (k.at && isNaN(Date.parse(String(k.at))))) { rejected.push('bad mark ' + JSON.stringify(k)); return }
+    var sid = sessionId_(k.subjectKey, isoDate_(d)), id = tickId_(sid, roll)
+    if (!sessions[sid]) return // the date is gone (deleted or moved away): nothing to mark
+    var row = [id, sid, k.at ? String(k.at) : '', k.at ? k.back === true : false, at, 'app']
+    var i = idx[id]
+    if (i != null && String(rows[i][4]) >= at) return // newer wins
+    if (i == null) { idx[id] = rows.length; rows.push(row) } else rows[i] = row
+    applied++
+  })
+  if (applied) marksWrite_(ss, rows)
+  return applied
 }

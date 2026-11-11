@@ -12,6 +12,7 @@ None open on the branch (Phase 10 break-it, 9 Nov 2026; see docs/BREAK_IT_v0.8.m
 - KNOWN 0.8.0-beta.3: share templates sync between devices only once the test-copy bridge has the prefs actions (bridge 0.50.0-dl.1, deploy left to Steve); until then they stay on this device.
 - KNOWN 0.8.0-beta.3: past years (Session switch) show made-up demo data until the Sheet has past sessions.
 - KNOWN 0.8.0-beta.2: card titles use full subject names ("English", not "Eng") until shorthands (Phase 5, waiting on Steve's class/subject list); long titles truncate on All dates.
+- FIXED 0.9.0-beta.17: late/back-date marks sync through the sheet once bridge 0.51.0-dl.2 is deployed (hidden `Marks` tab; on dl.1 they stay on the device, no error). A move the sheet refuses now shows a toast and keeps the session on its old date. Restore of a snapshot from before a move no longer brings the old date back. Tests B17-*.
 - FIXED 0.9.0-beta.16: Reschedule, New date, topic edits and Undo of New date now reach the sheet (test copy). Late/back-date marks still stay on the device (docs/REFERENCE.md §8).
 - FIXED 0.3.0-beta.1 B-D1-RAIL: A–Z rail scrolled with the list (t146u).
 - FIXED 0.3.0-beta.1 B-B4-1: two tabs could overwrite each other (test D2-TAB-01).

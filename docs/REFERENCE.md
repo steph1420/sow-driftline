@@ -1,5 +1,5 @@
 # SoW / Driftline — system reference (sheet · bridge · app)
-Last updated: 2026-11-11 (v0.9.0-beta.16, bridge v2 = 0.51.0-dl.1). Owner: Teacher-S (Steve). Written for t245u:
+Last updated: 2026-11-11 (v0.9.0-beta.17, bridge 0.51.0-dl.2). Owner: Teacher-S (Steve). Written for t245u, updated t250u:
 "a reference sheet of all the structure of both the bridge script, the Google Sheets and our own app … so a redo will be easy to migrate".
 
 No pupil names and no tokens are in this file (house rule). Private values (the live bridge URL, the live token) live only in
@@ -14,13 +14,13 @@ Contents: 1 Map · 2 Google Sheets · 3 Bridge (Apps Script) · 4 Setup files ·
 
 | Piece | Where | State (11 Nov 2026) |
 |---|---|---|
-| LIVE workbook "Notebook Status SOW" | Google Drive, id `1vGXltIwxto-KGZr1ygSDk9EEM0m5rkLySXshZMdv4UQ` | Read-only for agents. Bridge 0.46.2 (the version sow v0.47.1 ships; not pinged by agents). Used by the old app. |
-| TEST copy "Notebook Status SOW - TEST copy" | id `1iIGXOzdW9NTqLxWnBwI6UkpwOKyihQxvrG8L1v6njYI` | All tests. Bridge 0.46.2 (its `version` field reads 0.46.2). Baseline: 7 sessions · 311 tick rows · 216 ticked · 89 pupils · 4 subjects. |
+| LIVE workbook "Notebook Status SOW" | Google Drive, id `1vGXltIwxto-KGZr1ygSDk9EEM0m5rkLySXshZMdv4UQ` | Read-only for agents. Was 0.46.2; Steve is deploying 0.51.0-dl.1 himself (t250u; agents don't ping LIVE). Used by the old app. Backup `1CyCxBkBvOBowp8EYyXOp9ssA8nzKL7-QBaPWNezq6k4`. |
+| TEST copy "Notebook Status SOW - TEST copy" | id `1iIGXOzdW9NTqLxWnBwI6UkpwOKyihQxvrG8L1v6njYI` | All tests. Bridge **0.51.0-dl.1** (deployed by Steve, t250u). Backup `1UJl8tjcM1Xj2J4UBsKu-sVdWEM4WEnhltD3u0_gDF80`. Baseline: 7 sessions · 311 tick rows · 216 ticked · 89 pupils · 4 subjects. |
 | Old app "SoW" (Stable) | `steph1420/sow` v0.47.1 → github.io/sow/ | Untouched. Talks to LIVE. Bridge source: `apps-script/Code.js` (copy here: `bridge/legacy/Code-0.46.2.js`). |
 | Driftline (this repo) | `steph1420/sow-driftline`, branch `feat/rds2` | Beta builds from tags. Talks to the TEST copy only (`allowedSheets`). |
 | Beta site | `steph1420/sow-driftline-beta` (file `BETA_REF` = full commit sha) | github.io/sow-driftline-beta/ |
 | Stable Driftline site | this repo's CI on `master`/tags | Never ships a prerelease (`-beta.n`); Stable needs Steve's go. |
-| Bridge v2 source | `bridge/Code.js` + `bridge/appsscript.json` | Written and tested; **not deployed anywhere** (Steve deploys; see §7). |
+| Bridge source | `bridge/Code.js` (0.51.0-dl.2) + `bridge/appsscript.json`; older: `bridge/legacy/` | dl.1 deployed on TEST (and LIVE by Steve); **dl.2 not deployed** (Steve deploys; see §7). |
 | Working rules | `steph1420/agent-common`: `06-coding-standards.md`, `handovers/lfps-sow/WORKING_RULES.md` | |
 
 ## 2. Google Sheets
@@ -54,11 +54,17 @@ Script Properties (Extensions › Apps Script › Project settings): `SOW_TOKEN`
 `SOW_TOMBS` (session tombstones `{sessionId: at}`, kept 60 days / newest 120).
 
 ### 2.3 v2 sheet layout
-Identical to schema 1. No tab, column, format or formula changes, so the old app and the sheet formulas keep working.
-The only new things are the menu item `SoW › Make app setup file…` and the `_Meta` key `setupFileMadeAt`.
-Everything Driftline needs (date moves, new dates, topics, deleting a date for Undo) already fits schema 1 through the existing
-`push` fields (§3.3). Things that would need new columns later (not built; mockups/decision first): late/back-date marks shared
-across devices (`markedOn` in Ticks!K was proposed in `docs/v0.7.0-plan.md`).
+dl.1: identical to schema 1 (no tab, column, format or formula changes). New: menu `SoW › Make app setup file…`, `_Meta` key `setupFileMadeAt`.
+Date moves, new dates, topics and deletes fit schema 1 through the existing `push` fields (§3.3).
+
+**dl.2 adds one tab, nothing else** (additive; existing tabs, columns and formulas untouched, so the old app v0.47.1 is unaffected):
+
+| Tab | Columns (row 1 = header, frozen) | Rules |
+|---|---|---|
+| `Marks` (hidden; made on the first mark write) | A tickId · B sessionId · C markedAt · D backDated · E updatedAt · F deviceId | One row per marked tick (late / back-dated). C = when the tick was marked (ISO), D TRUE/FALSE, E/F stamp. Newer E wins. C empty = mark cleared (kept as a tombstone row so an old device can't bring it back). A date move re-keys the rows; a date delete / subject removal deletes them. |
+
+Why a separate tab and not Ticks!K/L: the bridge rewrites Ticks rows in place and the old bridge only knows A:J, so extra Ticks columns
+could fall out of line with their rows; a tab only dl.2 touches can't.
 
 ## 3. Bridge (Apps Script web app bound to the workbook)
 
@@ -68,11 +74,13 @@ across devices (`markedOn` in Ticks!K was proposed in `docs/v0.7.0-plan.md`).
 | 0.44.0 | old `sow-pwa` checkout | structs rename/delete, tombstones |
 | 0.46.2 | **deployed on LIVE and the TEST copy**; sow v0.47.1 `apps-script/Code.js` = `bridge/legacy/Code-0.46.2.js` | clock offset + clamp, changed-rows-only Ticks write, subManual (J), strict dates, plain-text topics, roster status check, tombstone cap |
 | 0.50.0-dl.1 | written in this repo (never deployed) | device registry: pairClaim with `deviceName` → per-device key; `devicesList`/`deviceRevoke`/`deviceRename` |
-| **0.51.0-dl.1 = bridge v2** | `bridge/Code.js` (not deployed) | 0.50 + setup-file maker (menu) + `caps` on `ping`. Additive only. |
+| 0.51.0-dl.1 = bridge v2 | `bridge/legacy/Code-0.51.0-dl.1.js` (tag v0.9.0-beta.16); **deployed on the TEST copy** (LIVE: Steve) | 0.50 + setup-file maker (menu) + `caps` on `ping`. Additive only. |
+| **0.51.0-dl.2** | `bridge/Code.js` (tag v0.9.0-beta.17; not deployed) | dl.1 + `Marks` tab: `caps` gains `marks`; `pull`/`push` `withMarks`; `push` `marks[]`. Additive only; dl.1 replies unchanged unless `withMarks:true`. |
 
 Compatibility proof: the old app's own bridge suite (sow v0.47.1, `apps-script/test`, 63 tests) passes on `bridge/Code.js`
 except the 7 checks that compare the version label; with the label set back to 0.46.2 all 63 pass. Driftline's
-`tests/beta16.test.ts` runs the app's sync against both the deployed 0.46.2 file and v2.
+`tests/beta16.test.ts` / `tests/beta17.test.ts` run the app's sync against 0.46.2, dl.1 and dl.2 (`tests/helpers/realBridge.ts`).
+The same 63/63 holds for dl.2 (label set back).
 
 ### 3.2 Transport and auth
 - `POST <exec URL>` with `Content-Type: text/plain;charset=utf-8` (no CORS preflight) and a JSON body `{ action, token, … }`.
@@ -84,9 +92,9 @@ except the 7 checks that compare the version label; with the label set back to 0
 ### 3.3 Actions
 | Action | Auth | Request | Reply |
 |---|---|---|---|
-| `ping` | token | – | `{ ok, schema:1, sheetId, caps? }` (v2 adds `caps`: ticks, roster, structs, sessions, subs, prefs, pairing, devices, setupFile) |
-| `pull` | token | – | `{ ok, schema, serverTime, subjects[], roster[], sessions[], ticks[] }` — subjects `{subjectKey,classKey,subject,kind,active,order}`; roster `{classKey,roll,name,status,updatedAt}`; sessions `{sessionId,subjectKey,classKey,date:'yyyy-mm-dd',topic,status,updatedAt}`; ticks `{tickId,sessionId,subjectKey,classKey,roll,set,updatedAt,sub,subOff}` |
-| `push` | token | `{ clientNow?, structs?[], ticks?[], subs?[], sessions?[], roster?[] }` | `{ ok, applied, ignored, rejected[], sessionsApplied, structApplied, offsetMs, state:<pull> }` |
+| `ping` | token | – | `{ ok, schema:1, sheetId, caps? }` (v2 adds `caps`: ticks, roster, structs, sessions, subs, prefs, pairing, devices, setupFile; dl.2 adds `marks`) |
+| `pull` | token | – | `{ ok, schema, serverTime, subjects[], roster[], sessions[], ticks[] }` — subjects `{subjectKey,classKey,subject,kind,active,order}`; roster `{classKey,roll,name,status,updatedAt}`; sessions `{sessionId,subjectKey,classKey,date:'yyyy-mm-dd',topic,status,updatedAt}`; ticks `{tickId,sessionId,subjectKey,classKey,roll,set,updatedAt,sub,subOff}`. dl.2: request `{ withMarks:true }` adds `marks[]` `{tickId,sessionId,roll,at,back,updatedAt}` (absent otherwise) |
+| `push` | token | `{ clientNow?, structs?[], ticks?[], subs?[], sessions?[], roster?[], marks?[] (dl.2), withMarks? (dl.2) }` | `{ ok, applied, ignored, rejected[], sessionsApplied, structApplied, marksApplied (dl.2), offsetMs, state:<pull> }` |
 | `pairStart` | token | – | `{ ok, code:'6 digits', expiresInSec:300, expiresAt }` |
 | `pairClaim` | none | `{ code, deviceName? }` | 0.46: `{ ok, token }`; 0.50+ with deviceName: `{ ok, deviceKey, deviceId }`. Errors: bad code / no code / expired / wrong code (`triesLeft`) / locked (5 tries) |
 | `pairCancel` | token | – | `{ ok }` |
@@ -95,15 +103,18 @@ except the 7 checks that compare the version label; with the label set back to 0
 | `devicesList` (0.50+) | token | – | `{ ok, devices:[{id,name,createdAt,lastSeen,revoked}] }` |
 | `deviceRevoke` / `deviceRename` (0.50+) | token | `{ id, name? }` | `{ ok }` / `no such device` |
 
-`push` order and rules (applyPush_): **structs first, then ticks (+ subs), then sessions, then roster.**
+`push` order and rules (applyPush_): **structs first, then ticks (+ subs), then sessions, then roster, then marks (dl.2).**
 - `structs[]`: `{ kind:'rename', subjectKey, from:'yyyy-mm-dd', to, at }` moves the session row (new id `subjectKey|to`) and re-keys its
-  ticks; refused if `to` already has a session. `{ kind:'delete', subjectKey, date, at }` removes the session and its ticks. Both leave a
+  ticks (dl.2: and its marks); refused if `to` already has a session, with `rejected` text `<to> already has a session — <from> not moved`. `{ kind:'delete', subjectKey, date, at }` removes the session and its ticks. Both leave a
   tombstone on the old id; later ops for that id count only if stamped after the tombstone (so Undo works, stale ops don't resurrect).
 - `ticks[]`: `{ subjectKey, date, topic, roll, set, updatedAt, sub?, subOff? }`. The session is `subjectKey|date` and is created if missing
   (unless tombstoned). Per tick, newer `updatedAt` wins. Roll must be a whole number on that class's Roster.
 - `subs[]` (0.46): Submitted-by-hand flags from older apps; only ever turn J on.
 - `sessions[]`: `{ subjectKey, date, topic, updatedAt }` creates the session if missing, else sets the topic when newer than the row's H.
 - `roster[]`: `{ classKey, roll, status:'Active'|'Left', updatedAt }`; never invents pupils.
+- `marks[]` (dl.2): `{ subjectKey, date, roll, at, back, updatedAt }` — `at` = ISO time the tick was marked, `''` = clear; `back` = back-dated.
+  Newer `updatedAt` wins per tick; a mark for a session that doesn't exist is ignored; a bad shape goes to `rejected` (`bad mark …`).
+  Older bridges ignore the field (unknown keys are skipped), so sending it is safe, but the app only sends it when `caps` has `marks`.
 - `clientNow`: if the phone clock is off by >30 s, stamps are shifted by the offset; anything >10 min ahead of the server is clamped to now.
 
 ### 3.4 Menu (`onOpen` → menu "SoW")
@@ -165,10 +176,23 @@ A move gives the session the sheet's id for its new date (`subjectKey|date`) and
 with it (the same rule the bridge's rename uses), so local ids always match the sheet. Reply `state` → `mergeNewest` (per cell newest
 wins, waiting ticks on top). Quick sync polls `pull` every 4 s while visible.
 
+Marks (beta.17): the app reads `caps` on each ping (`bridgeHas('marks')`). With dl.2 it pulls/pushes `withMarks:true`, queues each mark
+change in the `marksOut` outbox (newest wins, sent with the next push) and adopts the sheet's marks (`sync/marks.ts adoptMarks`: newer wins,
+a waiting local change wins, a cleared mark removes it). With dl.1 / 0.46 marks stay on the device only (no queue, no error).
+
+Refused move (beta.17): date moves are sent in their own push before ticks/topics. If the reply's `rejected` says `<to> already has a
+session` and the old session still exists, the app puts the session back on its old date (ids, waiting ticks, topics, marks, Undo steps),
+resends the waiting ticks to the old date (never onto the other device's session), and shows the usual bottom toast:
+"The sheet already has CW on Wed 9 Dec · kept on Mon 7 Dec".
+
+Restore after a move (beta.17): every local move is logged with its time (`moves`, last 300). Restoring a snapshot maps its session ids
+through the moves made after the snapshot, so it restores ticks on the session's current date and never brings back the old column.
+
 ### 5.3 Device storage keys (`storageKey(name)`)
 `prefs` · `view` · `dev` · `deviceName` · `lastTab` · `hints` · `favs` · `nameSort` · `scope` · `shareTemplates` · `copyToken` (token or
 device key) · `copyBridge` (bridge URL) · `outbox` · `tabs` (BroadcastChannel name) · `demoTicks` / `demoTicksSchool` ·
-`undo-{demo|copy}` · `snapshots-{demo|copy}` · `edits-{demo|copy}[-school]` · `marks-{demo|copy}[-school]`.
+`undo-{demo|copy}` · `snapshots-{demo|copy}` · `edits-{demo|copy}[-school]` · `marks-{demo|copy}[-school]` · `marksOut` (beta.17:
+mark changes waiting for the sheet) · `moves` (beta.17: move log `{from,to,at}` used by Restore).
 Beta and Stable never share keys (different namespace on the same github.io origin).
 
 ### 5.4 Features
@@ -206,6 +230,16 @@ Nothing in the sheet layout changes, so no data step is needed.
 ### 7.2 Deploy bridge v2 to LIVE (only when Steve says go)
 Same as 7.1 on the LIVE workbook, after 7.0. The old app v0.47.1 keeps working (all its bridge tests pass on v2). Rollback: Manage deployments › previous version.
 
+### 7.2a Upgrade dl.1 → dl.2 (marks sync; TEST copy first, LIVE only on Steve's go)
+1. Rollback point: Manage deployments, note the current version (dl.1). Source also in `bridge/legacy/Code-0.51.0-dl.1.js`.
+2. Extensions › Apps Script › `Code.gs`: select all, paste all of `bridge/Code.js` at tag `v0.9.0-beta.17`
+   (raw: `https://raw.githubusercontent.com/steph1420/sow-driftline/v0.9.0-beta.17/bridge/Code.js`). Save.
+3. Deploy › Manage deployments › pencil › Version: New version › Deploy (same /exec URL).
+4. Check: open the /exec URL in a browser (unauthenticated reply shows `"version":"0.51.0-dl.2"`); in Driftline Beta mark a late tick
+   on one phone and see the mark on a second phone after it syncs.
+   The hidden `Marks` tab appears on the first mark. No data step; existing tabs unchanged.
+Rollback: Manage deployments › the dl.1 version. The `Marks` tab can stay (nothing else reads it) or be deleted.
+
 ### 7.3 Point Driftline at LIVE (later, separate go; needs code change)
 Driftline Beta refuses any sheet but the TEST copy (`allowedSheets` in `src/data/sheetSource.ts`, Steve t168u/t169u). Opening LIVE needs:
 (a) Steve's decision which flavor may use LIVE; (b) change `allowedSheets`; (c) a break-it run against a fresh Drive copy of LIVE;
@@ -216,13 +250,13 @@ Export with `pull` (JSON: subjects, roster, sessions, ticks) + `prefsPull`; ids 
 can be filled from that JSON alone. Keep the contract in §3.3 or version it (06 rule 5: additive = minor, breaking = major, a mismatch fails visibly).
 
 ## 8. Known caveats (open)
-- A rename the sheet refuses (another device already added that day) is dropped quietly; the app's copy then shows the other device's date
-  after the next pull. No UI for rejections yet.
-- Snapshots keep their old ids: Restore of a snapshot taken before a move may bring back the old date's column.
-- Late/back-date marks stay on each device (no sheet column).
+- Marks are shared only once dl.2 is deployed; until then they stay on each device. Marks made before dl.2 are not uploaded backwards
+  (only changes after it). The old app v0.47.1 neither shows nor sends marks.
+- A refused move is detected by the bridge's message text (0.44 – dl.2 all use the same text).
 - Phone clock running fast: own tick shown over another device's newer one until reload. Same roll twice in a class would share ticks.
 - Another device's later edit to the same tick wins without notice. Accented first letters go under "A" on the rail.
 - `SOW_TOMBS` keeps sandbox tombstones from tests (60-day expiry); harmless.
 
 ## 9. Change log of this file
 - 2026-11-11 first version (t245u).
+- 2026-11-11 t250u: bridge dl.2 `Marks` tab, marks sync, refused-move toast, Restore after a move, §7.2a, caveats.

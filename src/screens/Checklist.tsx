@@ -49,6 +49,7 @@ export function Checklist({ state, classKey, today, layout, jump = 0, onTick, on
   const c0 = useMemo(() => toChecklist(state, classKey, subjectKey), [state, classKey, subjectKey])
   const mk = useMotion(); const mo = mk.on; const [pop, setPop] = useState<string | null>(null) // anim/proto: the cell the finger just ticked
   const tk = useMoment('ticks'); const rf = useMoment('reflow'); const [undo, setUndo] = useState<ToastMsg | null>(null); const doneUndo = useCallback(() => setUndo(null), []) // beta.9
+  const notice = useApp((s) => s.notice); useEffect(() => { if (notice) { setUndo(notice); useApp.setState({ notice: null }) } }, [notice]) // beta.17 (t250u): a move the sheet refused
   const [burst, setBurst] = useState(false); const full = useRef<{ key: string; done: Record<string, boolean> } | null>(null)
   const order = state.subjects.map((x) => x.subjectKey); const was = useRef({ key: `${classKey}|${subjectKey}`, dir: 0 })
   const sk = `${classKey}|${subjectKey}`; if (was.current.key !== sk) { const a = order.indexOf(was.current.key.split('|')[1] ?? ''), b = order.indexOf(subjectKey ?? ''); was.current = { key: sk, dir: a >= 0 && b >= 0 && b < a ? -1 : 1 } }

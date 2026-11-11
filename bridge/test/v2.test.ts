@@ -21,16 +21,16 @@ function env(execUrl: string | null = EXEC) {
   const post = (body: object) => JSON.parse(c.doPost({ postData: { contents: JSON.stringify(body) } }).text)
   return { c, ss, props, post, shown, alerts, token: c.token_() as string }
 }
-describe('bridge v2 (0.51.0-dl.1)', () => {
+describe('bridge v2 (0.51.0-dl.2)', () => {
   it('BR2-01 ping still answers as before, plus the version and caps', () => {
     const { post, token } = env(); const p = post({ action: 'ping', token })
-    expect(p).toMatchObject({ ok: true, schema: 1, sheetId: 'COPY_ID', version: '0.51.0-dl.1' }); expect(p.caps).toContain('setupFile'); expect(p.caps).toContain('structs')
+    expect(p).toMatchObject({ ok: true, schema: 1, sheetId: 'COPY_ID', version: '0.51.0-dl.2' }); expect(p.caps).toContain('setupFile'); expect(p.caps).toContain('structs')
     expect(post({ action: 'ping', token: 'nope' })).toMatchObject({ ok: false, error: 'bad token' })
   })
   it('BR2-02 setupFile_ builds the file the app opens (new format, with v, exportedAt and sheetUrl)', () => {
     const { c, token } = env(); const text = c.setupFile_(EXEC, token, 'https://docs.google.com/spreadsheets/d/COPY_ID/edit', '2026-11-11T05:00:00.000Z')
     const j = JSON.parse(text)
-    expect(j).toEqual({ kind: 'sow-driftline-setup', v: 1, bridgeUrl: EXEC, token, sheetUrl: 'https://docs.google.com/spreadsheets/d/COPY_ID/edit', exportedAt: '2026-11-11T05:00:00.000Z', bridgeVersion: '0.51.0-dl.1' })
+    expect(j).toEqual({ kind: 'sow-driftline-setup', v: 1, bridgeUrl: EXEC, token, sheetUrl: 'https://docs.google.com/spreadsheets/d/COPY_ID/edit', exportedAt: '2026-11-11T05:00:00.000Z', bridgeVersion: '0.51.0-dl.2' })
     expect(parseSetup(text)).toMatchObject({ bridgeUrl: EXEC, token })
   })
   it('BR2-03 no deployment (or a /dev URL) gives a plain message, no file', () => {

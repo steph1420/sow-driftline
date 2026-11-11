@@ -1,6 +1,6 @@
 // v0.8 Overview (O2g, L-OVERVIEW): header with today's date, filter chips (All · classes · types), one card per class +
 // subject + type. Tap a card or date → Checklist there; ＋ → New date; All › → All dates; press and hold → card menu.
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '../store/store'
 import { overviewCards, pastYearCards, type Card, type OvDate } from '../data/overview'
 import { shownYear } from '../data/schoolYear'
@@ -35,6 +35,7 @@ export function Overview() {
   const [menu, setMenu] = useState<{ card: Card; at: DOMRect } | null>(null)
   const [dmenu, setDmenu] = useState<{ card: Card; d: OvDate; at: DOMRect; box: DOMRect } | null>(null) // 2A: one date held (beta.12: or an All dates row)
   const [toast, setToast] = useState<ToastMsg | null>(null); const doneToast = useCallback(() => setToast(null), [])
+  const notice = useApp((s) => s.notice); useEffect(() => { if (notice) { setToast(notice); useApp.setState({ notice: null }) } }, [notice]) // beta.17 (t250u): a move the sheet refused
   const said = (text: string) => setToast({ id: Date.now(), text, undo: /^(Moved|Added|Topic)/.test(text) ? () => useApp.getState().undo() : undefined })
   const [sheet, setSheet] = useState<Open>(null); const [all, setAll] = useState<string | null>(null)
   const classes = uniq(cards.map((c) => c.classKey)); const kinds = uniq(cards.map((c) => c.kind))

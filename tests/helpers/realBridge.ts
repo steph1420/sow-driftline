@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { MockSpreadsheet, makeGlobals } from '../../bridge/test/mockSheets'
 import { COPY_SHEET_ID } from '../../src/data/sheetSource'
-export const BRIDGES = { deployed: '../../bridge/legacy/Code-0.46.2.js', v2: '../../bridge/Code.js' } as const
+export const BRIDGES = { deployed: '../../bridge/legacy/Code-0.46.2.js', dl1: '../../bridge/legacy/Code-0.51.0-dl.1.js', v2: '../../bridge/Code.js' } as const
 export const TOKEN = 'test-token'
 type Fn = (...a: unknown[]) => any
 export function realBridge(which: keyof typeof BRIDGES = 'deployed') {

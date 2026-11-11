@@ -3,13 +3,17 @@
 import type { SheetState } from '../data/contract'
 import { applyOps, mergeNewest, mergePending, type Op } from './ops'
 import { Outbox } from './outbox'
+import type { MarkOp } from './marks'
 import type { SessionEdit } from '../data/edits'
 export type Lock = <T>(name: string, fn: () => Promise<T>) => Promise<T>
 export type Channel = { post: (m: unknown) => void; listen: (fn: (m: unknown) => void) => void }
 export type SaveStatus = 'saved' | 'saving' | 'offline' | 'error'
 /** beta.16: date edits waiting for the sheet (the store keeps them); sent with the ticks, dropped once saved. */
 export type EditQueue = { list: () => SessionEdit[]; ack: (sent: SessionEdit[]) => void }
-type Opts = { storage: Storage; key: string; push: (ops: Op[], edits: SessionEdit[]) => Promise<SheetState>; edits?: EditQueue; lock: Lock; channel?: Channel; graceMs: number; retryMs?: number
+/** beta.17 (t250u): a date move the sheet refused (that day was already taken there). */
+export type Refusal = { subjectKey: string; from: string; to: string }
+export type PushResult = SheetState & { refused?: Refusal[] }
+type Opts = { storage: Storage; key: string; push: (ops: Op[], edits: SessionEdit[], marks: MarkOp[]) => Promise<PushResult>; edits?: EditQueue; marksKey?: string; onRefused?: (r: Refusal[]) => void; lock: Lock; channel?: Channel; graceMs: number; retryMs?: number
   onState: (f: (s: SheetState) => SheetState) => void; onStatus?: (s: SaveStatus, waiting: number) => void }
 
 export function memLock(): Lock { const q = new Map<string, Promise<unknown>>(); return (n, fn) => { const p = (q.get(n) ?? Promise.resolve()).then(fn, fn); q.set(n, p.catch(() => {})); return p } }
@@ -21,7 +25,9 @@ export function broadcast(name: string): Channel | undefined {
 }
 
 export function createEngine(o: Opts) {
-  const box = new Outbox(o.storage, o.key); const edits = () => o.edits?.list() ?? []; const count = () => box.list().length + edits().length
+  const box = new Outbox(o.storage, o.key); const edits = () => o.edits?.list() ?? []
+  const mbox = o.marksKey ? new Outbox<MarkOp>(o.storage, o.marksKey) : null; const marks = () => mbox?.list() ?? []
+  const count = () => box.list().length + edits().length + marks().length
   let status: SaveStatus = count() ? 'offline' : 'saved'; let t: ReturnType<typeof setTimeout> | undefined
   let dead = false // beta.14 BK-B14-04: a replaced engine (Back to demo, a new pairing) must not save, retry or report any more
   const tell = (s: SaveStatus) => { if (dead) return; status = s; o.onStatus?.(s, count()) }
@@ -31,10 +37,11 @@ export function createEngine(o: Opts) {
     clearTimeout(t); if (dead) return
     await o.lock('sow-driftline:push', async () => {
       if (dead) return
-      const ops = box.list(); const ed = edits(); if (!ops.length && !ed.length) { tell('saved'); return }
+      const ops = box.list(); const ed = edits(); const mk = marks(); if (!ops.length && !ed.length && !mk.length) { tell('saved'); return }
       tell('saving')
       try {
-        const st = await o.push(ops, ed); box.ack(ops); if (ed.length) o.edits?.ack(ed); if (dead) return
+        const st = await o.push(ops, ed, mk); box.ack(ops); if (ed.length) o.edits?.ack(ed); if (mk.length) mbox?.ack(mk); if (dead) return
+        if (st.refused?.length) o.onRefused?.(st.refused) // beta.17: put a refused move back before merging the reply
         o.onState((s) => mergeNewest(s, st, box.list())); o.channel?.post({ state: st }); tell(count() ? 'saving' : 'saved')
         if (count()) schedule(0)
       } catch (e) { tell(/offline/i.test(String(e)) ? 'offline' : 'error'); if (o.retryMs) schedule(o.retryMs) }

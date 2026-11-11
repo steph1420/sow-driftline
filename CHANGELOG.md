@@ -1,4 +1,13 @@
 # Changelog
+## 0.9.0-beta.17 (2026-11-11)
+Steve t250u. Beta only; refused move and Restore checked live on the test copy (bridge dl.1, sandbox dates, restored after). Live sheet untouched. Code.js changed: yes (bridge 0.51.0-dl.2 written, NOT deployed).
+- Late and back-date marks now sync between phones through the sheet once bridge 0.51.0-dl.2 is on it (new hidden Marks tab; nothing else in the sheet changes, the old app is unaffected). With the dl.1 bridge they stay on each phone as before, with no error.
+- If the sheet refuses a date move (another phone already has that day), the usual bottom message says so and the date stays where it was, with its ticks. Its ticks never land on the other phone's date.
+- Restoring a snapshot taken before a date move restores the ticks on the date's new day and no longer brings the old date back.
+- Bridge 0.51.0-dl.2 (bridge/Code.js): caps "marks", pull/push withMarks, push marks[]. Additive; dl.1 replies unchanged; the old app's 63 bridge tests pass on it. dl.1 kept in bridge/legacy/. Deploy steps: docs/REFERENCE.md §7.2a.
+- docs/REFERENCE.md: Marks tab, new bridge fields, marks sync, refused moves, Restore after a move, migration steps.
+- Tests: 405 app + bridge (app sync against the real 0.46.2, dl.1 and dl.2 bridge code).
+- Rollback: set BETA_REF back to 8c9eacf (beta.16); backup branch backup/pre-v0.9.0-beta.17.
 ## 0.9.0-beta.16 (2026-11-11)
 Steve t245u. Beta only; checked live on the test copy (sandbox dates, restored after). Live sheet untouched. Code.js changed: yes (bridge v2 written, NOT deployed).
 - Date edits now reach the sheet: Reschedule, + New date (even before its first tick), topic edits, and Undo/Redo of them. They go with the next save through the bridge already on the sheet (0.46.2), so no bridge update is needed for this.

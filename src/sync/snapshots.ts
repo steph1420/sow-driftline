@@ -14,7 +14,12 @@ export function takeSnapshot(st: Storage, key: string, s: SheetState, label: str
   try { if (next.length) st.setItem(key, JSON.stringify(next)); else st.removeItem(key) } catch { try { st.removeItem(key) } catch { /* storage off */ } return false }
   return next[0]?.at === at
 }
-export function restoreOps(cur: SheetState, snap: SheetState, at: string): Op[] {
+/** beta.17 (t250u): `moved` maps a session id in the snapshot to where that date lives now (dates moved after the
+ *  snapshot). The snapshot's ticks are restored onto the moved date, so Restore never brings back the old date's column. */
+export function restoreOps(cur: SheetState, snapIn: SheetState, at: string, moved: (sessionId: string) => string = (x) => x): Op[] {
+  const ids = new Map(snapIn.sessions.map((x) => [x.sessionId, moved(x.sessionId)]))
+  const snap: SheetState = { ...snapIn, sessions: snapIn.sessions.map((x) => ({ ...x, sessionId: ids.get(x.sessionId)! })),
+    ticks: snapIn.ticks.map((t) => { const sid = ids.get(t.sessionId) ?? moved(t.sessionId); return sid === t.sessionId ? t : { ...t, sessionId: sid, tickId: `${sid}|${t.roll}` } }) }
   const want = new Set(snap.ticks.filter((t) => t.set).map(cellKey)); const out: Op[] = []; const seen = new Set<string>()
   const ses = new Map([...snap.sessions, ...cur.sessions].map((x) => [x.sessionId, x]))
   for (const t of [...cur.ticks, ...snap.ticks]) {
