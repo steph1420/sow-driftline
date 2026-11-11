@@ -1,6 +1,6 @@
 # Server sheet v2 — design and build instructions
 
-Status: **PLAN ONLY.** No sheet, no bridge rewrite, and no app code was built with this document (Steve t257u / t258u, 11 Nov 2026). Quota was tight, so this is the handover the next agent builds from.
+Status: **PLAN ONLY.** No sheet, no bridge rewrite, and no app code was built with this document (Steve t257u / t258u / t259u, 11 Nov 2026). Quota was tight, so this is the handover the next agent builds from. **t259u locks** are in §15 (Q-SV2-1, Q-SV2-2, Q-SV2-4, Q-SV2-5, Q-SV2-13).
 
 Owner: Teacher-S (Steve). Repos: `steph1420/sow-driftline` (this file, branch `feat/rds2`), `steph1420/agent-common` (handover pointer). Companion for Steve: `docs/SHEET_HOW_ITS_BUILT.md` (plain English).
 
@@ -10,14 +10,15 @@ This plan designs a **brand-new** server (a Google spreadsheet) from scratch, pl
 
 ## 1. Purpose and wording
 
-Steve asked for (t257u, t255u, t258u):
+Steve asked for (t257u, t255u, t258u, t259u):
 
 1. A fresh server, designed systematically, every tab and column meaningful, ready for later features.
 2. Visible **human tabs** in the same spirit as the existing `OLD *` tabs: simple, readable, editable directly in Google Sheets. All system tabs hidden.
-3. An **Update** control on human tabs that writes those edits into the database. **Human tabs always win.**
+3. An **Update** control that writes those edits into the database. Edits apply only to the dates currently rendered on the tab. A box a phone changed that the open view had not seen is **not** overwritten: it is flagged, written to Conflicts, and shown in Review for Steve to pick (Q-SV2-1 LOCKED, §8.4).
 4. A full scheme for Update, backup, restore, savestates (named quick-saves), undo and redo.
 5. A rewritten bridge, and a document of how the server is built.
-6. An alternative **Option B**: a hosted Go server (Fly.io / Render / Cloud Run, SQLite or Postgres), compared with Option A, with a recommendation and a migration outline. Same op-log rules either way.
+6. An alternative **Option B**: a hosted Go server (Fly.io / Render / Cloud Run, SQLite or Postgres), compared with Option A, with a recommendation and a migration outline. Same op-log rules either way. **Q-SV2-4 LOCKED: Option A now, Go later.**
+7. A **date picker** on each subject tab (not every date at once) and **progress dashboard(s)** that follow the open dates (t259u, Q-SV2-2, Q-SV2-13).
 
 **Wording (t255u, use everywhere in new UI and docs):**
 
@@ -27,7 +28,7 @@ Steve asked for (t257u, t255u, t258u):
 | devices by **their names** (e.g. "Maya's phone") | "the client", "device A" in user-facing text |
 | a **profile** (the small file that points an app at this server) | "setup file" |
 
-In the op log, the reserved device id for server / human-tab edits is **`server`**. The current id `sheet` is accepted as an alias (same always-win rule) so a phone that still labels Entry edits `sheet` keeps working.
+In the op log, the reserved device id for server / human-tab edits is **`server`**. The current id `sheet` is accepted as an alias (same reserved id and the §8.4 Update rule) so a phone that still labels Entry edits `sheet` keeps working.
 
 ---
 
@@ -37,7 +38,7 @@ These already-locked rules apply to **both** Option A and Option B. Do not "impr
 
 - **Op log, never overwrite.** Every change is an op `{opId = deviceId:seq, deviceId, seq, lamport, vv, kind, target, value, wallAt, recvAt}`. State = `fold(Base + Ops)`. Visible tabs are views, rewritten from the fold.
 - **No device clock decides order.** Causal order by Lamport + version vector. `wallAt` is display only. `recvAt` (the server's clock at receipt) is a tiebreak only.
-- **True-concurrency rules (unchanged, except the human-Update path in §8 / Q-SV2-1):** ticks are **Set wins** (Developer option: Unset wins / Latest receipt). Left: **server wins**; between two phones, later `recvAt` wins. Phone-vs-phone tick clashes stay Set-wins.
+- **True-concurrency rules:** ticks are **Set wins** (Developer option: Unset wins / Latest receipt). Left: **server wins**; between two phones, later `recvAt` wins. Phone-vs-phone tick clashes stay Set-wins. Human Update follows the watermark/Review rule in §8.4 (Q-SV2-1 LOCKED) — it does not use wall-clock time.
 - **Idempotent and gap-safe.** Duplicate `opId` is a `dup`. A seq gap returns `resend`.
 - **Conflicts are recorded, never silent.** A true-concurrency clash writes a `Conflicts` row; the app shows them under Sync › Review. Nothing blocks sync.
 - **Compaction:** ops older than 60 days fold into `Base` (Drive backup of `Ops` first), except the **current SoW** and the **previous SoW**, which are never compacted. Definition of those runs stays exactly as CRDT_SYNC_PLAN §13 (topic runs, Asia/Calcutta, academic-year start month).
@@ -45,7 +46,7 @@ These already-locked rules apply to **both** Option A and Option B. Do not "impr
 - Tests must replay clock skew (±1 day), offline concurrency, duplicates, gaps, and old-app pushes (coding rule 4).
 - Coding rules 1–8 still apply: one data contract, single owner of each piece of state, small modules, tests with code, versioned contract, no magic numbers, small releases, decisions logged. Only Steve locks decisions.
 
-**Human tabs always win** is Steve's new rule for this design (t257u). It tightens the concurrency rule **only** for an Update from a human tab. See §8 and open question **Q-SV2-1**. Until Steve locks it, build to the recommendation in §8.
+**Q-SV2-1 is LOCKED (t259u).** Order is what the server received, plus version vectors, not device time. On human Update, a box a phone changed that the open view had not seen (ops on that register newer than the tab's render watermark) is not overwritten: it is flagged, written to Conflicts, and shown in Review for Steve to pick. His edits apply to the other rendered boxes. Details in §8.4.
 
 ---
 
@@ -76,7 +77,7 @@ Reasons, in short (full comparison in §12):
 - Pupil names already live in his Google account. A keeps them there. B places them on a rented machine.
 - Today's pain (Apps Script quotas, reading the whole log, 4 s poll) is real, but compaction, a dirty-flag that skips idle work, and a slightly slower poll when nothing is dirty are enough for one teacher and a few phones. If those limits actually bite after A is live, migrate to B using §12.5.
 
-Do not start Option B unless Steve locks **Q-SV2-4** as B, or later asks for it because A is hitting quotas.
+**Q-SV2-4 is LOCKED (t259u): Option A now, Go later.** Do not start Option B unless Steve later asks because A is hitting quotas.
 
 ---
 
@@ -180,35 +181,55 @@ A new row with Date + Class + Subject + Kind adds a session (`session.add`). Del
 
 #### One tab per subject, named like the OLD tabs: `KGA Eng CW`
 
-This is the layout Steve asked to keep. It is a **wide register**: pupils down the side, dates across the top, checkboxes in the grid, topic in the header — the same shape as `OLD KGA Eng CW` (REFERENCE §2.1), but not limited to two date columns.
+A **wide register** in the spirit of `OLD KGA Eng CW` (REFERENCE §2.1): pupils down the side, a few dates across the top, topic in the header, tick boxes in the grid. **Q-SV2-2 LOCKED (t259u): the tab does not show every date.** Steve picks which dates are **open**. The script quickly renders only those columns. Update applies only to the rendered dates.
 
-Recommended layout (row numbers are fixed; the builder refuses to publish if Steve has inserted rows above the header — see edge cases):
+**Date picker (v2.0: data-validation dropdowns at the top of the tab).** Two slots by default, plus an empty "+ add date" slot if he wants a third or more. Each slot lists that subject's session dates (`dd/mm/yyyy`). Clearing a slot closes that column. A later HTML sidebar in the style of the app's date sheet is optional, not required for v2.0. Changing the picker is a view change, not an op; it is refused while the tab is dirty (Update or Discard first).
+
+**Default open dates** — same rule as the app (`src/data/model.ts` `pickAnchor` + `visibleCols` with n = 2), Asia/Calcutta "today":
+
+1. Anchor = today if that subject has a session on today; else the next upcoming date; else the last past date.
+2. Show that date and the one immediately before it (if any), oldest on the left. That may be two past dates, today plus one, or a mix with a future date.
+3. The selection is saved per tab in `_TabPrefs`. A first open with no saved row uses this default.
+
+Each render (publish, picker change, or refresh of a clean tab) stamps a **watermark** on `_TabPrefs`: the fold's `recvAt` / `vv` / `lamport` at that moment. Q-SV2-1 uses it on Update.
+
+Layout (row numbers are fixed; the builder refuses to publish if header rows have been inserted):
 
 | Area | Cells | Meaning |
 |---|---|---|
 | A1 | Subject title | `KGA Eng CW` (must match the tab name / subjectKey). Read-only. |
-| C1 | Year | Academic year label, or a Year cell Steve can change to look at an older year (Q-SV2-2). Changing Year is a view filter, not an op, until he edits and Updates that year's cells. |
-| A2 | Banner | `Saved` or `Unsaved changes — SoW › Update`. Written by the script, not typed. |
-| C2 onward, row 2 | Dates | One column per session of this subject in the visible year, `dd/mm/yyyy`. Steve may edit a date (move), type a new date in the first empty column (add), or clear a date (remove, after preview). |
-| C3 onward, row 3 | Topics | Topic for that date. |
-| A4 / B4 | headers | `Roll` / `Name` |
-| C4 onward | (blank or a thin rule) | Not a data row. |
-| A5+ | Roll | From `_Pupils` for this class. |
-| B5+ | Name | Display only (Q-SV2-6). |
-| C5+ | Tick | Checkbox. TRUE = Set, FALSE = not set. Blank is treated as FALSE. |
-| Last used column + 1, row 2 | hint | `(type a date to add)` |
+| C1 onward | Date picker | Dropdown slots for the open dates, plus `+ add date`. |
+| A2 | Banner | `Saved` or `Unsaved changes — SoW › Update`. Script-written. |
+| C2 onward | Progress strip | View-only, one cell-group per open date: done / pending / % and names behind (Active pupils not Set). A year-total % at the end. Rebuilt with the dashboard, not typed. |
+| A3 | (blank) | |
+| C3 onward | Dates | The open dates only, `dd/mm/yyyy`. Steve may edit a shown date (move) or, after preview, clear it (remove). New dates are added from Plan or by typing in the first empty picker slot (creates a session, then opens it). |
+| C4 onward | Topics | Topic for that open date. |
+| A5 / B5 | headers | `Roll` / `Name` |
+| A6+ | Roll | From `_Pupils` for this class. |
+| B6+ | Name | Display only (Q-SV2-6). |
+| C6+ | Tick | Checkbox. TRUE = Set, FALSE = not set. Blank = FALSE. |
 
-Columns A–B frozen. Left pupils go in a short block below a blank row and a `Left` label, still with their ticks (history is kept). They are not mixed into the Active list.
+Columns A–B frozen. Left pupils go in a short block below a blank row and a `Left` label, still with their ticks. They are not mixed into the Active list.
 
-**Date window (Q-SV2-2, recommendation):** show every session in the **current academic year** for that subject. A twice-weekly class is ~80 columns — usable with a frozen name column. Older years appear when Steve changes the Year cell. Do not dump five years into one grid.
+Marks (the time a tick was marked, back-dated flag) stay off this grid (`tick.mark` / `_Marks`).
 
-Marks (the time a tick was marked, back-dated flag) are **not** on this grid. They stay a phone/server concern (`tick.mark` ops, `_Marks` view). Putting times into the wide grid would ruin the OLD-tab simplicity. A later human tab can be added if Steve asks to edit marks by hand.
+#### `Progress` (view-only dashboards)
 
-#### `Overview` (view-only)
+Steve asked for progress dashboards like the ones his old tabs / the schema-1 `Dashboard` had (REFERENCE §2.2: Date, Subject, Topic, Active, Set, Set %, Not Set, Names not Set). **Q-SV2-13 LOCKED (t259u).** Designed with two coordinated views, both **script-rebuilt**, never hand-edited. No Update button.
 
-A readable snapshot of the current SoW, in the spirit of today's Dashboard: Date, Subject, Topic, Active, Set, Set %, Not set, Names not set. Built from formulas over the hidden views, or rewritten on each fold. **No Update button** — there is nothing to consolidate. Hidden helper columns are allowed only if each is named and documented in the builder; prefer no hidden columns here.
+**On each subject tab:** the progress strip above, for the open dates, plus a year total.
 
-No other visible tabs in v2. Conflicts stay hidden (reviewed in the app). Savestates are listed on `Server` and in the menu, not as a spreadsheet Steve has to edit.
+**Workbook tab `Progress`:**
+
+| Section | Columns | What |
+|---|---|---|
+| **Open dates** | Class · Subject · Kind · Date · Topic · Active · Done · Pending · % · Behind (names) | One row per currently open date of each subject, following that tab's picker. Sorted by class, subject, date. |
+| **This year** | Class · Subject · Kind · Sessions · Done · Pending · % · Next date · Next topic | Totals for the current academic year. **Next date** = the next session after today (even if it is not open on the picker). % is done/active-ticks across the year's sessions. Behind names stay on the Open-dates section so the year block stays short. |
+| **Per class** (optional third block) | Class · Open % · Year % | One roll-up row per class. |
+
+Active counts exclude Left pupils. Names in Behind are display-only, from `_Pupils`. Rebuild this tab whenever open dates change, after a successful Update, and after a fold that changes ticks or sessions. Prefer script-written values over live formulas Steve might break.
+
+No other visible tabs in v2. Conflicts stay hidden (reviewed in the app). Savestates are listed on `Server` and in the menu.
 
 ### 6.2 Hidden system tabs
 
@@ -388,7 +409,20 @@ Dirty detection snapshot. One row per human tab that can be Updated (`Pupils`, `
 | B `rev` | Integer |
 | C `publishedAt` | |
 | D `hash` | Hash of the canonicalised used range (values only, not formatting) |
-| E `snapshot` | JSON of the canonical grid (or a pointer to a named range / a hidden sidecar tab if JSON would be huge). Must be enough to diff. |
+| E `snapshot` | JSON of the canonical grid of **rendered** cells only (or a pointer to a sidecar if JSON would be huge). Must be enough to diff. |
+
+#### `_TabPrefs`
+
+Per-tab view state for subject tabs (and any later picker). Not an op-log input.
+
+| Col | Meaning |
+|---|---|
+| A `tab` | Subject tab name |
+| B `openSessionIds` | JSON list, oldest first. Empty or missing → use the default two-date rule on next render. |
+| C `watermarkRecvAt` | Fold `recvAt` at last render |
+| D `watermarkVv` | JSON vv at last render |
+| E `watermarkLamport` | Lamport at last render |
+| F `renderedAt` | ISO |
 
 #### `_Savestates`
 
@@ -446,12 +480,12 @@ The ol.1 set stays. One additive kind for notes is optional and can wait.
 
 | Kind | target | value | Registers | Concurrency (true ties) |
 |---|---|---|---|---|
-| `tick.set` | `sid|pupilId` | true/false | `tick:` | Set wins, **except** a human Update: server wins (Q-SV2-1) |
-| `tick.mark` | `sid|pupilId` | `{at,back}` or null | `mark:` | later recvAt; human Update: server wins if the Update touched marks (v2 grid does not) |
+| `tick.set` | `sid|pupilId` | true/false | `tick:` | Phone vs phone: Set wins. Human Update: §8.4 watermark/Review (Q-SV2-1) |
+| `tick.mark` | `sid|pupilId` | `{at,back}` or null | `mark:` | later recvAt (v2 grid does not edit marks) |
 | `session.add` | sid | `{subjectKey,classKey,date,topic?}` | `alive:` true, `meta:`, `date:`, `topic:` | alive: keep wins |
 | `session.remove` | sid | null | `alive:` false | keep wins |
-| `session.date` | sid | `yyyy-mm-dd` | `date:` | later recvAt; human Update: server wins |
-| `session.topic` | sid | text ≤ 200 | `topic:` | later recvAt; human Update: server wins |
+| `session.date` | sid | `yyyy-mm-dd` | `date:` | later recvAt; human Update of a rendered date: §8.4 |
+| `session.topic` | sid | text ≤ 200 | `topic:` | later recvAt; human Update of a rendered topic: §8.4 |
 | `left.set` | `pupilId` (not `classKey|roll`) | `Left`/`Active` plus optional `leftOn` | `left:` | **server wins**; phone vs phone: later recvAt |
 | `pupil.add` | pupilId | `{classKey,roll,name}` | `pupil:` | later recvAt; human Update: server wins |
 | `pupil.move` | pupilId | `{classKey,roll}` | `pupilKey:` | server wins on Update; else later recvAt |
@@ -465,7 +499,7 @@ Names and new pupils are **ops** in v2 (today, names are hand-typed on Roster an
 
 ---
 
-## 8. Human tabs: dirty, diff, preview, Update, lock, always-win
+## 8. Human tabs: dirty, diff, preview, Update, lock, watermark/Review
 
 ```mermaid
 sequenceDiagram
@@ -499,6 +533,8 @@ While a tab is dirty, the bridge **must not** rewrite that tab when phones save 
 
 Offer **SoW › Discard unsaved changes** (republish that tab from the fold) and **SoW › Reload this tab**.
 
+Picker or Year-filter edits do **not** mark the tab dirty. They re-render columns and restamp the watermark, and are **refused while dirty**.
+
 ### 8.2 The Update control
 
 Google drawings used as buttons break when a tab is rebuilt. Do not rely on them.
@@ -515,36 +551,36 @@ Provide all of:
 
 Under the script lock (20 s wait; if not acquired, tell Steve to try again — never write without the lock):
 
-1. Re-read all dirty (and, for safety, all updatable) human tabs.
-2. Diff against `_HumanPublished` and against the current fold (they should match except for Steve's edits and any phone ops received while dirty). Produce a patch: new/changed/cleared ticks, topic/date changes, adds/removes, Left, pupil adds/moves/renames.
-3. Validate: known or new subjects; rolls whole numbers; no two Active pupils in a class with the same roll; dates real; topic length; date collisions; no deleting a pupil (Left only); Year cell not mid-edit.
-4. Count clashes with ops received while dirty (the values the phones saved that the human grid is about to overwrite).
-5. Show a **preview dialog**: e.g. `12 ticks, 1 topic, 1 Left will be saved. 2 of those overwrite changes already received from Maya's phone. Pupils: no name changes.` Invalid rows are listed and **excluded**, not silently dropped. Steve confirms or cancels.
-6. On confirm: allocate `server` seqs under the same lock, set `vv` to **everything the server has received**, `wallAt` = now, `recvAt` = strictly increasing server clock, append ops, fold, rewrite hidden views, republish **all** human tabs (clean), write `_HumanPublished`, clear dirty, append an `_UndoStack` row, stamp `_Meta`.
+1. Re-read all dirty (and, for safety, all updatable) human tabs. Subject-tab diffs cover **only the dates currently rendered**.
+2. Diff against `_HumanPublished` and the current fold. Produce a patch: new/changed/cleared ticks, topic/date changes on open columns, adds/removes, Left, pupil adds/moves/renames.
+3. Validate: known or new subjects; rolls whole numbers; no two Active pupils in a class with the same roll; dates real; topic length; date collisions; no deleting a pupil (Left only).
+4. For each edited register, if the server already has an op newer than that tab's **render watermark**, do not include it in the write set — count it for Review instead (Q-SV2-1).
+5. Show a **preview dialog**: e.g. `12 ticks, 1 topic, 1 Left will be saved. 2 boxes also changed on Maya's phone since this tab was last refreshed — those are not overwritten; they go to Review for you to pick.` Invalid rows are listed and **excluded**, not silently dropped. Steve confirms or cancels.
+6. On confirm: allocate `server` seqs under the same lock, set `vv` to **everything the server has received**, `wallAt` = now, `recvAt` = strictly increasing server clock, append only the write-set ops, fold, rewrite hidden views, republish human tabs (clean) and `Progress`, write `_HumanPublished`, restamp watermarks, clear dirty, append an `_UndoStack` row, stamp `_Meta`. Write a Conflicts row for each skipped unseen clash (rule `review`).
 7. On cancel: release the lock, leave dirty as-is.
 
 If the script is close to the 6-minute cap, refuse to start and ask Steve to Update one tab at a time (menu: **Update this tab only**). Design the fold/publish to be incremental (only rewrite changed subject tabs) so a normal morning Update stays well under a minute.
 
-### 8.4 Human tabs always win (Q-SV2-1, recommendation)
+### 8.4 Human Update vs unseen phone changes (Q-SV2-1 LOCKED, t259u)
 
-An Update writes device-`server` ops whose `vv` includes every op already received, so they are **after** everything already on the server.
+"Sync is you best know it": order is **what the server received**, plus **version vectors**, never a device clock. `wallAt` stays display only; `recvAt` is a tiebreak only.
 
-Phone ops that **had not arrived yet** (offline, or in flight) are still concurrent with those server ops when they later arrive. For that case Steve's rule is: **the human tab wins**.
+On **Update**:
 
-**Recommended lock:**
+- Only the **rendered / open dates** on that tab are in scope. Dates not on the grid are untouched.
+- For each cell Steve actually edited: if the server already has an op on that register **newer than the tab's render watermark** (a phone changed it after the open view was last drawn, so the grid had not seen it), **do not overwrite**. Flag it in the preview, write a Conflicts row (rule `review`), and leave the phone's value in the fold. After republish, the cell shows the phone's value. The clash is shown in the app under Sync › Review for Steve to pick (picking writes a new `server` op).
+- His other edits on rendered cells (the open view was still current for those registers) become device-`server` ops, with `vv` = everything the server has received.
+- Boxes he did not edit get no op.
+- **Phone vs phone** stays **Set-wins**. **Left** stays **server-wins**.
+- Typing that has not been Updated is not yet an op.
 
-- For every register **touched by that Update**, a concurrent later arrival from a phone loses to the `server` op. Rule name in Conflicts: `server-wins`. The phone's op is kept (seq stays whole) but does not count. A Conflicts row is always written.
-- For registers **not** touched by that Update, the ordinary rules apply (Set-wins on ticks, and so on).
-- Phone vs phone, and phone vs an older server op that was *not* from this "always win" path, are unchanged: ticks Set-wins, Left server-wins, dates/topics later recvAt.
-- Entry-like typing on a human tab that has not been Updated is **not** yet an op. Only Update (or a discarded dirty state) changes the log.
-
-This tightens Q-CRDT-2 only on the human-Update path. It must be logged as a decision when Steve locks it. Until then, implement the recommendation and list it as open.
+Phone ops that arrive *after* this Update, and are concurrent with a `server` op that was applied, follow the ordinary rules (Set-wins on ticks, not an automatic overwrite).
 
 ### 8.5 Phones saving at the same time
 
 - `opsPush` / `opsPull` wait on the same script lock as Update. A phone may time out and retry; retries are idempotent by `opId`.
 - After Update, the next `opsPull` returns the new `server` ops. The phone folds them and its views match.
-- If the phone still has unsent ops that clash, they are sent, recorded, and lose on the registers the Update touched (above). The phone should surface the conflict in Sync › Review.
+- If the phone still has unsent ops, they are sent and folded under the ordinary rules (Set-wins on ticks, server-wins on Left). Clashes already flagged at Update stay in Review.
 
 ---
 
@@ -605,7 +641,7 @@ Preview before either mode: name of the save, when, opCount, and a warning about
 
 This is the **server** undo (the SoW menu), not the phone's 60-step undo, which stays as it is (the phone already writes new ops).
 
-- **SoW › Undo last Update** writes a batch of device-`server` ops that set each touched register back to the value before that Update (`forwardOps` on `_UndoStack` has both sides). The original ops stay in `_Ops`. The new ops have a normal seq, a `vv` of everything received, and win like any other server Update (same always-win rule, so a phone cannot sneak past an undo).
+- **SoW › Undo last Update** writes a batch of device-`server` ops that set each touched register back to the value before that Update (`forwardOps` on `_UndoStack` has both sides). The original ops stay in `_Ops`. The new ops have a normal seq, a `vv` of everything received, and follow the same §8.4 watermark/Review rule as a fresh Update (an unseen phone change is not silently overwritten).
 - **SoW › Redo** writes another batch that reapplies the Update's values.
 - A new Update (or a restore) clears the redo tail.
 - Undo is refused if the stack is empty, if `epoch` no longer matches the record, or similar. Always preview: `Undo "Update (12 ticks, 1 topic)"?`.
@@ -636,7 +672,7 @@ Rewrite `bridge/Code.js` (keep `0.60.0-ol.1` in `bridge/legacy/`). Same transpor
 
 Unchanged in spirit: shared `SOW_TOKEN` or a non-revoked device key. Hashes only in `SOW_DEVICES`. Pairing: 6-digit code, 5-minute expiry, 5 tries, single use, lock on claim (Q-HARM-9). Never log, print, or commit a token. `Show app token` stays a menu for Steve, on a dialog, not on a tab.
 
-**Profile** (was "setup file"): see §10.4. Do not put the shared token in a profile if Steve locks Q-SV2-5 as recommended.
+**Profile** (was "setup file"): see §10.4. **Q-SV2-5 LOCKED:** the profile carries the shared token, as today.
 
 ### 10.2 Caps and versioning
 
@@ -648,7 +684,7 @@ Unchanged in spirit: shared `SOW_TOKEN` or a non-revoked device key. Hashes only
 
 `caps` (all booleans): `ticks`, `roster`, `structs`, `sessions`, `subs`, `prefs`, `pairing`, `devices`, `marks`, `oplog`, `profile` (replaces `setupFile`; still accept the old name as an alias in code), `humanTabs`, `savestates`, `epoch`.
 
-`rules` echoes the concurrency policy (`tickConflict`, `humanUpdate: 'server-wins'`).
+`rules` echoes the concurrency policy (`tickConflict`, `humanUpdate: 'watermark-review'`).
 
 Contract versioning (coding rule 5): additive field = minor bridge version. Dropping or changing meaning = major, and a phone on the old contract gets a visible error (`update the app` or `update the bridge`). `schema: 2` is the sheet schema; `version` is the bridge semver.
 
@@ -675,15 +711,15 @@ New actions are **not** required for Update / backup / savestate / undo — thos
 
 A profile is a small JSON file that points an app at this server. It is private.
 
-| | Old SoW | Driftline today | v2 recommendation (Q-SV2-5) |
+| | Old SoW | Driftline today | v2 (Q-SV2-5 LOCKED, t259u) |
 |---|---|---|---|
 | kind | `sow-setup` | `sow-driftline-setup` | `sow-driftline-profile` |
 | v | 1 | 1 | 1 (a higher `v` → "update the app first") |
 | URL | `syncUrl` | `bridgeUrl` | `bridgeUrl` (still parse the old keys) |
-| secret | `token` (shared) | `token` (shared) | **one-time pairing code**, not the shared token (Q-HARM-9). Optional "trusted profile" for Steve's own phones may include a freshly minted **device key** (not the shared token). |
+| secret | `token` (shared) | `token` (shared) | **the shared token, as today**. Risk: anyone with the file can act as the shared credential until the token is rotated. This is a logged exception to Q-HARM-9 ("setup files never contain the shared token"). Still parse old `sow-setup` and `sow-driftline-setup` files. |
 | other | sheetUrl, exportedAt, appVersion | sheetUrl, exportedAt, bridgeVersion | `serverUrl` (spreadsheet URL, optional), `exportedAt`, `bridgeVersion`, `schema: 2` |
 
-File name: `driftline-profile.json`. Menu: **`SoW › Make app profile…`**. The token or code is never shown on the spreadsheet grid. The app's `parseSetup` (to be renamed in the app in a later small release) continues to read the old kinds so existing files still open.
+File name: `driftline-profile.json`. Menu: **`SoW › Make app profile…`**. The token is never shown on the spreadsheet grid. The app's `parseSetup` (to be renamed in a later small release) continues to read the old kinds so existing files still open.
 
 Beta must keep `allowedSheets` as an allow-list. A new test server gets a new spreadsheet id; do not point Beta at the new **live** server until Steve says go (same rule as today).
 
@@ -745,7 +781,7 @@ Steve's earlier line (t256u) "we'll make a new live sheet with the old data for 
 This is the technical checklist; Steve's version is `docs/SHEET_HOW_ITS_BUILT.md`.
 
 1. Create the workbook (or take a blank one). Set locale `en_IN`, time zone `Asia/Kolkata`.
-2. Create hidden tabs first (`_Meta` … `_UndoStack`) with headers only, then visible tabs (`Server`, `Pupils`, `Plan`, `Overview`). Subject tabs are created when `_Subjects` gets a row (import or Update).
+2. Create hidden tabs first (`_Meta` … `_UndoStack`, including `_TabPrefs`) with headers only, then visible tabs (`Server`, `Pupils`, `Plan`, `Progress`). Subject tabs are created when `_Subjects` gets a row (import or Update), with default open dates and an empty progress strip.
 3. Hide every `_` tab (`hideSheet()`). Freeze row 1 on system tabs; freeze A–B and the date/topic header rows on subject tabs. Apply data-validation lists (Active/Left, CW/HW, Open/Completed). Date format `dd/mm/yyyy` on human date cells. Checkboxes on the tick grid. Protect script-owned cells (banners, hidden id columns) so they are not easily typed on; Steve can still edit the intended cells.
 4. Write `_Meta` and `_Migrations` 2.0.0. Initialise `_HumanPublished` after the first publish.
 5. Do not put sample pupils in a live or test-from-real import. A completely empty demo workbook may use obviously fake names (`Demo One`, `Demo Two`) only.
@@ -772,7 +808,7 @@ flowchart LR
 - Tables in SQL mirror §6.2: `ops` (append-only, unique `op_id`), `base`, `conflicts`, `pupils`, `sessions`, `ticks`, `marks`, `meta`, `savestates`, `undo_stack`. Indexes on `(device_id, seq)`, `recv_at`, `register`. Transactions replace LockService.
 - Incremental `opsPull` is a query for ops the phone has not seen, not a full log read.
 - Auth: the same pairing model; store key hashes. HTTPS only. Profile's `bridgeUrl` becomes the host URL, same JSON bodies so the app's data layer barely changes.
-- Human tabs: a **mirror spreadsheet** in Steve's Drive. The Go server (Google account or a restricted service account he owns) rewrites the visible tabs from the fold, the same way the bridge would. An Apps Script **stub** in that workbook can be tiny: `onEdit` dirty flag + menu Update, which posts the grid to the Go host (or the Go server reads the grid via the Sheets API when Steve clicks a checkbox the stub stamps). Human-always-win is implemented in Go, not in Sheets.
+- Human tabs: a **mirror spreadsheet** in Steve's Drive. The Go server (Google account or a restricted service account he owns) rewrites the visible tabs from the fold, the same way the bridge would. An Apps Script **stub** in that workbook can be tiny: `onEdit` dirty flag + menu Update, which posts the grid to the Go host (or the Go server reads the grid via the Sheets API when Steve clicks a checkbox the stub stamps). The §8.4 watermark/Review rule is implemented in Go, not in Sheets.
 - Savestates: a database snapshot (and optionally an export or a Sheet copy) plus the vv / epoch pointer. Undo: compensating ops, same as A.
 
 ### 12.2 Comparison
@@ -789,7 +825,7 @@ flowchart LR
 
 ### 12.3 Recommendation (same as §4)
 
-**Option A now. Option B later, only if A hits quotas or Steve locks Q-SV2-4 as B.**
+**Q-SV2-4 LOCKED (t259u): Option A now. Option B later**, only if A hits quotas or Steve asks.
 
 Keep the HTTP contract and the fold/rules identical so B is a backend swap, not a third sync model. Do not pre-build a Go repo in this phase.
 
@@ -821,7 +857,7 @@ Do not run A and B as two authorities at the same time.
 6. **Steve deletes a subject tab.** Treat as "hide / inactive" only after preview; recreate the tab from `_Subjects` if it was an accident (Discard unsaved / repair).
 7. **Update hits the 6-minute cap or a lock timeout.** No partial publish: append-ops then publish is checkpointed (`_Meta` flag `repairNeeded`). Next menu click or `opsPull` under lock repairs views from the log. Tell Steve if repair ran.
 8. **Phone `opsPush` during preview, before confirm.** The lock is not held during the dialog (Steve might go for tea). Re-diff after confirm under the lock; if the preview counts changed, show the preview again.
-9. **Duplicate opId / seq gap / clock skew / offline concurrency.** Already locked; tests must cover them, including server-wins on a late phone op after Update.
+9. **Duplicate opId / seq gap / clock skew / offline concurrency.** Already locked; tests must cover them, including the §8.4 watermark/Review path and Set-wins between phones.
 10. **Load/rewind while a tab is dirty.** Refuse until Steve Updates or Discards.
 11. **Undo after a rewind.** Stack rows with the old epoch are invalid; clear or ignore them.
 12. **Compaction during dirty.** Refuse compact while dirty. Compaction never folds current or previous SoW.
@@ -831,22 +867,25 @@ Do not run A and B as two authorities at the same time.
 16. **Old Driftline (beta.18 and earlier) pointed at a v2 server.** `push` → `update the app`. `pull` may still read. `opsPush` with old tick targets (`sid|roll`) may be accepted by a temporary shim in phase 6 only, then refused. Profiles for v2 should be used with a build that understands `schema: 2` and `pupilId`.
 17. **Old SoW v0.47.1** never talks to the v2 server. It stays on the old live sheet.
 18. **Shared token leaked in an old setup file.** Rotating `SOW_TOKEN` remains the emergency revoke-all. Device keys can be revoked one by one.
-19. **10 million cell cap.** Compaction and one-year-per-grid (Q-SV2-2) keep us far under for a single teacher's register.
+19. **10 million cell cap.** Compaction and rendering only the open dates keep us far under for a single teacher's register.
 20. **`server` seq reused across two unsynchronised script instances.** LockService plus a Script Property counter, incremented in the same lock as the append, prevents this.
 21. **Option B mirror drift.** If B is built: a `mirrorRev` on both sides; a failed publish sets `repairNeeded` and the next cycle republishes from the log, never from a half-written grid.
 22. **Real pupil names** in test output, git, or this plan. Never. Use counts, hashes, demo names.
+23. **Picker change while the tab is dirty.** Refused until Update or Discard, so unsaved ticks are not wiped by a re-render.
+24. **Watermark stale after a long leave-open.** The check is still against the last render; a phone save in between is the case Q-SV2-1 is for. After Update or a clean refresh, the watermark moves forward.
+25. **Progress tab typed on by hand.** Next rebuild overwrites it. No Update path; no ops.
 
 ---
 
 ## 14. Phased build order and acceptance tests
 
-Do not start until Steve has answered the open questions in §15, at least **Q-SV2-1** (always-win), **Q-SV2-2** (date window), **Q-SV2-4** (A vs B), and **Q-SV2-5** (profile secret). If he says B, skip A phases 1–5's Apps Script builder and implement the Go host first, still with a mirror workbook and the same tests.
+Q-SV2-1, Q-SV2-2, Q-SV2-4, Q-SV2-5 and Q-SV2-13 are **LOCKED** (t259u). Remaining items in §15 still have recommendations; use those unless Steve objects. Start Phase 1 only when he says go, on a **new** spreadsheet. Option B is later (§12).
 
 Work only on a **new** spreadsheet. Do not write to the current live sheet or, unless Steve asks, to the current test copy. A new test server is a new file. Keep commands under 3 minutes when an agent runs them; same error twice: stop. Commit as LFPS~SOW with explicit paths. No force-push, no tag move. No release until a later, explicit Beta go.
 
 ### Phase 0 — Locks
 
-Steve locks §15. Record answers in `DECISIONS.md`. No code.
+Q-SV2-1, 2, 4, 5 and 13 are locked in this file (t259u). Record them in `DECISIONS.md` when the build starts. Remaining §15 items stay recommended. No code in this phase.
 
 ### Phase 1 — Empty v2 workbook builder (Option A)
 
@@ -858,11 +897,11 @@ Import from a Drive copy of the test copy, both un-migrated schema 1 and (if pre
 
 ### Phase 3 — Publish human tabs from the fold
 
-Wide subject tabs, Pupils, Plan, Overview, Server status. **Tests:** date columns match sessions of that year; checkbox grid matches `_Ticks`; Left block complete; Year cell filters; names only from `_Pupils`.
+Subject tabs with picker, Pupils, Plan, Progress, Server status. **Tests:** default open dates match `pickAnchor` + two columns; picker change re-renders only those dates and restamps the watermark; `_TabPrefs` persists the selection; checkbox grid matches `_Ticks` for open dates; Left block complete; names only from `_Pupils`; Progress Open-dates section follows each tab's picker; This-year totals and Next date are correct; the subject-tab strip matches.
 
-### Phase 4 — Dirty, preview, Update, lock, always-win
+### Phase 4 — Dirty, preview, Update, lock, watermark/Review
 
-**Tests:** onEdit sets dirty; hash detects a missed onEdit; preview counts; cancel writes nothing; confirm appends `server` ops and clears dirty; invalid date collision refused with the locked message; a phone op received while dirty is not written onto the dirty tab; after Update, a late concurrent tick from a phone **loses** and a Conflicts row is `server-wins`; a tick clash **between two phones** on an untouched register is still Set-wins; lock timeout is visible; repair after a forced mid-publish failure.
+**Tests:** onEdit sets dirty; picker change while dirty is refused; hash detects a missed onEdit; preview counts; cancel writes nothing; confirm appends `server` ops only for rendered dates and clears dirty; invalid date collision refused with the locked message; a phone op received while dirty is not written onto the dirty tab; if Steve edited a box that has an op newer than the watermark, that box is **not** overwritten, a Conflicts row is `review`, and it appears in Review; his edit on a box with no unseen op is saved; a tick clash **between two phones** is still Set-wins; Left stays server-wins; unrendered dates are unchanged by Update; lock timeout is visible; repair after a forced mid-publish failure.
 
 ### Phase 5 — Backup, savestate, restore, undo, redo
 
@@ -884,24 +923,25 @@ Option B, if chosen instead, follows the same test ideas against the Go host (§
 
 ---
 
-## 15. Open questions for Steve
+## 15. Questions for Steve
 
-Each item has a recommendation. Nothing here is locked until he says so.
+t259u locks are marked **LOCKED**. The rest stay recommended until he says otherwise.
 
-| ID | Question | Recommendation |
+| ID | Status | Decision / recommendation |
 |---|---|---|
-| **Q-SV2-1** | When a human Update clashes with a phone change that had not yet arrived, does the server win even for ticks? (This tightens Set-wins only on that path.) | **Yes.** Phone vs phone stays Set-wins. Conflicts are recorded. |
-| **Q-SV2-2** | How many dates on a subject tab? | **All dates in the current academic year**, frozen name columns; a Year cell to look at older years. |
-| **Q-SV2-3** | Stable `pupilId` so a roll or class change keeps history? | **Yes.** Hidden id; Active (class, roll) unique. |
-| **Q-SV2-4** | Option A (Sheets + Apps Script) now, or Option B (hosted Go) now? | **A now**, contract ready for B later. See §4 and §12. |
-| **Q-SV2-5** | What does a profile contain? | Server URL + **one-time pairing code**, not the shared token (Q-HARM-9). Optional trusted profile with a device key for Steve's own phones. Still read old setup files. |
-| **Q-SV2-6** | Where can names be edited? | **Pupils tab only.** Subject tabs show names read-only. |
-| **Q-SV2-7** | Restore modes? | **Both:** Load (keep unsaved phone work) and Rewind (drop it). |
-| **Q-SV2-8** | Put prefs on the op log in v2.0? | **No**, later phase (CRDT_SYNC_PLAN §6). Keep today's prefs tab. |
-| **Q-SV2-9** | Name of the new live workbook? | **`Driftline server`** (ask if he prefers `SoW server` or something else). |
-| **Q-SV2-10** | Who may Update / restore? | Anyone with **edit** access to the Google file (in practice only Steve). Do not share the live server for edit with pupils. |
-| **Q-SV2-11** | Year-end? | Menu **Start new year**: automatic savestate, bump `academicYearLabel`, human subject tabs show the new year; history stays in the log. |
-| **Q-SV2-12** | Device id `sheet` vs `server`? | **Write `server`**, accept `sheet` as the same reserved id (always-win). |
+| **Q-SV2-1** | **LOCKED** t259u ("sync is you best know it") | Order = what the server received + version vectors, not time. On human Update, a box a phone changed that the open view had not seen (ops on that register newer than the tab's render watermark) is **not** overwritten: flagged, written to Conflicts, shown in Review for Steve to pick. His edits apply to the other rendered boxes. Phone vs phone stays Set-wins. Left stays server-wins. See §8.4. |
+| **Q-SV2-2** | **LOCKED** t259u (replaces the "all dates this year" idea) | Subject tabs do **not** show all dates. A date picker (dropdowns in v2.0) selects the open dates; the script renders only those columns. Default = the two latest dates by the app's `pickAnchor` + one previous (past, today or future, or a mix). Selection saved per tab in `_TabPrefs`. Render stamps the watermark used by Q-SV2-1. Update applies only to rendered dates. See §6.1. |
+| **Q-SV2-3** | OPEN | Rec: **Yes**, stable hidden `pupilId`; Active (class, roll) unique. |
+| **Q-SV2-4** | **LOCKED** t259u | **Option A now** (Sheets + Apps Script). **Go later** if A hits quotas or he asks. Contract stays host-agnostic. See §4 and §12. |
+| **Q-SV2-5** | **LOCKED** t259u | The profile carries the **shared token**, like now (not a pairing code). Risk: anyone with the file can act as the shared credential until the token is rotated (exception to Q-HARM-9). Still read old setup files. See §10.4. |
+| **Q-SV2-6** | OPEN | Rec: **Pupils tab only.** Subject tabs show names read-only. |
+| **Q-SV2-7** | OPEN | Rec: **Both** Load (keep unsaved phone work) and Rewind (drop it). |
+| **Q-SV2-8** | OPEN | Rec: **No** in v2.0; prefs stay on today's tab (CRDT_SYNC_PLAN §6 later). |
+| **Q-SV2-9** | OPEN | Rec: **`Driftline server`**. |
+| **Q-SV2-10** | OPEN | Rec: anyone with **edit** access (in practice only Steve). Do not share the live server for edit with pupils. |
+| **Q-SV2-11** | OPEN | Rec: menu **Start new year**: automatic savestate, bump `academicYearLabel`, pickers default to the new year's two dates; history stays in the log. |
+| **Q-SV2-12** | OPEN | Rec: **write `server`**, accept `sheet` as the same reserved id (same §8.4 Update rule). |
+| **Q-SV2-13** | **LOCKED** t259u | Progress dashboard(s), in the spirit of the old Dashboard / OLD tabs: per class and subject, done / pending / %, who's behind, and the next dates. They follow the currently selected open dates and can also show whole-year totals. View-only, rebuilt by the script. See §6.1 `Progress`. |
 
 ---
 
@@ -914,4 +954,4 @@ Each item has a recommendation. Nothing here is locked until he says so.
 - Live workbook is read-only for agents; test copy is for tests of the **old** server. This plan's build uses **new** files.
 - No tokens and no real pupil names in this file.
 
-Change log of this file: 2026-11-11 first version (t257u design, t258u Option B).
+Change log of this file: 2026-11-11 first version (t257u design, t258u Option B). 2026-11-11 t259u: locked Q-SV2-1 (watermark/Review), Q-SV2-2 (date picker, not all dates), Q-SV2-4 (A now, Go later), Q-SV2-5 (shared token in the profile), Q-SV2-13 (progress dashboards).
