@@ -11,9 +11,13 @@ var SCHEMA = 1
 // maker + `caps` on ping. Purely additive: every 0.46.2 action, field and sheet column is unchanged, so the old app (sow v0.47.1) keeps working.
 // 0.51.0-dl.2 (t250u): + late/back-date marks in a hidden `Marks` tab (push `marks`, pull/push `withMarks`). Additive: old apps
 // never send or ask for marks, and every dl.1 action, field and column is unchanged.
-var BRIDGE_VERSION = '0.51.0-dl.2'
+// 0.60.0-ol.1 (t254u): op-log sync (Q-HARM-10, CRDT_SYNC_PLAN §12/§13): hidden Ops/Base/Conflicts tabs, opsPush/opsPull,
+// menu SoW › Migrate to op log (Drive copy first), compaction. Until Migrate is clicked nothing changes (every dl.2 action works
+// as before, so the old app keeps working). After it, the tabs are views rewritten from the log and legacy `push` answers
+// "update the app"; `pull` still reads.
+var BRIDGE_VERSION = '0.60.0-ol.1'
 /** What this bridge can do, for apps that want to check before using a feature (ping → caps). */
-var CAPS = ['ticks', 'roster', 'structs', 'sessions', 'subs', 'prefs', 'pairing', 'devices', 'setupFile', 'marks']
+var CAPS = ['ticks', 'roster', 'structs', 'sessions', 'subs', 'prefs', 'pairing', 'devices', 'setupFile', 'marks', 'oplog']
 var T = { roster: 'Roster', subjects: 'Subjects', sessions: 'Sessions', ticks: 'Ticks', entry: 'Entry', dash: 'Dashboard', meta: '_Meta' }
 var H = {
   roster: ['classKey', 'roll', 'name', 'status', 'leftOn', 'note', 'updatedAt'],
@@ -527,7 +531,7 @@ function route_(body) {
   if (body && body.action === 'pairClaim') return withLock_(function () { deviceName_ = typeof body.deviceName === 'string' ? body.deviceName : null; try { return pairClaim_(body.code, Date.now()) } finally { deviceName_ = null } })
   if (!body || !body.token || (body.token !== token_() && !deviceOf_(body.token))) return { ok: false, error: 'bad token' }
   if (/^(devicesList|deviceRevoke|deviceRename)$/.test(body.action)) return withLock_(function () { return devicesRoute_(body) })
-  if (body.action === 'ping') return { ok: true, schema: SCHEMA, sheetId: SpreadsheetApp.getActiveSpreadsheet().getId(), caps: CAPS }
+  if (body.action === 'ping') { var sp = SpreadsheetApp.getActiveSpreadsheet(); return { ok: true, schema: SCHEMA, sheetId: sp.getId(), caps: CAPS, oplog: olMigrated_(sp) } }
   if (body.action === 'pairStart') return withLock_(function () { return pairStart_(Date.now()) })
   if (body.action === 'pairCancel') return withLock_(function () { PropertiesService.getScriptProperties().deleteProperty(PAIR_KEY); return { ok: true } })
   var ss = SpreadsheetApp.getActiveSpreadsheet()
@@ -537,6 +541,9 @@ function route_(body) {
     var r = prefsPush_(ss, body.rows, body.deviceId)
     return { ok: true, applied: r.applied, ignored: r.ignored, prefs: prefsRead_(ss) }
   })
+  if (body.action === 'opsPull') return withLock_(function () { return opsPull_(ss, body) })
+  if (body.action === 'opsPush') return withLock_(function () { return opsPush_(ss, body) })
+  if (body.action === 'push' && olMigrated_(ss)) return { ok: false, error: 'update the app' } // ol.1: the sheet is on the op log (Q-CRDT-6)
   if (body.action === 'push') {
     var lock = LockService.getScriptLock()
     lock.waitLock(20000)
@@ -564,6 +571,7 @@ function onEdit(e) {
   var s = e.range.getSheet(), name = s.getName(), row = e.range.getRow(), col = e.range.getColumn()
   var ss = e.source || SpreadsheetApp.getActiveSpreadsheet()
   var now = nowIso_()
+  if (olMigrated_(ss)) return olOnEdit_(ss, s, name, row, col, e.range.getNumRows(), e.range.getNumColumns())
   if (name === T.entry) return entryEdit_(ss, s, row, col, e.range.getNumRows(), now)
   if (row < 2) return
   var n = e.range.getNumRows()
@@ -647,6 +655,9 @@ function onOpen() {
     .addItem('Make app setup file…', 'menuSetupFile')
     .addSeparator()
     .addItem('Remove a subject (backup first)…', 'menuRemoveSubject')
+    .addSeparator()
+    .addItem('Migrate to op log (backup first)…', 'menuMigrateOplog')
+    .addItem('Compact op log now…', 'menuCompactOplog')
     .addToUi()
 }
 function menuSetup() {
@@ -656,6 +667,7 @@ function menuSetup() {
 }
 function menuToken() { SpreadsheetApp.getUi().alert('SoW app token', token_(), SpreadsheetApp.getUi().ButtonSet.OK) }
 function menuRemoveSubject() {
+  if (olMigrated_(SpreadsheetApp.getActiveSpreadsheet())) { SpreadsheetApp.getUi().alert('Remove a subject', 'Not available on the op log yet. Untick Active in Subjects instead (the data stays).', SpreadsheetApp.getUi().ButtonSet.OK); return }
   var ui = SpreadsheetApp.getUi(), r = ui.prompt('Remove subject', 'Type the subjectKey exactly (e.g. KGA_Eng_HW). A backup copy is made first.', ui.ButtonSet.OK_CANCEL)
   if (r.getSelectedButton() !== ui.Button.OK) return
   var out = removeSubject_(SpreadsheetApp.getActiveSpreadsheet(), r.getResponseText().trim())
@@ -747,3 +759,562 @@ function applyMarks_(ss, marks, off, rejected, tb) {
   if (applied) marksWrite_(ss, rows)
   return applied
 }
+
+// ───────────────────────── op log (0.60.0-ol.1, t254u; Q-HARM-10, CRDT_SYNC_PLAN §12/§13) ─────────────────────────
+// Hidden tabs (made by Migrate): Ops = every change as an op; Base = the folded state the log starts from (migration, then
+// compaction); Conflicts = every true-concurrency clash and how it was resolved. After Migrate the old tabs (Sessions, Ticks,
+// Roster status, Subjects active, Marks) are views the bridge rewrites from fold(Base + Ops); hand edits there and on Entry
+// become ops from device 'sheet'. The fold rules live in the shared core below (same file as the app's src/oplog/core.js).
+var OL_T = { ops: 'Ops', base: 'Base', conflicts: 'Conflicts' }
+var OL_H = {
+  ops: ['opId', 'deviceId', 'seq', 'lamport', 'vv', 'kind', 'target', 'value', 'wallAt', 'recvAt', 'status'],
+  base: ['register', 'value', 'opId', 'deviceId', 'seq', 'lamport', 'vv', 'recvAt', 'wallAt', 'by'],
+  conflicts: ['at', 'register', 'rule', 'winValue', 'winDevice', 'winOp', 'loseValue', 'loseDevice', 'loseOp'],
+}
+var OL_BATCH_MAX = 500, OL_KEEP_DAYS = 60, OL_CONFLICTS_OUT = 100
+var OL_DEVICE_RE = /^d[0-9a-z]{6,40}$/
+function metaGet_(ss, key) {
+  var s = ss.getSheetByName(T.meta); if (!s || s.getLastRow() < 2) return null
+  var rows = s.getRange(2, 1, s.getLastRow() - 1, 2).getValues()
+  for (var i = 0; i < rows.length; i++) if (rows[i][0] === key) return rows[i][1]
+  return null
+}
+function olMigrated_(ss) { try { return !!metaGet_(ss, 'oplogMigratedAt') } catch (e) { return false } }
+function olRules_(ss) { var t = String(metaGet_(ss, 'tickConflict') || 'set'); return { tick: OL_TICK_RULES.indexOf(t) >= 0 ? t : 'set' } }
+function olFloor_(ss) { try { return JSON.parse(String(metaGet_(ss, 'oplogFloor') || '{}')) } catch (e) { return {} } }
+function olTab_(ss, key) {
+  var s = ss.getSheetByName(OL_T[key])
+  if (!s) { s = ss.insertSheet(OL_T[key]); header_(s, OL_H[key]); s.getRange(2, 1, 999, OL_H[key].length).setNumberFormat('@'); s.hideSheet() }
+  return s
+}
+function olJson_(v) { if (typeof v !== 'string') return v; try { return JSON.parse(v) } catch (e) { return v } }
+function olRows_(ss, key) {
+  var s = ss.getSheetByName(OL_T[key]); if (!s || s.getLastRow() < 2) return []
+  return s.getRange(2, 1, s.getLastRow() - 1, OL_H[key].length).getValues().filter(function (r) { return r[0] !== '' && r[0] != null })
+}
+function olReadOps_(ss) {
+  return olRows_(ss, 'ops').map(function (r) {
+    return { opId: String(r[0]), deviceId: String(r[1]), seq: Number(r[2]), lamport: Number(r[3]), vv: olJson_(r[4]) || {}, kind: String(r[5]), target: String(r[6]), value: olJson_(r[7]), wallAt: toIsoStamp_(r[8]), recvAt: toIsoStamp_(r[9]), status: String(r[10] || '') }
+  })
+}
+function olOpRow_(o) { return [o.opId, o.deviceId, o.seq, o.lamport, JSON.stringify(o.vv || {}), o.kind, o.target, JSON.stringify(o.value === undefined ? null : o.value), o.wallAt || '', o.recvAt, o.status || ''] }
+function olReadBase_(ss) {
+  return olRows_(ss, 'base').map(function (r) {
+    return { register: String(r[0]), value: olJson_(r[1]), opId: String(r[2] || ''), deviceId: String(r[3]), seq: Number(r[4]) || 0, lamport: Number(r[5]) || 0, vv: olJson_(r[6]) || {}, recvAt: toIsoStamp_(r[7]), wallAt: toIsoStamp_(r[8]), by: String(r[9] || '') || undefined }
+  })
+}
+function olBaseRow_(b) { return [b.register, JSON.stringify(b.value === undefined ? null : b.value), b.opId || '', b.deviceId, b.seq || 0, b.lamport || 0, JSON.stringify(b.vv || {}), b.recvAt || '', b.wallAt || '', b.by || ''] }
+function olWriteAll_(ss, key, rows) {
+  var s = olTab_(ss, key), n = OL_H[key].length, last = s.getLastRow()
+  ensureRows_(s, rows.length + 1)
+  if (last >= 2) s.getRange(2, 1, last - 1, n).clearContent()
+  if (rows.length) s.getRange(2, 1, rows.length, n).setNumberFormat('@').setValues(rows)
+}
+function olAppend_(ss, key, rows) {
+  if (!rows.length) return
+  var s = olTab_(ss, key), n = OL_H[key].length, at = Math.max(s.getLastRow(), 1) + 1
+  ensureRows_(s, at + rows.length)
+  s.getRange(at, 1, rows.length, n).setNumberFormat('@').setValues(rows)
+}
+/** Everything a request needs, read once. */
+function olLoad_(ss) {
+  var base = olReadBase_(ss), ops = olReadOps_(ss), floor = olFloor_(ss), rules = olRules_(ss)
+  var st = { base: base, ops: ops, floor: floor, rules: rules, ids: {} }
+  ops.forEach(function (o) { st.ids[o.opId] = o })
+  st.have = olVv(ops, floor)
+  st.lamport = olMaxLamport(ops, olMaxLamport(base, 0))
+  st.lastRecv = ops.reduce(function (m, o) { return o.recvAt > m ? o.recvAt : m }, '')
+  olRefold_(st)
+  return st
+}
+function olRefold_(st) { st.fold = olFold(st.base, st.ops, st.rules); st.view = olView(st.fold) }
+function olRoster_(ss) { var m = {}; read_(ss, T.roster, 7).forEach(function (r) { m[r[0] + '|' + Number(r[1])] = true }); return m }
+function olSession_(st, sid) {
+  var x = sid, n = 0; while (st.fold.alias[x] && n++ < 20) x = st.fold.alias[x]
+  var al = st.fold.regs['alive:' + x], meta = st.fold.regs['meta:' + x], date = st.fold.regs['date:' + x]
+  return al ? { sid: x, alive: al.value === true, subjectKey: meta && meta.value.subjectKey, classKey: meta && meta.value.classKey, date: date && date.value } : null
+}
+function olOnDate_(st, subjectKey, date, notSid) {
+  for (var i = 0; i < st.view.sessions.length; i++) { var s = st.view.sessions[i]; if (s.subjectKey === subjectKey && s.date === date && s.sid !== notSid) return s.sid }
+  return null
+}
+function olShapeOk_(o, dev) {
+  return o && o.deviceId === dev && typeof o.seq === 'number' && o.seq >= 1 && Math.floor(o.seq) === o.seq && o.opId === dev + ':' + o.seq &&
+    typeof o.lamport === 'number' && o.lamport >= 0 && o.vv && typeof o.vv === 'object' && OL_KINDS.indexOf(o.kind) >= 0 &&
+    typeof o.target === 'string' && o.target.length > 0 && o.target.length <= 200
+}
+/** Checks one op against the sheet as it stands (the bridge decides in receipt order). → { status, message } */
+function olCheck_(st, o, roster) {
+  var bad = function (m) { return { status: 'refused', message: m } }, v = o.value
+  if (o.kind === 'tick.set' || o.kind === 'tick.mark') {
+    var i = o.target.lastIndexOf('|'), sid = o.target.slice(0, i), roll = Number(o.target.slice(i + 1)), s = olSession_(st, sid)
+    if (!s) return bad('no session ' + sid)
+    if (!(roll > 0) || Math.floor(roll) !== roll || !roster[s.classKey + '|' + roll]) return bad('bad tick ' + o.target)
+    if (o.kind === 'tick.set' && typeof v !== 'boolean') return bad('bad tick ' + o.target)
+    if (o.kind === 'tick.mark' && v !== null && !(v && typeof v.at === 'string' && !isNaN(Date.parse(v.at)))) return bad('bad mark ' + o.target)
+    return { status: '' }
+  }
+  if (o.kind === 'session.add') {
+    if (!v || !st.fold.regs['subj:' + v.subjectKey]) return bad((v && v.subjectKey) + ' is not in Subjects')
+    var d = dateFromIso_(v.date); if (!d || isoDate_(d) !== v.date) return bad('bad date ' + JSON.stringify(v.date))
+    if (o.target.indexOf(v.subjectKey + '|') !== 0) return bad('bad session id ' + o.target)
+    v.classKey = sectionOf_(v.subjectKey)
+    if (st.fold.regs['alive:' + o.target]) return { status: '' } // the same session again (another phone made it too): one session
+    var other = olOnDate_(st, v.subjectKey, v.date, o.target)
+    return other ? { status: 'alias:' + other } : { status: '' }
+  }
+  if (o.kind === 'session.remove' || o.kind === 'session.date' || o.kind === 'session.topic') {
+    var se = olSession_(st, o.target); if (!se) return bad('no session ' + o.target)
+    if (o.kind === 'session.topic' && (typeof v !== 'string' || v.length > 200)) return bad('bad topic')
+    if (o.kind === 'session.date') {
+      var dd = dateFromIso_(v); if (!dd || isoDate_(dd) !== v) return bad('bad date ' + JSON.stringify(v))
+      if (se.alive && olOnDate_(st, se.subjectKey, v, se.sid)) return bad(v + ' already has a session — ' + se.date + ' not moved') // same text as rename (0.44+)
+    }
+    return { status: '' }
+  }
+  if (o.kind === 'left.set') { if (!roster[o.target] || (v !== 'Left' && v !== 'Active')) return bad('bad left ' + o.target); return { status: '' } }
+  if (o.kind === 'subject.add') { if (!v || !v.classKey || !v.subject || (v.kind !== 'CW' && v.kind !== 'HW') || o.target !== v.classKey + '_' + v.subject + '_' + v.kind) return bad('bad subject ' + o.target); return { status: '' } }
+  if (o.kind === 'subject.active') { if (!st.fold.regs['subj:' + o.target] || typeof v !== 'boolean') return bad('no subject ' + o.target); return { status: '' } }
+  return bad('unknown kind ' + o.kind)
+}
+function olNextRecv_(st) {
+  var now = Date.now(), last = st.lastRecv ? Date.parse(st.lastRecv) : 0
+  var t = new Date(Math.max(now, last + 1)).toISOString(); st.lastRecv = t; return t
+}
+/** Takes ops from one device (in seq order). Duplicates are answered, a gap asks for a resend, nothing is applied twice. */
+function olAccept_(ss, st, dev, ops) {
+  var roster = olRoster_(ss), out = { accepted: [], dup: 0, resend: null, rejected: [], added: [] }
+  var list = (ops || []).slice().sort(function (a, b) { return (a && a.seq || 0) - (b && b.seq || 0) })
+  for (var i = 0; i < list.length; i++) {
+    var o = list[i]
+    if (!olShapeOk_(o, dev)) { out.rejected.push('bad op ' + JSON.stringify(o).slice(0, 120)); continue }
+    var had = st.ids[o.opId]
+    if (had) { out.dup++; out.accepted.push({ opId: had.opId, recvAt: had.recvAt, status: had.status }); continue }
+    var have = st.have[dev] || 0
+    if (o.seq <= have) { out.dup++; continue } // already folded into Base by compaction
+    if (o.seq > have + 1) { out.resend = {}; out.resend[dev] = have + 1; break } // a gap: send from here again
+    var op = { opId: o.opId, deviceId: dev, seq: o.seq, lamport: Math.floor(o.lamport), vv: o.vv, kind: o.kind, target: o.target, value: o.value === undefined ? null : o.value, wallAt: String(o.wallAt || '').slice(0, 40), recvAt: '', status: '' }
+    var ck = olCheck_(st, op, roster)
+    op.status = ck.status; op.recvAt = olNextRecv_(st)
+    st.ops.push(op); st.ids[op.opId] = op; st.have[dev] = op.seq; if (op.lamport > st.lamport) st.lamport = op.lamport
+    out.added.push(op); out.accepted.push({ opId: op.opId, recvAt: op.recvAt, status: op.status, message: ck.message })
+    if (!ck.status || ck.status.indexOf('alias:') === 0) if (op.kind !== 'tick.set' && op.kind !== 'tick.mark') olRefold_(st)
+  }
+  if (out.added.length) {
+    olAppend_(ss, 'ops', out.added.map(olOpRow_))
+    olRefold_(st); olRender_(ss, st); olConflictsLog_(ss, st)
+    meta_(ss, 'lastPush', nowIso_())
+  }
+  return out
+}
+/** What a device needs: ops it hasn't seen, Base when it is new or behind a compaction, roster names, rules. */
+function olOut_(ss, st, vv, full) {
+  var need = full || !vv || typeof vv !== 'object' || Object.keys(st.floor).some(function (d) { return ((vv && vv[d]) || 0) < st.floor[d] })
+  return {
+    ok: true, migrated: true, vv: st.have, lamport: st.lamport, rules: st.rules, floor: st.floor,
+    ops: olSince(st.ops, need ? st.floor : vv), base: need ? st.base : undefined,
+    roster: read_(ss, T.roster, 7).map(function (r) { return { classKey: r[0], roll: Number(r[1]), name: String(r[2]) } }),
+    conflicts: olRows_(ss, 'conflicts').slice(-OL_CONFLICTS_OUT).map(function (r) { return { at: toIsoStamp_(r[0]), register: r[1], rule: r[2], winValue: olJson_(r[3]), winDevice: r[4], winOp: r[5], loseValue: olJson_(r[6]), loseDevice: r[7], loseOp: r[8] } })
+  }
+}
+function opsPull_(ss, body) {
+  if (!olMigrated_(ss)) return { ok: false, error: 'not migrated' }
+  return olOut_(ss, olLoad_(ss), body.vv, body.full === true)
+}
+function opsPush_(ss, body) {
+  if (!olMigrated_(ss)) return { ok: false, error: 'not migrated' }
+  var dev = String(body.deviceId || '')
+  if (!OL_DEVICE_RE.test(dev)) return { ok: false, error: 'bad deviceId' }
+  if (!Array.isArray(body.ops) || body.ops.length > OL_BATCH_MAX) return { ok: false, error: 'send at most ' + OL_BATCH_MAX + ' ops' }
+  var st = olLoad_(ss), r = olAccept_(ss, st, dev, body.ops), out = olOut_(ss, st, body.vv, body.full === true)
+  out.accepted = r.accepted; out.dup = r.dup; out.resend = r.resend; out.rejected = r.rejected
+  return out
+}
+/** Ops made on the sheet itself (Entry, hand edits): device 'sheet', causally after everything the sheet has. */
+function olSheetOps_(ss, st, list) {
+  if (!list.length) return null
+  var ops = list.map(function (x, i) {
+    var seq = (st.have.sheet || 0) + 1 + i
+    return { opId: 'sheet:' + seq, deviceId: 'sheet', seq: seq, lamport: st.lamport + 1 + i, vv: JSON.parse(JSON.stringify(st.have)), kind: x.kind, target: x.target, value: x.value, wallAt: nowIso_() }
+  })
+  return olAccept_(ss, st, 'sheet', ops)
+}
+
+// ── views: the old tabs, rewritten from the fold (only what changed is written) ──
+function olStampOf_(r) { return r && r.win ? String(r.win.recvAt || '') : '' }
+function olMaxStamp_() { var m = ''; for (var i = 0; i < arguments.length; i++) { var x = olStampOf_(arguments[i]); if (x > m) m = x } return m }
+function olRender_(ss, st) {
+  var v = st.view
+  // Subjects: Active, and subjects added through the log
+  var su = read_(ss, T.subjects, 7), suChanged = false, onTab = {}
+  su.forEach(function (r) { onTab[r[0]] = true; var x = v.subjects[r[0]]; if (x && x.actReg && x.actReg.win.deviceId !== 'base' && (r[4] !== false) !== x.active) { r[4] = x.active; suChanged = true } })
+  Object.keys(v.subjects).forEach(function (k) { var x = v.subjects[k]; if (!onTab[k] && x.reg) { su.push([k, x.classKey, x.subject, x.kind, x.active !== false, x.order || su.length + 1, olStampOf_(x.reg)]); suChanged = true } })
+  if (suChanged) write_(ss, T.subjects, 7, su)
+  // Sessions
+  var cur = read_(ss, T.sessions, 8), pos = {}
+  cur.forEach(function (r, i) { pos[r[0]] = i })
+  var rows = v.sessions.map(function (s) {
+    var R = s.regs, id = s.subjectKey + '|' + s.date
+    var upd = olMaxStamp_(R.alive, R.date, R.topic)
+    return [id, s.subjectKey, s.classKey, dateFromIso_(s.date), plainText_(s.topic), s.status, s.createdAt || olStampOf_(R.alive), upd]
+  })
+  rows.sort(function (a, b) { var pa = pos[a[0]], pb = pos[b[0]]; if (pa != null && pb != null) return pa - pb; if (pa != null) return -1; if (pb != null) return 1; return a[0] < b[0] ? -1 : 1 })
+  var sameSes = rows.length === cur.length && rows.every(function (r, i) { var c = cur[i]; return c[0] === r[0] && c[1] === r[1] && c[2] === r[2] && (c[3] instanceof Date ? isoDate_(c[3]) : String(c[3])) === isoDate_(r[3]) && (String(c[4]) === r[4] || plainText_(String(c[4])) === r[4] || String(c[4]) === String(r[4]).replace(/^'/, '')) && String(c[5] || 'Open') === r[5] && toIsoStamp_(c[7]) === r[7] })
+  if (!sameSes) write_(ss, T.sessions, 8, rows.map(function (r, i) { var c = cur[i]; if (c && c[0] === r[0] && toIsoStamp_(c[6])) r[6] = c[6]; return r }))
+  // Ticks (and J = manual Submitted)
+  var tk = ticksRead_(ss), tpos = {}
+  tk.forEach(function (r, i) { tpos[r[0]] = i })
+  var trows = v.ticks.map(function (t) {
+    var subjectKey = t.viewSid.split('|')[0], r = t.reg, by = r.win.by || (r.win.deviceId === 'sheet' ? 'sheet' : 'app')
+    var sub = v.subs[t.sid + '|' + t.roll]
+    return [t.viewSid + '|' + t.roll, t.viewSid, subjectKey, sectionOf_(subjectKey), t.roll, t.set, String(r.win.recvAt || ''), by, sub === true ? true : sub === 'off' ? 'off' : false]
+  })
+  trows.sort(function (a, b) { var pa = tpos[a[0]], pb = tpos[b[0]]; if (pa != null && pb != null) return pa - pb; if (pa != null) return -1; if (pb != null) return 1; return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0 })
+  var eq = function (c, r) { return c && c[0] === r[0] && c[1] === r[1] && c[2] === r[2] && c[3] === r[3] && Number(c[4]) === r[4] && (c[5] === true) === r[5] && toIsoStamp_(c[6]) === r[6] && String(c[7]) === r[7] && c[8] === r[8] }
+  var prefix = trows.length >= tk.length && tk.every(function (c, i) { return trows[i][0] === c[0] })
+  if (prefix) { var dirty = {}; trows.forEach(function (r, i) { if (!eq(tk[i], r)) dirty[i] = true }); if (Object.keys(dirty).length) ticksWriteChanged_(ss, trows, dirty, tk.length, isCompact_(ss, T.ticks, 8)) }
+  else ticksWrite_(ss, trows)
+  // Roster: Left from the log (pupil rows themselves stay hand-made)
+  var ro = read_(ss, T.roster, 7), roChanged = false
+  ro.forEach(function (r) {
+    var x = v.left[r[0] + '|' + Number(r[1])]; if (!x || x.win.deviceId === 'base') return
+    var st2 = x.value === 'Left' ? 'Left' : 'Active'
+    if ((r[3] === 'Left' ? 'Left' : 'Active') === st2) return
+    r[3] = st2; r[4] = st2 === 'Left' ? (r[4] || dateFromIso_(String(x.win.recvAt).slice(0, 10))) : ''; r[6] = String(x.win.recvAt); roChanged = true
+  })
+  if (roChanged) write_(ss, T.roster, 7, ro)
+  // Marks (dl.2 readers): a view too, when the tab exists
+  if (ss.getSheetByName(MARKS_TAB)) {
+    var mk = v.marks.map(function (m) { return [m.viewSid + '|' + m.roll, m.viewSid, m.at, m.back === true, String(m.reg.win.recvAt || ''), m.reg.win.deviceId] })
+    var curM = marksRead_(ss)
+    if (JSON.stringify(curM.map(function (r) { return r.slice(0, 4) })) !== JSON.stringify(mk.map(function (r) { return r.slice(0, 4) }))) marksWrite_(ss, mk)
+  }
+}
+function olConflictsLog_(ss, st) {
+  if (!st.fold.conflicts.length) return
+  var have = {}; olRows_(ss, 'conflicts').forEach(function (r) { have[r[1] + '|' + r[5] + '|' + r[8]] = true })
+  var id = function (c) { return c.opId || (c.deviceId + ':' + c.seq) }
+  var rows = st.fold.conflicts.filter(function (c) { return !have[c.register + '|' + id(c.win) + '|' + id(c.lose)] }).map(function (c) {
+    return [nowIso_(), c.register, c.rule, JSON.stringify(c.win.value), c.win.deviceId, id(c.win), JSON.stringify(c.lose.value), c.lose.deviceId, id(c.lose)]
+  })
+  olAppend_(ss, 'conflicts', rows)
+}
+
+// ── hand edits after Migrate: become ops from device 'sheet' ──
+function olOnEdit_(ss, s, name, row, col, nr, nc) {
+  var lock = LockService.getScriptLock(); lock.waitLock(20000)
+  try {
+    var st = olLoad_(ss), list = []
+    var sidOf = function (viewSid) { for (var i = 0; i < st.view.sessions.length; i++) { var x = st.view.sessions[i]; if (x.subjectKey + '|' + x.date === viewSid) return x.sid } return null }
+    if (name === T.entry) {
+      var key = String(s.getRange(1, 2).getValue() || ''), d = s.getRange(2, 2).getValue()
+      if (row <= 3 && col <= 2 && col + nc - 1 >= 2) {
+        if (row === 3 && key && d instanceof Date) { var sx = sidOf(key + '|' + isoDate_(d)); if (sx) list.push({ kind: 'session.topic', target: sx, value: String(s.getRange(3, 2).getValue() || '') }) }
+        else return renderEntry_(ss, s, key, d)
+      } else if (row >= ENTRY_FIRST_ROW && col <= 3 && col + nc - 1 >= 3 && key && d instanceof Date) {
+        var iso = isoDate_(d), sid = sidOf(key + '|' + iso)
+        if (!sid) { sid = key + '|' + iso; var k = 0; while (st.fold.regs['alive:' + sid]) sid = key + '|' + iso + '~s' + (++k); list.push({ kind: 'session.add', target: sid, value: { subjectKey: key, classKey: sectionOf_(key), date: iso, topic: String(s.getRange(3, 2).getValue() || '') } }) }
+        for (var i = 0; i < nr; i++) { var roll = Number(s.getRange(row + i, 1).getValue()); if (roll > 0) list.push({ kind: 'tick.set', target: sid + '|' + roll, value: s.getRange(row + i, 3).getValue() === true }) }
+      }
+    } else if (row >= 2 && name === T.ticks) {
+      for (var j = 0; j < nr; j++) {
+        var tr = s.getRange(row + j, 1, 1, 6).getValues()[0], ts = sidOf(String(tr[1]))
+        if (ts && col <= 6 && col + nc - 1 >= 6) list.push({ kind: 'tick.set', target: ts + '|' + Number(tr[4]), value: tr[5] === true })
+      }
+    } else if (row >= 2 && name === T.sessions) {
+      for (var m = 0; m < nr; m++) {
+        var r = s.getRange(row + m, 1, 1, 5).getValues()[0], ss2 = sidOf(String(r[0]))
+        if (ss2 && col <= 4 && col + nc - 1 >= 4 && r[3] instanceof Date) list.push({ kind: 'session.date', target: ss2, value: isoDate_(r[3]) })
+        if (ss2 && col <= 5 && col + nc - 1 >= 5) list.push({ kind: 'session.topic', target: ss2, value: String(r[4] == null ? '' : r[4]) })
+      }
+    } else if (row >= 2 && name === T.roster) {
+      for (var q = 0; q < nr; q++) { var rr = s.getRange(row + q, 1, 1, 4).getValues()[0]; if (col <= 4 && col + nc - 1 >= 4 && rr[0]) list.push({ kind: 'left.set', target: rr[0] + '|' + Number(rr[1]), value: rr[3] === 'Left' ? 'Left' : 'Active' }) }
+    } else if (row >= 2 && name === T.subjects) {
+      for (var u = 0; u < nr; u++) {
+        var sr = s.getRange(row + u, 1, 1, 6).getValues()[0]; if (!sr[0]) continue
+        if (!st.fold.regs['subj:' + sr[0]]) list.push({ kind: 'subject.add', target: String(sr[0]), value: { classKey: sr[1], subject: sr[2], kind: sr[3], order: sr[5], active: sr[4] !== false } })
+        else if (col <= 5 && col + nc - 1 >= 5) list.push({ kind: 'subject.active', target: String(sr[0]), value: sr[4] !== false })
+      }
+    }
+    var r2 = olSheetOps_(ss, st, list)
+    if (!r2 || !r2.added.length) olRender_(ss, st) // nothing taken (or refused): put the view back to the log's state
+    else if (r2.accepted.some(function (a) { return a.status === 'refused' })) olRender_(ss, st)
+  } finally { lock.releaseLock() }
+}
+
+// ── Migrate (one click, Drive copy first) ──
+function olMigrate_(ss, nowIso) {
+  nowIso = nowIso || nowIso_()
+  if (olMigrated_(ss)) throw new Error('This sheet is already on the op log (nothing changed)')
+  sheet_(ss, T.ticks)
+  var backup = ss.copy('BACKUP pre-op-log ' + String(nowIso).slice(0, 10) + ' – ' + ss.getName()) // the whole file, bound script included
+  var base = [], B = function (register, value, recvAt, by) { base.push({ register: register, value: value, opId: '', deviceId: 'base', seq: 0, lamport: 0, vv: {}, recvAt: String(recvAt || ''), wallAt: String(recvAt || ''), by: by }) }
+  read_(ss, T.subjects, 7).forEach(function (r) { var at = toIsoStamp_(r[6]) || nowIso; B('subj:' + r[0], { classKey: r[1], subject: r[2], kind: r[3], order: r[5] }, at); B('subjAct:' + r[0], r[4] !== false, at) })
+  read_(ss, T.sessions, 8).forEach(function (r) {
+    var sid = String(r[0]), at = toIsoStamp_(r[7]) || nowIso
+    B('alive:' + sid, true, at); B('meta:' + sid, { subjectKey: r[1], classKey: r[2], status: r[5] || 'Open', createdAt: toIsoStamp_(r[6]) }, at)
+    B('date:' + sid, r[3] instanceof Date ? isoDate_(r[3]) : String(r[3]), at); B('topic:' + sid, String(r[4] == null ? '' : r[4]), at)
+  })
+  ticksRead_(ss).forEach(function (r) {
+    var t = r[1] + '|' + Number(r[4]), at = toIsoStamp_(r[6])
+    B('tick:' + t, r[5] === true, at, String(r[7] || 'migrate'))
+    if (r[8] === true || r[8] === 'off') B('sub:' + t, r[8], at)
+  })
+  read_(ss, T.roster, 7).forEach(function (r) { B('left:' + r[0] + '|' + Number(r[1]), r[3] === 'Left' ? 'Left' : 'Active', toIsoStamp_(r[6]) || nowIso) })
+  marksRead_(ss).forEach(function (m) { if (m[2]) B('mark:' + m[1] + '|' + Number(String(m[0]).split('|').pop()), { at: m[2], back: m[3] === true }, m[4]) })
+  olTab_(ss, 'ops'); olTab_(ss, 'conflicts'); olWriteAll_(ss, 'base', base.map(olBaseRow_))
+  meta_(ss, 'oplogFloor', '{}')
+  if (!metaGet_(ss, 'tickConflict')) meta_(ss, 'tickConflict', 'set')
+  meta_(ss, 'oplogBackup', backup.getUrl())
+  meta_(ss, 'oplogMigratedAt', nowIso)
+  var st = olLoad_(ss), before = state_(ss, true)
+  olRender_(ss, st)
+  var after = state_(ss, true), same = JSON.stringify([before.sessions, before.ticks, before.roster, before.subjects]) === JSON.stringify([after.sessions, after.ticks, after.roster, after.subjects])
+  return { base: base.length, backupUrl: backup.getUrl(), identical: same }
+}
+function menuMigrateOplog() {
+  var ui = SpreadsheetApp.getUi(), ss = SpreadsheetApp.getActiveSpreadsheet()
+  if (olMigrated_(ss)) { ui.alert('Op log', 'This sheet is already on the op log.', ui.ButtonSet.OK); return }
+  var ok = ui.alert('Migrate to op log', 'A full copy of this file is made in your Drive first. After this, every change is kept as an op, and app versions before Driftline beta.18 (and the old SoW app) are told to update; they can still read. Continue?', ui.ButtonSet.OK_CANCEL)
+  if (ok !== ui.Button.OK) return
+  var r = withLock_(function () { return olMigrate_(ss) })
+  ui.alert('Op log ready', 'Base rows: ' + r.base + (r.identical ? ' · tabs unchanged' : ' · tabs were tidied, please check') + '\nBackup copy: ' + r.backupUrl, ui.ButtonSet.OK)
+}
+
+// ── Compaction (§13): a function, an optional daily trigger (not installed automatically) ──
+function olTodayIso_() { return new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10) } // Asia/Calcutta, no DST
+function olCompactNow_(ss, nowMs) {
+  if (!olMigrated_(ss)) throw new Error('Not on the op log yet')
+  nowMs = nowMs == null ? Date.now() : nowMs
+  var st = olLoad_(ss), today = new Date(nowMs + 330 * 60000).toISOString().slice(0, 10), cut = new Date(nowMs - OL_KEEP_DAYS * 864e5).toISOString()
+  var r = olCompact(st.base, st.ops, st.rules, today, cut, st.floor)
+  if (!r.gone.length) return { folded: 0 }
+  var before = JSON.stringify(olPlain(olView(olFold(st.base, st.ops, st.rules)))), after = JSON.stringify(olPlain(olView(olFold(r.base, r.ops, st.rules))))
+  if (before !== after) throw new Error('Compaction would change the data · nothing was changed')
+  var b = SpreadsheetApp.create('SoW Ops backup ' + today), sh = b.insertSheet('Ops')
+  var all = st.ops.map(olOpRow_); sh.getRange(1, 1, 1, OL_H.ops.length).setValues([OL_H.ops]); ensureRows_(sh, all.length + 1)
+  if (all.length) sh.getRange(2, 1, all.length, OL_H.ops.length).setNumberFormat('@').setValues(all)
+  var first = b.getSheetByName('Sheet1'); if (first) b.deleteSheet(first)
+  SpreadsheetApp.flush()
+  olWriteAll_(ss, 'base', r.base.map(olBaseRow_)); olWriteAll_(ss, 'ops', r.ops.map(olOpRow_))
+  meta_(ss, 'oplogFloor', JSON.stringify(r.floor)); meta_(ss, 'lastCompaction', new Date(nowMs).toISOString() + ' folded ' + r.gone.length + ' backup ' + b.getUrl())
+  return { folded: r.gone.length, backupUrl: b.getUrl(), left: r.ops.length }
+}
+function compactionJob() { var ss = SpreadsheetApp.getActiveSpreadsheet(); if (olMigrated_(ss)) withLock_(function () { return olCompactNow_(ss) }) }
+/** Optional: run once from the Apps Script editor to compact every night at 3 (not installed automatically). */
+function installCompactionTrigger() { ScriptApp.newTrigger('compactionJob').timeBased().everyDays(1).atHour(3).create() }
+function menuCompactOplog() {
+  var ui = SpreadsheetApp.getUi(), ss = SpreadsheetApp.getActiveSpreadsheet()
+  if (ui.alert('Compact op log', 'Ops older than ' + OL_KEEP_DAYS + ' days fold into Base (the current and previous SoW of each subject are kept). A backup of Ops is made first. Continue?', ui.ButtonSet.OK_CANCEL) !== ui.Button.OK) return
+  var r = withLock_(function () { return olCompactNow_(ss) })
+  ui.alert('Compact op log', r.folded ? 'Folded ' + r.folded + ' ops · backup: ' + r.backupUrl : 'Nothing old enough to fold.', ui.ButtonSet.OK)
+}
+
+// <oplog-core> Op-log sync core (Q-HARM-10, CRDT_SYNC_PLAN §12/§13). ONE source: this file. bridge/Code.js carries an exact copy
+// between the oplog-core markers (scripts/embed-core.mjs writes it, test OL-CORE-00 checks it). Plain JS, no imports, so it runs
+// in Apps Script (V8) and in the app. No device clock decides anything here: order = version vectors (who saw what), then the
+// field rule on true concurrency; recvAt (server clock) and lamport are tiebreaks only; wallAt is display only.
+var OL_KINDS = ['tick.set', 'tick.mark', 'session.add', 'session.remove', 'session.date', 'session.topic', 'left.set', 'subject.add', 'subject.active']
+var OL_DEFAULT_RULES = { tick: 'set' }
+var OL_TICK_RULES = ['set', 'unset', 'latest']
+/** The registers (field:target) an op writes, with their values. One op can write several (session.add). */
+function olWrites(op) {
+  var t = op.target, v = op.value
+  switch (op.kind) {
+    case 'tick.set': return [['tick:' + t, v === true]]
+    case 'tick.mark': return [['mark:' + t, v && v.at ? { at: String(v.at), back: v.back === true } : null]]
+    case 'tick.sub': return [['sub:' + t, v === true ? true : v === 'off' ? 'off' : false]]
+    case 'session.add': {
+      var w = [['alive:' + t, true], ['meta:' + t, { subjectKey: v.subjectKey, classKey: v.classKey, status: v.status || 'Open', createdAt: v.createdAt || '' }], ['date:' + t, v.date]]
+      if (typeof v.topic === 'string') w.push(['topic:' + t, v.topic])
+      return w
+    }
+    case 'session.remove': return [['alive:' + t, false]]
+    case 'session.date': return [['date:' + t, String(v)]]
+    case 'session.topic': return [['topic:' + t, String(v == null ? '' : v)]]
+    case 'left.set': return [['left:' + t, v === 'Left' ? 'Left' : 'Active']]
+    case 'subject.add': return [['subj:' + t, { classKey: v.classKey, subject: v.subject, kind: v.kind, order: v.order }], ['subjAct:' + t, v.active !== false]]
+    case 'subject.active': return [['subjAct:' + t, v === true]]
+  }
+  return []
+}
+function olField(reg) { return reg.slice(0, reg.indexOf(':')) }
+var OL_SID_FIELDS = { tick: 2, mark: 2, sub: 2, alive: 1, meta: 1, date: 1, topic: 1 }
+/** Session id inside a register target (tick/mark/sub targets are sid|roll). */
+function olSidOf(reg) {
+  var f = olField(reg), t = reg.slice(f.length + 1)
+  if (OL_SID_FIELDS[f] === 2) { var i = t.lastIndexOf('|'); return { f: f, sid: t.slice(0, i), rest: t.slice(i) } }
+  if (OL_SID_FIELDS[f] === 1) return { f: f, sid: t, rest: '' }
+  return null
+}
+function olCanon(reg, alias) {
+  var s = olSidOf(reg); if (!s || !alias[s.sid]) return reg
+  var x = s.sid, n = 0; while (alias[x] && n++ < 20) x = alias[x]
+  return s.f + ':' + x + s.rest
+}
+/** a happened before b: b's version vector had seen a (or a is the migration base). */
+function olBefore(a, b) {
+  if (a === b) return false
+  if (a.deviceId === 'base') return b.deviceId !== 'base'
+  if (b.deviceId === 'base') return false
+  if (a.deviceId === b.deviceId) return a.seq < b.seq
+  return ((b.vv && b.vv[a.deviceId]) || 0) >= a.seq
+}
+/** Receipt order for tiebreaks: an op not yet received by the sheet (on this device only) counts as the newest. */
+function olRecv(c) { return c.recvAt ? String(c.recvAt) : '\uffff' }
+function olNewer(a, b) {
+  var ra = olRecv(a), rb = olRecv(b)
+  if (ra !== rb) return ra > rb ? -1 : 1
+  if ((a.lamport || 0) !== (b.lamport || 0)) return (b.lamport || 0) - (a.lamport || 0)
+  if (a.deviceId !== b.deviceId) return a.deviceId > b.deviceId ? -1 : 1
+  return (b.seq || 0) - (a.seq || 0)
+}
+function olSame(a, b) { return JSON.stringify(a) === JSON.stringify(b) }
+/** Winner among the candidates of one register. Returns { win, rule, lose[] } (lose = concurrent heads with another value). */
+function olResolve(field, cands, rules) {
+  var heads = cands.filter(function (c) { return !cands.some(function (d) { return d !== c && olBefore(c, d) }) })
+  heads.sort(olNewer)
+  if (heads.length === 1) return { win: heads[0], rule: 'after', lose: [] }
+  var win = heads[0], rule = 'latest'
+  var pick = function (fn) { for (var i = 0; i < heads.length; i++) if (fn(heads[i])) return heads[i]; return null }
+  var tr = (rules && rules.tick) || 'set'
+  if (field === 'tick' && tr === 'set') { win = pick(function (c) { return c.value === true }) || heads[0]; rule = 'set wins' }
+  else if (field === 'tick' && tr === 'unset') { win = pick(function (c) { return c.value !== true }) || heads[0]; rule = 'unset wins' }
+  else if (field === 'alive') { win = pick(function (c) { return c.value === true }) || heads[0]; rule = 'keep wins' }
+  else if (field === 'left') { var s = pick(function (c) { return c.deviceId === 'sheet' }); if (s) { win = s; rule = 'sheet wins' } else rule = 'later receipt' }
+  else rule = 'later receipt'
+  return { win: win, rule: rule, lose: heads.filter(function (c) { return c !== win && !olSame(c.value, win.value) }) }
+}
+function olCand(op, value) {
+  return { value: value, opId: op.opId, deviceId: op.deviceId, seq: op.seq || 0, lamport: op.lamport || 0, vv: op.vv || {}, recvAt: op.recvAt || '', wallAt: op.wallAt || '', by: op.by }
+}
+/** Aliases: a session.add the sheet filed under a session that already had that date (status 'alias:<sid>'). */
+function olAliases(ops) {
+  var a = {}
+  ops.forEach(function (o) { if (o.kind === 'session.add' && typeof o.status === 'string' && o.status.indexOf('alias:') === 0) a[o.target] = o.status.slice(6) })
+  return a
+}
+/** fold(base + ops) → registers. base = [{ register, value, deviceId, seq, lamport, vv, recvAt, wallAt, by }].
+ *  Refused ops (status 'refused') never count. Returns { regs: {register: {value, win, rule, lose}}, conflicts, alias }. */
+function olFold(base, ops, rules) {
+  var live = ops.filter(function (o) { return o.status !== 'refused' }), alias = olAliases(live), by = {}
+  var add = function (reg, c) { var k = olCanon(reg, alias); (by[k] || (by[k] = [])).push(c) }
+  ;(base || []).forEach(function (b) { add(b.register, b) })
+  live.forEach(function (o) {
+    if (o.kind === 'session.add' && alias[o.target]) return // filed under the other session: only its ticks/topics follow (canon)
+    olWrites(o).forEach(function (w) { add(w[0], olCand(o, w[1])) })
+  })
+  var regs = {}, conflicts = []
+  Object.keys(by).forEach(function (k) {
+    var r = olResolve(olField(k), by[k], rules)
+    regs[k] = { value: r.win.value, win: r.win, rule: r.rule, lose: r.lose }
+    r.lose.forEach(function (l) { conflicts.push({ register: k, rule: r.rule, win: r.win, lose: l }) })
+  })
+  return { regs: regs, conflicts: conflicts, alias: alias }
+}
+/** Highest seq per device (ops of one device always arrive in seq order, gaps are refused), merged over a floor. */
+function olVv(ops, floor) {
+  var v = {}; Object.keys(floor || {}).forEach(function (d) { v[d] = floor[d] })
+  ops.forEach(function (o) { if ((v[o.deviceId] || 0) < o.seq) v[o.deviceId] = o.seq })
+  return v
+}
+function olSince(ops, vv) { vv = vv || {}; return ops.filter(function (o) { return o.seq > (vv[o.deviceId] || 0) }) }
+function olMaxLamport(ops, floorLamport) { var m = floorLamport || 0; ops.forEach(function (o) { if ((o.lamport || 0) > m) m = o.lamport || 0 }); return m }
+function olPad(n) { return (n < 10 ? '0' : '') + n }
+/** The view of a fold: subjects, sessions (each with its sheet id subjectKey|date), ticks, Left, marks, manual Submitted. */
+function olView(f) {
+  var subjects = {}, sessions = {}, ticks = [], left = {}, marks = [], subs = {}
+  Object.keys(f.regs).forEach(function (k) {
+    var fd = olField(k), t = k.slice(fd.length + 1), r = f.regs[k]
+    if (fd === 'subj') { subjects[t] = subjects[t] || { subjectKey: t, active: true }; var v = r.value || {}; subjects[t].classKey = v.classKey; subjects[t].subject = v.subject; subjects[t].kind = v.kind; subjects[t].order = v.order; subjects[t].reg = r }
+    else if (fd === 'subjAct') { subjects[t] = subjects[t] || { subjectKey: t }; subjects[t].active = r.value === true; subjects[t].actReg = r }
+    else if (fd === 'left') left[t] = r
+    else if (OL_SID_FIELDS[fd] === 1) { var s = sessions[t] || (sessions[t] = { sid: t }); s[fd] = r }
+  })
+  var out = []
+  Object.keys(sessions).forEach(function (sid) {
+    var s = sessions[sid]
+    if (!s.alive || s.alive.value !== true || !s.meta || !s.date) return
+    out.push({ sid: sid, subjectKey: s.meta.value.subjectKey, classKey: s.meta.value.classKey, date: s.date.value, topic: s.topic ? s.topic.value : '', status: s.meta.value.status || 'Open', createdAt: s.meta.value.createdAt || '', regs: s })
+  })
+  var vid = {}; out.forEach(function (s) { vid[s.sid] = s.subjectKey + '|' + s.date })
+  var known = function (sid) { return !!sessions[sid] }
+  Object.keys(f.regs).forEach(function (k) {
+    var fd = olField(k); if (OL_SID_FIELDS[fd] !== 2) return
+    var p = olSidOf(k), roll = Number(p.rest.slice(1)), r = f.regs[k]
+    if (known(p.sid) && !vid[p.sid]) return // its session was removed (or never fully made): hidden, kept in the log
+    var row = { sid: p.sid, viewSid: vid[p.sid] || p.sid, roll: roll, reg: r }
+    if (fd === 'tick') { row.set = r.value === true; ticks.push(row) }
+    else if (fd === 'mark') { if (r.value) { row.at = r.value.at; row.back = r.value.back === true; marks.push(row) } }
+    else if (fd === 'sub') subs[p.sid + '|' + roll] = r.value
+  })
+  return { subjects: subjects, sessions: out, ticks: ticks, left: left, marks: marks, subs: subs }
+}
+/** The values of a view only (no op metadata), in a fixed order: two views are the same data when these are equal. */
+function olPlain(v) {
+  var sort = function (l) { return l.slice().sort(function (a, b) { var x = JSON.stringify(a), y = JSON.stringify(b); return x < y ? -1 : x > y ? 1 : 0 }) }
+  return {
+    subjects: sort(Object.keys(v.subjects).map(function (k) { var x = v.subjects[k]; return [k, x.classKey, x.subject, x.kind, x.order, x.active] })),
+    sessions: sort(v.sessions.map(function (s) { return [s.sid, s.subjectKey, s.classKey, s.date, s.topic, s.status, s.createdAt] })),
+    ticks: sort(v.ticks.map(function (t) { return [t.sid, t.viewSid, t.roll, t.set] })),
+    left: sort(Object.keys(v.left).map(function (k) { return [k, v.left[k].value] })),
+    marks: sort(v.marks.map(function (m) { return [m.sid, m.roll, m.at, m.back] })),
+    subs: sort(Object.keys(v.subs).map(function (k) { return [k, v.subs[k]] }))
+  }
+}
+/** §13: the SoW runs of each subject (consecutive dates sharing a topic) and the protected ones (current + previous). */
+function olProtectedSids(sessions, todayIso) {
+  var bySub = {}, keep = {}
+  sessions.forEach(function (s) { (bySub[s.subjectKey] || (bySub[s.subjectKey] = [])).push(s) })
+  Object.keys(bySub).forEach(function (k) {
+    var l = bySub[k].slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0 }), runs = []
+    l.forEach(function (s) { var r = runs[runs.length - 1]; if (r && r.topic === s.topic) r.sids.push(s.sid); else runs.push({ topic: s.topic, sids: [s.sid], first: s.date }) ; runs[runs.length - 1].last = s.date })
+    var cur = -1; for (var i = 0; i < runs.length; i++) if (runs[i].first <= todayIso) cur = i
+    if (cur < 0) cur = 0
+    ;[cur, cur - 1].forEach(function (j) { if (j >= 0 && runs[j]) runs[j].sids.forEach(function (sid) { keep[sid] = true }) })
+  })
+  return keep
+}
+/** §13 compaction (pure): ops received before `cutIso`, not in the current/previous SoW and not the latest op of a
+ *  Left/subject target, fold into base. Only when every register stays identical; an op leaves the log only when all the
+ *  registers it writes are folded. → { base, ops, gone: [ops removed], floor: vv of removed ops (merged over `floor`) } */
+function olCompact(base, ops, rules, todayIso, cutIso, floor) {
+  var f = olFold(base, ops, rules), v = olView(f), keep = olProtectedSids(v.sessions, todayIso), alias = f.alias
+  var regOps = {}, opRegs = {}
+  var valueIn = function (o, k) { var w = olWrites(o).filter(function (x) { return olCanon(x[0], alias) === k })[0]; return w ? w[1] : undefined }
+  ops.forEach(function (o) {
+    if (o.kind === 'session.add' && alias[o.target]) { opRegs[o.opId] = null; return } // alias ops stay for good
+    opRegs[o.opId] = o.status === 'refused' ? [] : olWrites(o).map(function (w) { var k = olCanon(w[0], alias); (regOps[k] || (regOps[k] = [])).push(o); return k })
+  })
+  var latest = {}
+  Object.keys(regOps).forEach(function (k) { var fd = olField(k); if (fd === 'left' || fd === 'subj' || fd === 'subjAct') latest[regOps[k].slice().sort(olNewer)[0].opId] = true })
+  var inC = {}
+  ops.forEach(function (o) {
+    var r = opRegs[o.opId]; if (!r || !o.recvAt || !(String(o.recvAt) < cutIso) || latest[o.opId]) return
+    if (r.some(function (k) { var sd = olSidOf(k); return sd && keep[sd.sid] })) return
+    inC[o.opId] = true
+  })
+  var baseBy = {}; (base || []).forEach(function (b) { var k = olCanon(b.register, alias); (baseBy[k] || (baseBy[k] = [])).push(b) })
+  var newBase = {}
+  for (var pass = 0; pass < 50; pass++) {
+    var changed = false; newBase = {}
+    Object.keys(regOps).forEach(function (k) {
+      var l = regOps[k], old = l.filter(function (o) { return inC[o.opId] }); if (!old.length) return
+      var fd = olField(k), stay = l.filter(function (o) { return !inC[o.opId] })
+      var oldWin = olResolve(fd, (baseBy[k] || []).concat(old.map(function (o) { return olCand(o, valueIn(o, k)) })), rules).win
+      var after = olResolve(fd, [oldWin].concat(stay.map(function (o) { return olCand(o, valueIn(o, k)) })), rules).win
+      if (!olSame(after.value, f.regs[k].value)) { old.forEach(function (o) { delete inC[o.opId] }); changed = true; return }
+      newBase[k] = oldWin
+    })
+    if (!changed) break
+  }
+  var gone = ops.filter(function (o) { return inC[o.opId] })
+  var outBase = [], seen = {}
+  ;(base || []).forEach(function (b) { var k = olCanon(b.register, alias); if (newBase[k]) { if (!seen[k]) { seen[k] = true; outBase.push(olBaseEntry(k, newBase[k])) } } else outBase.push(b) })
+  Object.keys(newBase).forEach(function (k) { if (!seen[k]) outBase.push(olBaseEntry(k, newBase[k])) })
+  return { base: outBase, ops: ops.filter(function (o) { return !inC[o.opId] }), gone: gone, floor: olVv(gone, floor) }
+}
+function olBaseEntry(register, c) {
+  return { register: register, value: c.value, opId: c.opId || '', deviceId: c.deviceId, seq: c.seq || 0, lamport: c.lamport || 0, vv: c.vv || {}, recvAt: c.recvAt || '', wallAt: c.wallAt || '', by: c.by }
+}
+// </oplog-core>

@@ -1,5 +1,5 @@
 # SoW / Driftline — system reference (sheet · bridge · app)
-Last updated: 2026-11-11 (v0.9.0-beta.17, bridge 0.51.0-dl.2). Owner: Teacher-S (Steve). Written for t245u, updated t250u:
+Last updated: 2026-11-11 (v0.9.0-beta.18, bridge 0.60.0-ol.1). Owner: Teacher-S (Steve). Written for t245u, updated t250u, t254u (op log):
 "a reference sheet of all the structure of both the bridge script, the Google Sheets and our own app … so a redo will be easy to migrate".
 
 No pupil names and no tokens are in this file (house rule). Private values (the live bridge URL, the live token) live only in
@@ -20,7 +20,7 @@ Contents: 1 Map · 2 Google Sheets · 3 Bridge (Apps Script) · 4 Setup files ·
 | Driftline (this repo) | `steph1420/sow-driftline`, branch `feat/rds2` | Beta builds from tags. Talks to the TEST copy only (`allowedSheets`). |
 | Beta site | `steph1420/sow-driftline-beta` (file `BETA_REF` = full commit sha) | github.io/sow-driftline-beta/ |
 | Stable Driftline site | this repo's CI on `master`/tags | Never ships a prerelease (`-beta.n`); Stable needs Steve's go. |
-| Bridge source | `bridge/Code.js` (0.51.0-dl.2) + `bridge/appsscript.json`; older: `bridge/legacy/` | dl.1 deployed on TEST (and LIVE by Steve); **dl.2 not deployed** (Steve deploys; see §7). |
+| Bridge source | `bridge/Code.js` (0.60.0-ol.1) + `bridge/appsscript.json`; older: `bridge/legacy/` (0.46.2, dl.1, dl.2) | dl.1 deployed on TEST (and LIVE by Steve); **dl.2 and ol.1 not deployed** (Steve deploys; see §7). |
 | Working rules | `steph1420/agent-common`: `06-coding-standards.md`, `handovers/lfps-sow/WORKING_RULES.md` | |
 
 ## 2. Google Sheets
@@ -66,6 +66,50 @@ Date moves, new dates, topics and deletes fit schema 1 through the existing `pus
 Why a separate tab and not Ticks!K/L: the bridge rewrites Ticks rows in place and the old bridge only knows A:J, so extra Ticks columns
 could fall out of line with their rows; a tab only dl.2 touches can't.
 
+### 2.4 Op-log layout (bridge 0.60.0-ol.1, after SoW › Migrate to op log)
+Spec: Q-HARM-10 (agent-common `08-shared-app-patterns.md`, commit 75bd97a) = `steph1420/sow` `docs/CRDT_SYNC_PLAN.md` §12 locks + §13.
+Before Migrate nothing in this section exists and the sheet works exactly as §2.2/§2.3 (the old app v0.47.1 keeps working).
+Migrate adds three hidden tabs (all columns plain text) and four `_Meta` keys; no existing tab, column or formula changes:
+
+| Tab | Columns | What |
+|---|---|---|
+| `Ops` | A opId (`deviceId:seq`) · B deviceId · C seq · D lamport · E vv (JSON) · F kind · G target · H value (JSON) · I wallAt · J recvAt · K status | Every change, appended in receipt order. K: '' = counts · `refused` = the sheet said no (kept so seq has no gap, never counts) · `alias:<sid>` = a new date that another session already had; filed under that session. |
+| `Base` | A register · B value (JSON) · C opId · D deviceId · E seq · F lamport · G vv · H recvAt · I wallAt · J by | The state the log starts from: Migrate writes one row per register from the old tabs (device `base`, lamport 0, seen by every op); compaction folds old ops in (they keep their device/seq/vv). |
+| `Conflicts` | A at · B register · C rule · D winValue · E winDevice · F winOp · G loseValue · H loseDevice · I loseOp | One row per true-concurrency clash, written once. Nothing blocks sync. |
+
+`_Meta`: `oplogMigratedAt` (the switch), `oplogBackup` (URL of the full Drive copy made first), `oplogFloor` (JSON vv of compacted ops),
+`tickConflict` (`set` default · `unset` · `latest` = the Developer-option hook: Steve can change it in `_Meta`; there is no app UI for it),
+later `lastCompaction`.
+
+Registers (field:target), what each op kind writes. A session's id (`sid`) is fixed when it is made (`subjectKey|yyyy-mm-dd` of its first
+date, or with a `+`/`~…` suffix if that id was used before); its date is a register, so a move changes no ids:
+
+| Op kind | target | value | Registers written | True-concurrency rule |
+|---|---|---|---|---|
+| `tick.set` | `sid|roll` | true/false | `tick:` | **Set wins** (tickConflict `unset` = Unset wins, `latest` = later recvAt) |
+| `tick.mark` | `sid|roll` | `{at, back}` or null (cleared) | `mark:` | later recvAt |
+| `session.add` | sid | `{subjectKey, classKey, date, topic?}` | `alive:` true, `meta:`, `date:`, `topic:` | alive: keep wins |
+| `session.remove` | sid | null | `alive:` false | keep wins (an add beats a concurrent remove) |
+| `session.date` | sid | `yyyy-mm-dd` | `date:` | later recvAt |
+| `session.topic` | sid | text ≤ 200 | `topic:` | later recvAt |
+| `left.set` | `classKey|roll` | `Left`/`Active` | `left:` | **sheet wins**; device vs device: later recvAt |
+| `subject.add` | `CLASS_Subject_KIND` | `{classKey, subject, kind, order}` | `subj:`, `subjAct:` true | later recvAt |
+| `subject.active` | subjectKey | true/false | `subjAct:` | later recvAt |
+
+Migration-only registers: `sub:sid|roll` (Ticks!J manual Submitted) — kept from Base, no op kind yet.
+
+Order (core `olBefore`/`olResolve`): op B is after op A when B's vv has seen A (`vv[A.deviceId] ≥ A.seq`), or same device and later seq; Base
+is before everything. The winner of a register is the one op every other op came before; if two or more ops are concurrent, the rule above
+picks one (ties: recvAt, then lamport, then deviceId) and the others are written to Conflicts. **No device clock decides anything**:
+`wallAt` is display only; recvAt (the sheet's clock at receipt) only breaks ties.
+
+After Migrate the old tabs are **views**: the bridge rewrites Sessions, Ticks (+J), Roster D/E/G (Left), Subjects E (Active) and Marks from
+fold(Base + Ops) after every accepted op, writing only what changed. On the sheet a session shows as `subjectKey|date` (its current date),
+so the old `pull`, the Dashboard and Entry formulas read as before. Hand edits there become ops from device `sheet` (vv = everything the
+sheet has, so they come after everything synced): Entry ticks and topic (B3), Ticks F, Sessions D (date) and E (topic), Roster D,
+Subjects E and new Subjects rows. A hand edit the log refuses (e.g. a date that is taken) is put back. New pupils are still typed into
+Roster by hand (names are not ops).
+
 ## 3. Bridge (Apps Script web app bound to the workbook)
 
 ### 3.1 Versions
@@ -75,7 +119,8 @@ could fall out of line with their rows; a tab only dl.2 touches can't.
 | 0.46.2 | **deployed on LIVE and the TEST copy**; sow v0.47.1 `apps-script/Code.js` = `bridge/legacy/Code-0.46.2.js` | clock offset + clamp, changed-rows-only Ticks write, subManual (J), strict dates, plain-text topics, roster status check, tombstone cap |
 | 0.50.0-dl.1 | written in this repo (never deployed) | device registry: pairClaim with `deviceName` → per-device key; `devicesList`/`deviceRevoke`/`deviceRename` |
 | 0.51.0-dl.1 = bridge v2 | `bridge/legacy/Code-0.51.0-dl.1.js` (tag v0.9.0-beta.16); **deployed on the TEST copy** (LIVE: Steve) | 0.50 + setup-file maker (menu) + `caps` on `ping`. Additive only. |
-| **0.51.0-dl.2** | `bridge/Code.js` (tag v0.9.0-beta.17; not deployed) | dl.1 + `Marks` tab: `caps` gains `marks`; `pull`/`push` `withMarks`; `push` `marks[]`. Additive only; dl.1 replies unchanged unless `withMarks:true`. |
+| 0.51.0-dl.2 | `bridge/legacy/Code-0.51.0-dl.2.js` (tag v0.9.0-beta.17; not deployed) | dl.1 + `Marks` tab: `caps` gains `marks`; `pull`/`push` `withMarks`; `push` `marks[]`. Additive only; dl.1 replies unchanged unless `withMarks:true`. |
+| **0.60.0-ol.1** | `bridge/Code.js` (tag v0.9.0-beta.18; not deployed) | dl.2 + op log (§2.4, §3.5): caps `oplog`, ping `oplog: true/false`, `opsPull`/`opsPush`, menu Migrate / Compact, compaction. Before Migrate: identical to dl.2 (old app suite 63/63). After: legacy `push` → `update the app`. |
 
 Compatibility proof: the old app's own bridge suite (sow v0.47.1, `apps-script/test`, 63 tests) passes on `bridge/Code.js`
 except the 7 checks that compare the version label; with the label set back to 0.46.2 all 63 pass. Driftline's
@@ -92,9 +137,11 @@ The same 63/63 holds for dl.2 (label set back).
 ### 3.3 Actions
 | Action | Auth | Request | Reply |
 |---|---|---|---|
-| `ping` | token | – | `{ ok, schema:1, sheetId, caps? }` (v2 adds `caps`: ticks, roster, structs, sessions, subs, prefs, pairing, devices, setupFile; dl.2 adds `marks`) |
+| `ping` | token | – | `{ ok, schema:1, sheetId, caps?, oplog? }` (v2 adds `caps`: ticks, roster, structs, sessions, subs, prefs, pairing, devices, setupFile; dl.2 adds `marks`; ol.1 adds `oplog` and `oplog: true` once migrated) |
 | `pull` | token | – | `{ ok, schema, serverTime, subjects[], roster[], sessions[], ticks[] }` — subjects `{subjectKey,classKey,subject,kind,active,order}`; roster `{classKey,roll,name,status,updatedAt}`; sessions `{sessionId,subjectKey,classKey,date:'yyyy-mm-dd',topic,status,updatedAt}`; ticks `{tickId,sessionId,subjectKey,classKey,roll,set,updatedAt,sub,subOff}`. dl.2: request `{ withMarks:true }` adds `marks[]` `{tickId,sessionId,roll,at,back,updatedAt}` (absent otherwise) |
 | `push` | token | `{ clientNow?, structs?[], ticks?[], subs?[], sessions?[], roster?[], marks?[] (dl.2), withMarks? (dl.2) }` | `{ ok, applied, ignored, rejected[], sessionsApplied, structApplied, marksApplied (dl.2), offsetMs, state:<pull> }` |
+| `opsPull` (ol.1, migrated) | token | `{ vv?, full? }` | `{ ok, migrated, vv, lamport, rules, floor, ops[] (the ones `vv` hasn't seen), base[]? (when vv is missing or behind the compaction floor, or full), roster[{classKey,roll,name}], conflicts[] (last 100) }` |
+| `opsPush` (ol.1, migrated) | token | `{ deviceId, ops[≤500], vv? }` | `{ …opsPull reply, accepted[{opId, recvAt, status, message?}], dup, resend: {deviceId: fromSeq} or null, rejected[] }` |
 | `pairStart` | token | – | `{ ok, code:'6 digits', expiresInSec:300, expiresAt }` |
 | `pairClaim` | none | `{ code, deviceName? }` | 0.46: `{ ok, token }`; 0.50+ with deviceName: `{ ok, deviceKey, deviceId }`. Errors: bad code / no code / expired / wrong code (`triesLeft`) / locked (5 tries) |
 | `pairCancel` | token | – | `{ ok }` |
@@ -117,9 +164,36 @@ The same 63/63 holds for dl.2 (label set back).
   Older bridges ignore the field (unknown keys are skipped), so sending it is safe, but the app only sends it when `caps` has `marks`.
 - `clientNow`: if the phone clock is off by >30 s, stamps are shifted by the offset; anything >10 min ahead of the server is clamped to now.
 
+After Migrate (ol.1): `push` answers `{ ok:false, error:'update the app' }` and changes nothing (Q-CRDT-6); `pull`, `prefs*`, pairing and
+devices work as before. Before Migrate, `opsPull`/`opsPush` answer `not migrated`.
+
 ### 3.4 Menu (`onOpen` → menu "SoW")
 `1. Setup + migrate (once)` · `Show app token` · v2 `Make app setup file…` · `Remove a subject (backup first)…` (makes a Drive backup
-spreadsheet of that subject's rows, then removes them; the backup URL goes into `_Meta`).
+spreadsheet of that subject's rows, then removes them; the backup URL goes into `_Meta`; **off after Migrate**: untick Active instead) ·
+ol.1 `Migrate to op log (backup first)…` · `Compact op log now…`.
+
+### 3.5 Ops contract (opsPush rules, in receipt order, under the script lock)
+- An op: `{ opId: deviceId:seq, deviceId, seq (1,2,3… per device), lamport (max seen + 1), vv {deviceId: last seq seen}, kind, target, value, wallAt }`.
+  deviceId = `d` + 6–40 lowercase letters/digits, chosen once per install; a device may only send its own ops (never `sheet`/`base`).
+- Idempotent: an opId the sheet has is answered again (`dup`, with its recvAt/status), never applied twice. A seq at or below the compaction
+  floor is a `dup` too.
+- Gaps: if seq > last seq + 1 for that device, nothing from that point is taken and `resend: {deviceId: last+1}` asks for them again.
+- Checks (else status `refused` with a message; the op is kept so seq stays whole): session exists and the roll is on that class's Roster
+  (ticks, marks); a valid date; `session.date` onto a day that subject already has → `"<to> already has a session — <from> not moved"`
+  (same text as rename since 0.44, so the app's refusal handling is shared); `session.add` on a day another session has → `alias:<sid>`.
+- recvAt = the sheet's clock, strictly increasing. Then fold, rewrite the views, log new conflicts, `_Meta lastPush`.
+- Limits: ≤ 500 ops per push (`OL_BATCH_MAX`); the bridge reads Ops + Base on each ops call (fine up to the ~20k ops between compactions).
+
+### 3.6 Compaction (§13)
+`olCompactNow_` (menu `Compact op log now…`, or `compactionJob` from an optional daily trigger that `installCompactionTrigger()` sets up when
+Steve runs it once from the Apps Script editor; **not installed automatically**):
+1. SoW runs per subject = consecutive dates (in date order) sharing a topic. Current SoW = the run holding the latest date ≤ today
+   (Asia/Calcutta); all in the future → the first run. Previous SoW = the run before it (also across the school-year boundary).
+2. Protected: every op on those runs' sessions (ticks, marks, topics, dates, add/remove), and the latest op of every Left/subject target.
+3. Everything else received more than 60 days ago (`OL_KEEP_DAYS`) folds into Base, only where every register keeps the same value (checked
+   per register, and again for the whole view before anything is written; a difference aborts with nothing changed).
+4. First a Drive backup spreadsheet `SoW Ops backup <date>` of the whole Ops tab; then Base and Ops are rewritten, `oplogFloor` gets the
+   removed ops' vv, `_Meta lastCompaction` the count and backup URL. Devices behind the floor get Base again on their next pull.
 
 ## 4. Setup files
 A setup file connects an app to a bridge without typing. It contains the bridge URL and a token, so it is private.
@@ -165,6 +239,10 @@ Stack: React 19 + TypeScript, Vite PWA (vite-plugin-pwa), Zustand store, framer-
   displayScale, haptics, saveState.
 - `ui/` — Sheet, Push, Chips, Switch, UndoToast, icons, hooks (`useBackLayer` = one history entry per open layer for phone Back, `useHold`,
   `usePress`, `useRubberBand`, `useMotionOn`).
+- `oplog/` (t254u) — `core.js` (+ `core.d.ts`): the one fold/order/compaction core, embedded byte-for-byte in `bridge/Code.js` between
+  `// <oplog-core>` markers (`node scripts/embed-core.mjs`; test OL-CORE-00 fails if they differ). `log.ts` (OpLog: local ops with seq,
+  lamport, vv; receive/adopt; unsent; fold → SheetState), `persist.ts` (IndexedDB `sow-driftline-oplog`, memory fallback), `engine.ts`
+  (opsPush/opsPull, resend on gap, one writer across tabs), `legacy.ts` (waiting push-path changes → ops, once).
 - `vendor/driftline/` — kit tokens (`tokens.css`) and base styles. `tests/tokenPurity` forbids raw hex/px outside tokens unless the line says `token-ok`.
 
 ### 5.2 Data flow
@@ -185,6 +263,16 @@ session` and the old session still exists, the app puts the session back on its 
 resends the waiting ticks to the old date (never onto the other device's session), and shows the usual bottom toast:
 "The sheet already has CW on Wed 9 Dec · kept on Mon 7 Dec".
 
+Op path (beta.18, t254u): only when ping says `caps` has `oplog` **and** `oplog: true` (the sheet is migrated). Then the store sends
+every intent as an op instead of the outbox/edits: a tap = `tick.set` (+ `tick.mark` for its marked time, F-LT-05), Reschedule =
+`session.date`, + New date = `session.add`, Undo of it = `session.remove`, topic = `session.topic`; Undo/Redo and Restore make new ops.
+`data` = the log's fold (session ids stay fixed, so no re-keying). Quick sync calls `opsPull` with the device's vv every 4 s. A refused
+`session.date` gives the same toast as beta.17 and leaves the Undo list; the fold already ignores it. Conflicts are kept in the store
+(`conflicts`) and logged on the sheet; Sync › Review is mocked only (`/workspace/rds2/crdt-review/`, needs Steve's lock). The first time,
+whatever still waited on the push path (outbox ticks, date edits, marks) becomes ops on the sessions' first ids. If the sheet is migrated
+while a phone is on the push path, its next save fails with "update the app" and the store switches to the op path at once.
+Otherwise (dl.1, dl.2, ol.1 before Migrate) everything below is unchanged.
+
 Restore after a move (beta.17): every local move is logged with its time (`moves`, last 300). Restoring a snapshot maps its session ids
 through the moves made after the snapshot, so it restores ticks on the session's current date and never brings back the old column.
 
@@ -192,7 +280,9 @@ through the moves made after the snapshot, so it restores ticks on the session's
 `prefs` · `view` · `dev` · `deviceName` · `lastTab` · `hints` · `favs` · `nameSort` · `scope` · `shareTemplates` · `copyToken` (token or
 device key) · `copyBridge` (bridge URL) · `outbox` · `tabs` (BroadcastChannel name) · `demoTicks` / `demoTicksSchool` ·
 `undo-{demo|copy}` · `snapshots-{demo|copy}` · `edits-{demo|copy}[-school]` · `marks-{demo|copy}[-school]` · `marksOut` (beta.17:
-mark changes waiting for the sheet) · `moves` (beta.17: move log `{from,to,at}` used by Restore).
+mark changes waiting for the sheet) · `moves` (beta.17: move log `{from,to,at}` used by Restore) · `opDevice` (t254u: this install's
+op-log device id) · `opSeq` (its last seq, shared by tabs) · `tabs-oplog` (BroadcastChannel). IndexedDB `sow-driftline-oplog`, record
+`<namespace>:oplog:v1`: the device's log (Base, ops, floor, rules, roster names).
 Beta and Stable never share keys (different namespace on the same github.io origin).
 
 ### 5.4 Features
@@ -240,6 +330,27 @@ Same as 7.1 on the LIVE workbook, after 7.0. The old app v0.47.1 keeps working (
    The hidden `Marks` tab appears on the first mark. No data step; existing tabs unchanged.
 Rollback: Manage deployments › the dl.1 version. The `Marks` tab can stay (nothing else reads it) or be deleted.
 
+### 7.2b Op log: dl.1 → 0.60.0-ol.1, then Migrate (TEST copy first; LIVE only on Steve's go)
+Before: phones on Driftline **beta.18 or later** (older Driftline builds and the old SoW app v0.47.1 can read but not save after Migrate).
+1. Rollback point: Deploy › Manage deployments, note the current version. (dl.1 source: `bridge/legacy/Code-0.51.0-dl.1.js`.)
+2. Extensions › Apps Script › `Code.gs`: select all, paste all of `bridge/Code.js` at tag `v0.9.0-beta.18`
+   (raw: `https://raw.githubusercontent.com/steph1420/sow-driftline/v0.9.0-beta.18/bridge/Code.js`). Save.
+3. Deploy › Manage deployments › pencil › Version: New version › Deploy (same /exec URL).
+4. Check (nothing has changed yet): the /exec URL shows `"version":"0.60.0-ol.1"`; Driftline Beta still saves a tick; the old app still saves.
+5. Reload the sheet. Menu SoW › **Migrate to op log (backup first)…** → OK. Authorise if asked (it copies the file in your Drive). The
+   message shows the Base row count, "tabs unchanged" and the backup copy's link. `_Meta` now has `oplogMigratedAt`.
+6. Check: Driftline Beta › reopen: a tick saves (Saved); the hidden `Ops` tab gets rows; ticking on Entry adds a row with device `sheet`;
+   the old app now says "update the app" when it saves (by design, Q-CRDT-6), but still shows the data.
+Rollback: (a) before step 5: Manage deployments › the previous version. (b) after Migrate: open the backup copy from `_Meta oplogBackup`
+(a full copy made before anything changed) or, to keep the newer data, set the deployment back to dl.1 **and** delete the `_Meta` row
+`oplogMigratedAt` (the views then are plain tabs again, holding the latest state; the Ops/Base/Conflicts tabs can stay hidden or be deleted).
+
+### 7.2c Compaction (optional)
+Nothing runs on its own. To compact by hand: SoW › Compact op log now…. For a nightly run: Apps Script editor › run
+`installCompactionTrigger` once. The manifest lists its scopes, so first add
+`"https://www.googleapis.com/auth/script.scriptapp"` to `appsscript.json` › `oauthScopes` (Project Settings › show the manifest), or the
+run fails with a permission error; it then asks to approve the new permission. Remove the trigger under Triggers (clock icon).
+
 ### 7.3 Point Driftline at LIVE (later, separate go; needs code change)
 Driftline Beta refuses any sheet but the TEST copy (`allowedSheets` in `src/data/sheetSource.ts`, Steve t168u/t169u). Opening LIVE needs:
 (a) Steve's decision which flavor may use LIVE; (b) change `allowedSheets`; (c) a break-it run against a fresh Drive copy of LIVE;
@@ -250,6 +361,11 @@ Export with `pull` (JSON: subjects, roster, sessions, ticks) + `prefsPull`; ids 
 can be filled from that JSON alone. Keep the contract in §3.3 or version it (06 rule 5: additive = minor, breaking = major, a mismatch fails visibly).
 
 ## 8. Known caveats (open)
+- Op log (ol.1) is tested on the node harness only (the real `Code.js` on the sheet mock); not yet on Google (needs Steve's deploy + Migrate).
+- After Migrate: the old app v0.47.1 and Driftline ≤ beta.17 can't save ("update the app"); Remove a subject is off; prefs still use the
+  old per-key newer-wins (CRDT_SYNC_PLAN §6 not built). Devices not seen for 60 days are not dropped from vectors yet (§7).
+- Two tabs of one install share one seq run through localStorage; a tap in two tabs in the same millisecond could reuse a seq (the bridge
+  then keeps the first and answers the second as a duplicate).
 - Marks are shared only once dl.2 is deployed; until then they stay on each device. Marks made before dl.2 are not uploaded backwards
   (only changes after it). The old app v0.47.1 neither shows nor sends marks.
 - A refused move is detected by the bridge's message text (0.44 – dl.2 all use the same text).
@@ -259,4 +375,5 @@ can be filled from that JSON alone. Keep the contract in §3.3 or version it (06
 
 ## 9. Change log of this file
 - 2026-11-11 first version (t245u).
+- 2026-11-11 t254u: op log (§2.4, §3.5, §3.6, §5.2 op path, §7.2b/c, caveats).
 - 2026-11-11 t250u: bridge dl.2 `Marks` tab, marks sync, refused-move toast, Restore after a move, §7.2a, caveats.

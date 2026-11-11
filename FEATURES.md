@@ -507,3 +507,4 @@ Add these to the address: `?demo`, `?today=YYYY-MM-DD`, `?side=night|day`.
 - **Settings › Appearance:** Column dates (10/11 · Tue 10 · 10 Nov; Count · Topic), Week groups, Haptics (Off · Light · Normal · Strong).
 - **Quick overview card (dev-only, t150u):** five styles D4 · E1 · E2 · E3 · E4 in Settings › Developer options › QO card style, or hold the Quick overview title to step through them.
 - **Not yet:** smart lists (LISTS shows only a disabled "+ New list").
+- **Op-log sync (0.9.0-beta.18, t254u):** with bridge 0.60.0-ol.1 after SoW › Migrate to op log, every change is an op (opsPush/opsPull), merged by order not clocks: Set wins for ticks, the sheet wins for Left, nothing lost (clashes logged in the hidden Conflicts tab). Dormant on older bridges. See docs/REFERENCE.md §2.4, §3.5, §7.2b.

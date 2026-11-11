@@ -9,7 +9,12 @@ import { DEMO_STATE, fakeSource } from '../data/fakeSource'
 import { pastSchoolState, schoolState, wantsSchool } from '../data/demoSchool'
 import { yearById, yearOf } from '../data/schoolYear'
 import { todayIso } from '../data/today'
-import { bridgeHas, LIVE_SHEET_ID, lastSheetId, COPY_BRIDGE_URL, claimPair, copyWriter, sheetBridgeSource, verifyCopy } from '../data/sheetSource'
+import { bridgeHas, LIVE_SHEET_ID, lastSheetId, COPY_BRIDGE_URL, claimPair, copyWriter, onOplog, opsCall, sheetBridgeSource, verifyCopy } from '../data/sheetSource'
+import { OpLog, newDeviceId, type Kind, type OpsReply } from '../oplog/log'
+import type { Conflict } from '../oplog/core'
+import { idbStore, type LogStore } from '../oplog/persist'
+import { createOpEngine, type OpRefusal } from '../oplog/engine'
+import { legacyToOps } from '../oplog/legacy'
 import { CONFIG, FLAVOR } from '../config'
 import { exportSetup, parseSetup } from '../data/setup'
 import { cleanSort, type NameSort } from '../data/sortNames'
@@ -52,6 +57,8 @@ type State = {
   viewing: string | null; viewYear: (id: string | null) => void
   /** RDs2 Classes panel: starred subjects, the strip's pick (the chip swipe walks it) and whether the walk loops. On this device. */
   favs: string[]; toggleFav: (subjectKey: string) => void; scope: ScopePick; setScope: (p: ScopePick) => void; loop: boolean; setLoop: (b: boolean) => void; stepSubject: (dir: 1 | -1) => boolean
+  /** t254u op log: which save path is on (the op log once the sheet is migrated and the bridge says caps 'oplog'), and the clashes the log resolved (Sync › Review later; read-only for now). */
+  syncPath: 'push' | 'oplog'; conflicts: Conflict[]
   setToken: (t: string) => void; unpair: () => void; pair: (code: string) => Promise<void>; refresh: () => Promise<void>; reset: () => void
 }
 export type View = { weeks: boolean; phoneCols: 1 | 2; dateFmt: DateFmt; dateSub: DateSub } // t122u: phoneCols; RDs2: header date format + subtext
@@ -95,10 +102,11 @@ const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? v : []) // beta.14 BK-
 const demoOps = (): Op[] => { try { return list<Op>(JSON.parse(localStorage.getItem(demoTicksKey()) || '[]')) } catch { return [] } }
 let engine: ReturnType<typeof createEngine> | null = null
 /** beta.14 BK-B14-04: the old engine is stopped, not just forgotten (its retry timer kept saving and set the save dot in demo). */
-const dropEngine = () => { engine?.stop(); engine = null }
+const dropEngine = () => { engine?.stop(); engine = null; oeng?.stop(); oeng = null; olog = null; opMode = false }
 let poller: ReturnType<typeof createPoller> | null = null
 function syncLoop(on: boolean) {
   poller?.stop(); poller = null; if (!on) return
+  if (opMode && oeng) { const e = oeng; poller = createPoller({ pull: async () => { await e.pull(); return olog!.state() }, everyMs: CONFIG.timing.quickSyncMs, hidden: () => typeof document !== 'undefined' && document.hidden, onPulled: () => useApp.setState({ pulledAt: nowIso() }) }); poller.start(); return }
   poller = createPoller({ pull: () => sheetBridgeSource(bridgeUrl(), token).pull(), everyMs: CONFIG.timing.quickSyncMs, hidden: () => typeof document !== 'undefined' && document.hidden,
     onPulled: (r) => { if (engine && useApp.getState().source === 'copy') { engine.pulled(r); useApp.setState({ pulledAt: nowIso() }) } } })
   poller.start()
@@ -127,7 +135,7 @@ const viewOnly = () => useApp.getState().viewing !== null
 /** Wraps a write action so it does nothing while a past year is shown (F-SH-09: view-only). */
 const liveOnly = <A extends unknown[]>(fn: (...a: A) => void) => (...a: A) => { if (!viewOnly()) fn(...a) }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, notice: null, viewing: null as string | null, hints: list<string>(loadJson(HINTS, [])).filter((x) => typeof x === 'string'), favs: list<string>(loadJson(FAVS, [])).filter((x) => typeof x === 'string'), nameSort: cleanSort(loadJson(SORT, null)), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, notice: null, syncPath: 'push' as const, conflicts: [] as Conflict[], viewing: null as string | null, hints: list<string>(loadJson(HINTS, [])).filter((x) => typeof x === 'string'), favs: list<string>(loadJson(FAVS, [])).filter((x) => typeof x === 'string'), nameSort: cleanSort(loadJson(SORT, null)), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
@@ -154,7 +162,7 @@ export const useApp = create<State>((set, get) => ({
   dismissHint: (id) => { const hints = [...new Set([...get().hints, id])]; localStorage.setItem(HINTS, JSON.stringify(hints)); set({ hints }) },
   // beta.16: a move gives the session the sheet's id for its new date (`subjectKey|date`); a day that subject already has is refused (F-DT-05)
   moveSession: liveOnly((sessionId, date) => { const se = get().data.sessions.find((x) => x.sessionId === sessionId); if (!se || se.date === date || collides(get().data, se.subjectKey, date, sessionId)) return
-    edit({ sessionId, subjectKey: se.subjectKey, date, prevDate: se.date, to: freeId(se.subjectKey, date, sessionId) }) }),
+    edit({ sessionId, subjectKey: se.subjectKey, date, prevDate: se.date, to: opMode ? sessionId /* the log keeps a session's id */ : freeId(se.subjectKey, date, sessionId) }) }),
   setTopic: liveOnly((sessionId, topic) => { const se = get().data.sessions.find((x) => x.sessionId === sessionId); if (!se || se.topic === topic) return; edit({ sessionId, subjectKey: se.subjectKey, topic, prevTopic: se.topic }) }),
   addSession: (subjectKey, date) => { if (viewOnly()) return ''; const sub = get().data.subjects.find((x) => x.subjectKey === subjectKey); if (!sub || collides(get().data, subjectKey, date)) return ''
     const sessionId = freeId(subjectKey, date)
@@ -219,8 +227,14 @@ export const useApp = create<State>((set, get) => ({
     set({ status: 'loading', error: null })
     try {
       let data = await rs.pull()
+      if (paired && onOplog()) { // t254u: the sheet is on the op log → the op path (the push path stays for un-migrated sheets)
+        engine?.stop(); engine = null; const e = await opEngine(); await e.pull(); convertLegacy(); void e.flush()
+        live = null; set({ viewing: null, source: 'copy', status: 'ok', pulledAt: nowIso(), save: e.status(), waiting: e.waiting(), syncPath: 'oplog', ...opView(get().currentClass, get().subject), ...flags() })
+        get().snapshotNow('Opened'); syncLoop(true); return
+      }
+      if (opMode) { oeng?.stop(); oeng = null; olog = null; opMode = false }
       if (paired) { data = eng().adoptPull(data); takeMarks(data); void eng().flush() }
-      live = null; set({ viewing: null, source: paired ? 'copy' : 'demo', status: 'ok', pulledAt: nowIso(), save: paired ? eng().status() : 'demo', waiting: paired ? eng().waiting() : 0, ...flags(), ...withData(data, get().currentClass, get().subject) })
+      live = null; set({ viewing: null, source: paired ? 'copy' : 'demo', status: 'ok', pulledAt: nowIso(), save: paired ? eng().status() : 'demo', waiting: paired ? eng().waiting() : 0, syncPath: 'push', ...flags(), ...withData(data, get().currentClass, get().subject) })
       get().snapshotNow(paired ? 'Opened' : 'Opened (demo)'); syncLoop(paired)
     }
     catch (e) { set({ status: 'error', error: e instanceof Error ? e.message : String(e) }) }
@@ -233,20 +247,21 @@ const flags = () => { const h = hist(); return { canUndo: h.canUndo() || (order[
 function eng() {
   if (!engine) engine = createEngine({ storage: localStorage, key: storageKey('outbox'), lock: webLock, channel: broadcast(storageKey('tabs')), graceMs: CONFIG.timing.pendingGraceMs, retryMs: CONFIG.timing.saveRetryMs,
     push: copyWriter(bridgeUrl(), token), edits: { list: loadEdits, ack: ackEdits }, marksKey: MARKS_OUT, onRefused: refusedMoves,
-    onState: (f) => { if (!viewOnly()) { useApp.setState((s) => withData(f(s.data), s.currentClass, s.subject)); takeMarks(useApp.getState().data) } }, onStatus: (save, waiting) => useApp.setState({ save, waiting }) })
+    onState: (f) => { if (!viewOnly()) { useApp.setState((s) => withData(f(s.data), s.currentClass, s.subject)); takeMarks(useApp.getState().data) } }, onStatus: (save, waiting) => { useApp.setState({ save, waiting }); if (save === 'error' && onOplog() && !opMode) void useApp.getState().refresh() } })
   return engine
 }
 /** One write path: copy → engine (queue, other tabs, auto-save); demo → on device only. */
 function write(op: Op) {
-  if (useApp.getState().source === 'copy' && token()) eng().local(op)
+  if (opMode && olog && useApp.getState().source === 'copy') opLocal('tick.set', cellKey(op), op.set)
+  else if (useApp.getState().source === 'copy' && token()) eng().local(op)
   else { const l = demoOps().filter((x) => !(x.sessionId === op.sessionId && x.roll === op.roll)); l.push(op); localStorage.setItem(demoTicksKey(), JSON.stringify(l)); useApp.setState((s) => withData(applyOps(s.data, [op]), s.currentClass, s.subject)) }
   useApp.setState(flags())
 }
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => { if (engine) void engine.flush(); void poller?.now() })
+  window.addEventListener('online', () => { if (engine) void engine.flush(); if (oeng) void oeng.flush(); void poller?.now() })
   window.addEventListener('focus', () => void poller?.now())
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void poller?.now() })
-  window.addEventListener('pagehide', () => { if (engine) void engine.flush() })
+  window.addEventListener('pagehide', () => { if (engine) void engine.flush(); if (oeng) void oeng.flush() })
   setInterval(() => { const s = useApp.getState(); if (s.status === 'ok') s.snapshotNow('Auto') }, CONFIG.timing.snapshotEveryMs)
 }
 export const currentBridge = () => ({ url: bridgeUrl(), token })
@@ -258,12 +273,14 @@ export const sheetLabel = () => (onLive() ? 'live sheet' : 'test copy')
 /** v0.7.0 S7/S8: record a date edit (undoable). */
 function edit(e: Omit<SessionEdit, 'id' | 'at'>) { did('edit'); doneEdits.push(applyEdit(e)); useApp.setState(flags()) }
 /** beta.16: the id a session of `subjectKey` gets on `date` — the sheet's `subjectKey|date`, unless another row holds it. */
-function freeId(subjectKey: string, date: string, self?: string) { let id = sheetId(subjectKey, date); while (id !== self && useApp.getState().data.sessions.some((x) => x.sessionId === id)) id += '+'; return id }
+function freeId(subjectKey: string, date: string, self?: string) { let id = sheetId(subjectKey, date); while (id !== self && (useApp.getState().data.sessions.some((x) => x.sessionId === id) || (opMode && olog?.knows(id)))) id += '+'; return id }
 const isMoveEdit = (e: SessionEdit) => e.date != null && !e.add && !e.del
 /** Stores the edit with a fresh time (Undo and Redo are new edits as far as sync is concerned) and shows it at once.
  *  On the test copy it waits with the ticks and goes out in the next push (beta.16); in demo it stays on the device. */
 function applyEdit(e: Omit<SessionEdit, 'id' | 'at'>): SessionEdit {
-  const at = nowIso(); const done: SessionEdit = { ...e, id: at, at }; const edits = [...loadEdits(), done]
+  const at = nowIso(); const done: SessionEdit = { ...e, id: at, at }
+  if (opMode && olog && useApp.getState().source === 'copy') { editOps(done); useApp.setState((s) => ({ focus: done.del && s.focus === done.sessionId ? null : s.focus })); return done }
+  const edits = [...loadEdits(), done]
   localStorage.setItem(EDITS(), JSON.stringify(edits))
   if (isMoveEdit(done)) rekeyLocal(done.sessionId, movedId(done), done.date!)
   if (done.del) { new Outbox(localStorage, storageKey('outbox')).dropSession(done.sessionId); new Outbox<MarkOp>(localStorage, MARKS_OUT).dropSession(done.sessionId) }
@@ -300,6 +317,11 @@ function migrateEdits() {
 function mark(op: Op) {
   const s = useApp.getState(); const marks = { ...s.marks }; const k = cellKey(op)
   const at = new Date(nowMs()).toISOString(); const back = op.set && s.markMode === 'back'
+  if (opMode && olog && s.source === 'copy') { // t254u: a mark is an op too (late / back-dated)
+    if (op.set) opLocal('tick.mark', cellKey(op), { at, back }); else if (s.marks[k]) opLocal('tick.mark', cellKey(op), null)
+    const late0 = op.set && s.markMode === 'late' && nowMs() >= Date.parse(`${op.date}T00:00:00+05:30`) + 864e5
+    if (late0) useApp.setState({ lateToast: s.lateToast + 1 }); return
+  }
   if (op.set) marks[k] = { at, ...(back ? { back: true } : {}), u: op.updatedAt }; else delete marks[k]
   // beta.17 (t250u): on a bridge with caps 'marks' (0.51.0-dl.2+) the mark also goes to the sheet; older bridges: on this device only
   if (s.source === 'copy' && token() && bridgeHas('marks')) new Outbox<MarkOp>(localStorage, MARKS_OUT).add({ sessionId: op.sessionId, subjectKey: op.subjectKey, date: op.date, roll: op.roll, at: op.set ? at : '', back, updatedAt: op.updatedAt })
@@ -341,3 +363,52 @@ function refusedMoves(rs: Refusal[]) {
     useApp.setState({ edits, notice: { id: Date.now(), text: `The sheet already has ${kind} on ${short(r.to)} · kept on ${short(r.from)}` }, ...flags() })
   }
 }
+
+// ───────── t254u op log (Q-HARM-10) ─────────
+let opMode = false; let olog: OpLog | null = null; let oeng: ReturnType<typeof createOpEngine> | null = null; let ostore: LogStore | null = null
+const OPDEV = storageKey('opDevice'); const OPSEQ = storageKey('opSeq')
+/** This install's device id on the log (random, never 'sheet' or 'base'). */
+const opDeviceId = () => { let d = localStorage.getItem(OPDEV); if (!d || !/^d[0-9a-z]{6,40}$/.test(d)) { d = newDeviceId(); localStorage.setItem(OPDEV, d) } return d }
+/** One seq run per install, shared by its tabs. */
+const nextSeq = (atLeast: number) => { const n = Math.max(Number(localStorage.getItem(OPSEQ) || 0) + 1, atLeast); localStorage.setItem(OPSEQ, String(n)); return n }
+async function opEngine() {
+  if (oeng && olog) return oeng
+  const dev = opDeviceId(); ostore ??= idbStore(storageKey('oplog'))
+  let saved = null; try { saved = await ostore.load() } catch { /* no IndexedDB: start from the sheet */ }
+  olog = new OpLog(dev, nextSeq, saved); opMode = true
+  oeng = createOpEngine({ log: olog, store: ostore, call: (b) => opsCall<OpsReply>(bridgeUrl(), token, b), lock: webLock, channel: broadcast(storageKey('tabs-oplog')), graceMs: CONFIG.timing.pendingGraceMs, retryMs: CONFIG.timing.saveRetryMs,
+    onState: opState, onStatus: (save, waiting) => useApp.setState({ save, waiting }), onRefused: opRefused })
+  return oeng
+}
+const marksOf = (l: OpLog): Marks => { const m: Marks = {}; for (const x of l.state().marks ?? []) m[`${x.sessionId}|${x.roll}`] = { at: x.at, ...(x.back ? { back: true } : {}), u: x.updatedAt }; return m }
+const opView = (cls?: string, sub?: string) => ({ ...shape(olog!.state(), cls, sub), marks: marksOf(olog!), conflicts: olog!.conflicts() })
+function opState() { if (!olog || viewOnly()) return; useApp.setState((s) => opView(s.currentClass, s.subject)) }
+function opLocal(kind: Kind, target: string, value: unknown) { if (!olog || !oeng) return; const o = olog.local(kind, target, value, nowIso()); oeng.local(o) }
+/** A date edit (or its Undo/Redo) as ops on the session's own id. */
+function editOps(e: SessionEdit) {
+  if (e.add) opLocal('session.add', e.sessionId, { subjectKey: e.add.subjectKey, classKey: e.add.classKey, date: e.add.date, topic: e.add.topic ?? '' })
+  else if (e.del) opLocal('session.remove', e.sessionId, null)
+  else { if (e.date != null) opLocal('session.date', e.sessionId, e.date); if (e.topic != null) opLocal('session.topic', e.sessionId, e.topic) }
+}
+/** The first sync on the op log: what still waited for the old push path becomes ops (nothing waiting is lost). */
+function convertLegacy() {
+  if (!olog || olog.legacyDone) return
+  const box = new Outbox(localStorage, storageKey('outbox')); const mbox = new Outbox<MarkOp>(localStorage, MARKS_OUT)
+  for (const c of legacyToOps(box.list(), loadEdits(), mbox.list())) opLocal(c.kind, c.target, c.value)
+  box.ack(box.list()); mbox.ack(mbox.list()); localStorage.setItem(EDITS(), '[]'); olog.legacyDone = true; ostore?.save(olog.data())
+  useApp.setState({ edits: [] })
+}
+/** The sheet refused a date move on the log (that day is taken there): the date stays where the sheet has it (the fold
+ *  already ignores the refused op), the move leaves the Undo list, and the usual toast says so. */
+function opRefused(rs: OpRefusal[]) {
+  for (const { op } of rs) {
+    if (op.kind !== 'session.date') continue
+    const s = useApp.getState(); const se = s.data.sessions.find((x) => x.sessionId === op.target); const to = String(op.value)
+    const k = doneEdits.findIndex((e) => e.sessionId === op.target && e.date === to)
+    if (k >= 0) { doneEdits.splice(k, 1); let n = -1; const pos = order.findIndex((x) => x === 'edit' && ++n === k); if (pos >= 0) order.splice(pos, 1) }
+    const kind = s.data.subjects.find((x) => x.subjectKey === se?.subjectKey)?.kind ?? 'This'
+    useApp.setState({ notice: { id: Date.now(), text: `The sheet already has ${kind} on ${short(to)} · kept on ${short(se?.date ?? to)}` }, ...flags() })
+  }
+}
+/** Tests: the op log of this device (read-only use). */
+export const opLogOf = () => olog

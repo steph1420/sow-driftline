@@ -11,3 +11,8 @@ Master log: steph1420/agent-common handovers/lfps-sow/DECISIONS.md.
 - 02:24 widget: Stable may connect to LIVE (existing bridge, tick cells only); Beta copy-only. t166u: Stable only after a documented break-it pass on Beta (docs/BREAK_IT_v0.5.md) and a LIVE backup.
 - Beta storage namespace split from Stable (same origin).
 - t168u: Stable release + LIVE cancelled. t169u GO v0.6: Weeks toggle (off by default, desktop + phone landscape), Overview + quick sheet + Share footer, LIVE code removed. Quick overview key = Shift+O because plain letters start a search on desktop (t163u).
+- t254u (Steve GO "approved sync mechanisms"; Q-HARM-10 / CRDT_SYNC_PLAN §12+§13): op-log sync built, dormant until SoW › Migrate. Choices made while building, for review:
+  one shared core `src/oplog/core.js` embedded verbatim in the bridge (test OL-CORE-00); Migrate's backup uses `ss.copy` (no new Drive scope);
+  Base counts as seen by every op (so converted legacy ops with an empty vv still win over Base); a new date on a taken day files under the
+  existing session (`alias:`); every tick also sends a `tick.mark` op (marked time stays shared); Remove-a-subject is off after Migrate;
+  the compaction trigger is manual only (needs the script.scriptapp scope added by Steve). Conflicts Review UI = mockups only (/workspace/rds2/crdt-review/), awaits Steve's lock.

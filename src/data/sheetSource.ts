@@ -8,10 +8,10 @@ export const COPY_BRIDGE_URL = 'https://script.google.com/macros/s/AKfycbxU01l41
 /** Copy-only everywhere (Steve t168u/t169u). LIVE stays off until Steve says otherwise. */
 export const allowedSheets = (_f: Flavor = FLAVOR): string[] => [COPY_SHEET_ID]
 const refuse = (_f: Flavor) => new Error('This bridge is not the test copy · the app works with the test copy only')
-export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim', 'devicesList', 'prefsPull']
+export const READ_ACTIONS: readonly string[] = ['ping', 'pull', 'pairClaim', 'devicesList', 'prefsPull', 'opsPull']
 type Fetcher = (u: string, init: { method: string; headers: Record<string, string>; body: string; redirect: 'follow'; signal?: AbortSignal }) => Promise<Response>
 
-export const WRITE_ACTIONS: readonly string[] = ['push', 'deviceRevoke', 'deviceRename', 'prefsPush']
+export const WRITE_ACTIONS: readonly string[] = ['push', 'deviceRevoke', 'deviceRename', 'prefsPush', 'opsPush']
 export async function call<T>(url: string, body: Record<string, unknown>, fetcher: Fetcher = fetch as unknown as Fetcher, write = false): Promise<T> {
   if (!(READ_ACTIONS.includes(String(body.action)) || (write && WRITE_ACTIONS.includes(String(body.action))))) throw new Error(`Blocked: “${String(body.action)}” is not allowed`)
   let res: Response
@@ -33,7 +33,7 @@ export function sheetBridgeSource(url: string, token: () => string | null, fetch
       const t = token(); if (!t) throw new Error('Not paired yet')
       const p = await call<{ sheetId?: string; caps?: unknown }>(url, { action: 'ping', token: t }, fetcher)
       if (!allowedSheets(flavor).includes(String(p.sheetId))) throw refuse(flavor)
-      lastSheetId = String(p.sheetId); lastCaps = capsOf(p)
+      lastSheetId = String(p.sheetId); lastCaps = capsOf(p); lastOplog = (p as { oplog?: unknown }).oplog === true
       return call<SheetState>(url, { action: 'pull', token: t, ...(lastCaps.includes('marks') ? { withMarks: true } : {}) }, fetcher)
     },
   }
@@ -65,7 +65,7 @@ export function refusedRenames(structs: Struct[], rejected: unknown, state: Shee
 async function assertCopy(url: string, t: string, fetcher?: Fetcher, flavor: Flavor = FLAVOR) {
   const p = await call<{ sheetId?: string; caps?: unknown }>(url, { action: 'ping', token: t }, fetcher)
   if (!allowedSheets(flavor).includes(String(p.sheetId))) throw refuse(flavor)
-  lastSheetId = String(p.sheetId); lastCaps = capsOf(p)
+  lastSheetId = String(p.sheetId); lastCaps = capsOf(p); lastOplog = (p as { oplog?: unknown }).oplog === true
 }
 /** Sheet id of the last successful ping (devices are disabled on LIVE). */
 export let lastSheetId: string | null = null
@@ -100,3 +100,16 @@ export function sheetDate(o: Pick<Op, 'sessionId' | 'subjectKey' | 'date'>): str
 }
 /** Setup-file connect: only accepted if that bridge is the COPY. */
 export async function verifyCopy(url: string, token: string, fetcher?: Fetcher) { await assertCopy(url, token, fetcher) }
+
+// ───────── t254u op log ─────────
+/** The last ping said this sheet is on the op log (bridge 0.60.0-ol.1+, after SoW › Migrate to op log). */
+export let lastOplog = false
+/** Op path only when the bridge can (caps 'oplog') and the sheet has been migrated; otherwise the push path stays. */
+export const onOplog = () => lastOplog && bridgeHas('oplog')
+/** opsPull / opsPush on the COPY: re-proves the COPY first, like every push. */
+export async function opsCall<T>(url: string, token: () => string | null, body: Record<string, unknown>, fetcher?: Fetcher, flavor: Flavor = FLAVOR): Promise<T> {
+  const t = token(); if (!t) throw new Error('Not paired yet')
+  await assertCopy(url, t, fetcher, flavor)
+  if (!onOplog()) throw new Error('Sheet: not on the op log')
+  return call<T>(url, { ...body, token: t }, fetcher, body.action === 'opsPush')
+}

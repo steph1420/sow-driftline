@@ -1,4 +1,15 @@
 # Changelog
+### Added
+- **Op-log sync (Q-HARM-10, CRDT_SYNC_PLAN §12/§13), dormant until the sheet is migrated.** Bridge **0.60.0-ol.1** (`bridge/Code.js`, not deployed): hidden Ops / Base / Conflicts tabs, `opsPush` / `opsPull` (idempotent opIds, seq gaps → resend, Lamport + version vectors, no device clock decides), rules Set wins for ticks (Developer hook `_Meta tickConflict` = set · unset · latest), sheet wins for Left, later receipt otherwise. Hand edits on Entry / Ticks / Sessions / Roster / Subjects become ops from device `sheet`. Menu **SoW › Migrate to op log (backup first)…** (full copy of the file first, then Base) and **Compact op log now…** (§13: current + previous SoW kept, 60 days, backup first; optional nightly trigger, not installed). After Migrate the old `push` answers "update the app"; before it nothing changes (old app suite 63/63).
+- App: local op log in IndexedDB (fold → state, version vector), used only when ping says `oplog`; taps, marks, Reschedule, + New date, Undo/Redo and Restore become ops; refused moves keep the beta.17 toast; changes still waiting on the push path are converted once.
+- Shared core `src/oplog/core.js`, embedded byte-for-byte in the bridge (`scripts/embed-core.mjs`, test OL-CORE-00). Previous bridge kept as `bridge/legacy/Code-0.51.0-dl.2.js`.
+- Tests: 40 new (bridge harness: all 9 §9 cases, migrate, hand edits, duplicates, gaps, old-app push, compaction; app: skew ±1 day, offline concurrency, lost replies, move/Undo, refused move, marks, restore, path switch). Written failing first (18/19 bridge tests fail against dl.2).
+- Docs: REFERENCE §2.4 layout, §3.5 ops contract, §3.6 compaction, §5 op path, §7.2b migration + rollback, §7.2c compaction.
+
+### Notes
+- Tests: 448 passed. Verified on the node harness and the fake bridge only; not yet on Google (needs Steve to deploy ol.1 and Migrate on the TEST copy).
+- Code.js changed: yes (0.60.0-ol.1, not deployed). Rollback: v0.9.0-beta.17 (fe0bbbb); bridge: previous deployment version.
+- Conflicts Review (Sync › Review): mockups only, not built.
 ## 0.9.0-beta.17 (2026-11-11)
 Steve t250u. Beta only; refused move and Restore checked live on the test copy (bridge dl.1, sandbox dates, restored after). Live sheet untouched. Code.js changed: yes (bridge 0.51.0-dl.2 written, NOT deployed).
 - Late and back-date marks now sync between phones through the sheet once bridge 0.51.0-dl.2 is on it (new hidden Marks tab; nothing else in the sheet changes, the old app is unaffected). With the dl.1 bridge they stay on each phone as before, with no error.

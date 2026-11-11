@@ -104,6 +104,11 @@ export class MockSpreadsheet {
   setSpreadsheetLocale(l: string) { this.locale = l }
   setSpreadsheetTimeZone(t: string) { this.tz = t }
   getSpreadsheetTimeZone() { return this.tz }
+  name = 'Notebook Status SOW - TEST copy'
+  getName() { return this.name }
+  copies: MockSpreadsheet[] = []
+  /** Spreadsheet.copy(name): a full copy (values), kept for the test to check. */
+  copy(name: string) { const n = new MockSpreadsheet('COPYOF_' + this.id); n.name = name; n.sheets = this.sheets.map((x) => { const y = new MockSheet(x.name); y.cells = new Map(x.cells); y.isHidden = x.isHidden; return y }); this.copies.push(n); return n }
   toast() {}
 }
 
