@@ -16,3 +16,14 @@ Master log: steph1420/agent-common handovers/lfps-sow/DECISIONS.md.
   Base counts as seen by every op (so converted legacy ops with an empty vv still win over Base); a new date on a taken day files under the
   existing session (`alias:`); every tick also sends a `tick.mark` op (marked time stays shared); Remove-a-subject is off after Migrate;
   the compaction trigger is manual only (needs the script.scriptapp scope added by Steve). Conflicts Review UI = mockups only (/workspace/rds2/crdt-review/), awaits Steve's lock.
+- 2026-11-11 (t194u–t196u, server sheet v2 answers; Phase 1 GO "You can build the sheet now"):
+  Q-SV2-9 name = **"SOW Register"** (SOW = Setting Of Work; Steve picked "Notebook Register" then agreed "SOW Register").
+  Q-SV2-3 pupil permanent ID = **admission number** (pupilId `a:<AdmNo>`, set once; no roll-based ids). Q-SV2-6 names only on the Pupils tab.
+  Q-SV2-10 **B**: Steve plus any paired phone may update. Q-SV2-11 **third option**: "Start new year" = tick pupils to carry over (stay-backs) and/or add/import a new list; admission numbers kept; old year archived.
+  Q-SV2-7 **A**: Load (restore a saved copy) and Rewind (undo back to a time). Q-SV2-8 **A**: display prefs per phone for now, sync later.
+  Q-SV2-12 **A**: device label "Register" in change history (id stays `server`; `sheet` accepted).
+  Test-copy migration **dropped** (the new Register replaces it). Conflicts review mockups 1 and 2 approved (t195u, t196u).
+  Choices made while building, for review: Home tab replaces "Server" (schema/epoch moved to `_Meta`); `_Enrolment` + `_Years` split from `_Pupils`;
+  `pupil.adm` op to correct a mistyped Adm No; Rewind writes compensating ops (epoch bump only if "also drop phones' unsent changes" is ticked);
+  progress counts use Joined on / Left on; locale en_GB (API refused en_IN). Layout: docs/SOW_REGISTER_LAYOUT.md; dry run: docs/SOW_REGISTER_DRY_RUN.md.
+

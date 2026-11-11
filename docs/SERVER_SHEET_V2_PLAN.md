@@ -1,6 +1,6 @@
 # Server sheet v2 — design and build instructions
 
-Status: **PLAN ONLY.** No sheet, no bridge rewrite, and no app code was built with this document (Steve t257u / t258u / t259u, 11 Nov 2026). Quota was tight, so this is the handover the next agent builds from. **t259u locks** are in §15 (Q-SV2-1, Q-SV2-2, Q-SV2-4, Q-SV2-5, Q-SV2-13).
+Status (11 Nov 2026 evening): **Phase 1 built** as the empty **SOW Register** — see `docs/SOW_REGISTER_LAYOUT.md` (wins where it differs: name, admission-number ids, `_Enrolment`/`_Years`, Rewind-to-a-time, Home tab) and `docs/SOW_REGISTER_DRY_RUN.md`. Earlier status: **PLAN ONLY.** No sheet, no bridge rewrite, and no app code was built with this document (Steve t257u / t258u / t259u, 11 Nov 2026). Quota was tight, so this is the handover the next agent builds from. **t259u locks** are in §15 (Q-SV2-1, Q-SV2-2, Q-SV2-4, Q-SV2-5, Q-SV2-13).
 
 Owner: Teacher-S (Steve). Repos: `steph1420/sow-driftline` (this file, branch `feat/rds2`), `steph1420/agent-common` (handover pointer). Companion for Steve: `docs/SHEET_HOW_ITS_BUILT.md` (plain English).
 
@@ -954,4 +954,4 @@ t259u locks are marked **LOCKED**. The rest stay recommended until he says other
 - Live workbook is read-only for agents; test copy is for tests of the **old** server. This plan's build uses **new** files.
 - No tokens and no real pupil names in this file.
 
-Change log of this file: 2026-11-11 first version (t257u design, t258u Option B). 2026-11-11 t259u: locked Q-SV2-1 (watermark/Review), Q-SV2-2 (date picker, not all dates), Q-SV2-4 (A now, Go later), Q-SV2-5 (shared token in the profile), Q-SV2-13 (progress dashboards).
+Change log of this file: 2026-11-11 first version (t257u design, t258u Option B). 2026-11-11 t259u: locked Q-SV2-1 (watermark/Review), Q-SV2-2 (date picker, not all dates), Q-SV2-4 (A now, Go later), Q-SV2-5 (shared token in the profile), Q-SV2-13 (progress dashboards). 2026-11-11 evening (t194u–t196u): Q-SV2-3/6/7/8/9/10/11/12 answered (see DECISIONS.md); test-copy migration dropped; Phase 1 empty SOW Register built; layout + dry run in SOW_REGISTER_LAYOUT.md / SOW_REGISTER_DRY_RUN.md.
