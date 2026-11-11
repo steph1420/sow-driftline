@@ -32,13 +32,14 @@ describe('P10 break-it: store storm', () => {
     expect(n).toBe(60)
   })
   it('BK-STORE-02 Redo brings back an undone date move and topic edit, in order with ticks', () => {
-    const sid = useApp.getState().data.sessions.find((x) => x.date === '2026-11-04')!.sessionId; const at = () => useApp.getState().data.sessions.find((x) => x.sessionId === sid)!
-    act(() => { const s = useApp.getState(); s.tick(sid, 2); s.moveSession(sid, '2026-11-05'); s.setTopic(sid, 'New topic') })
+    const sid = useApp.getState().data.sessions.find((x) => x.date === '2026-11-04')!.sessionId; const k = sid.split('|')[0]!
+    const at = () => useApp.getState().data.sessions.find((x) => x.sessionId === sid || x.sessionId === `${k}|2026-11-05`)! // beta.16: a move re-keys to subjectKey|date
+    act(() => { const s = useApp.getState(); s.tick(sid, 2); s.moveSession(sid, '2026-11-05'); s.setTopic(`${k}|2026-11-05`, 'New topic') })
     act(() => { for (let i = 0; i < 3; i++) useApp.getState().undo() })
     expect(at().date).toBe('2026-11-04'); expect(useApp.getState().canRedo).toBe(true)
     act(() => useApp.getState().redo()); act(() => useApp.getState().redo())
     expect(at().date).toBe('2026-11-05'); expect(at().topic).not.toBe('New topic')
     act(() => useApp.getState().redo()); expect(at().topic).toBe('New topic'); expect(useApp.getState().canRedo).toBe(false)
-    act(() => { useApp.getState().undo(); useApp.getState().tick(sid, 4) }); expect(useApp.getState().canRedo).toBe(false) // a new action drops the redo stack
+    act(() => { useApp.getState().undo(); useApp.getState().tick(`${k}|2026-11-05`, 4) }); expect(useApp.getState().canRedo).toBe(false) // a new action drops the redo stack
   })
 })

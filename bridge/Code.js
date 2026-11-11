@@ -1,5 +1,5 @@
 /**
- * SoW sheet bridge v1 (schema 1) — see docs/SHEET_LAYOUT_PLAN.md.
+ * SoW sheet bridge (schema 1). Full reference: docs/REFERENCE.md (sheet layout, actions, setup files, migration).
  * Bound to the workbook COPY. Paste into Extensions > Apps Script (or `clasp push`).
  *
  * Tabs: Roster · Subjects · Sessions · Ticks · Entry · Dashboard · _Meta
@@ -7,7 +7,11 @@
  * Ids: sessionId = subjectKey|yyyy-mm-dd · tickId = sessionId|roll · classKey = section (KGA).
  */
 var SCHEMA = 1
-var BRIDGE_VERSION = '0.50.0-dl.1' // COPY bridge for Driftline: 0.46.2 + device registry (additive)
+// Bridge v2 = 0.51.0-dl.1 (t245u): 0.46.2 (deployed on LIVE and the test copy) + device registry (0.50.0-dl.1) + setup-file
+// maker + `caps` on ping. Purely additive: every 0.46.2 action, field and sheet column is unchanged, so the old app (sow v0.47.1) keeps working.
+var BRIDGE_VERSION = '0.51.0-dl.1'
+/** What this bridge can do, for apps that want to check before using a feature (ping → caps). */
+var CAPS = ['ticks', 'roster', 'structs', 'sessions', 'subs', 'prefs', 'pairing', 'devices', 'setupFile']
 var T = { roster: 'Roster', subjects: 'Subjects', sessions: 'Sessions', ticks: 'Ticks', entry: 'Entry', dash: 'Dashboard', meta: '_Meta' }
 var H = {
   roster: ['classKey', 'roll', 'name', 'status', 'leftOn', 'note', 'updatedAt'],
@@ -517,7 +521,7 @@ function route_(body) {
   if (body && body.action === 'pairClaim') return withLock_(function () { deviceName_ = typeof body.deviceName === 'string' ? body.deviceName : null; try { return pairClaim_(body.code, Date.now()) } finally { deviceName_ = null } })
   if (!body || !body.token || (body.token !== token_() && !deviceOf_(body.token))) return { ok: false, error: 'bad token' }
   if (/^(devicesList|deviceRevoke|deviceRename)$/.test(body.action)) return withLock_(function () { return devicesRoute_(body) })
-  if (body.action === 'ping') return { ok: true, schema: SCHEMA, sheetId: SpreadsheetApp.getActiveSpreadsheet().getId() }
+  if (body.action === 'ping') return { ok: true, schema: SCHEMA, sheetId: SpreadsheetApp.getActiveSpreadsheet().getId(), caps: CAPS }
   if (body.action === 'pairStart') return withLock_(function () { return pairStart_(Date.now()) })
   if (body.action === 'pairCancel') return withLock_(function () { PropertiesService.getScriptProperties().deleteProperty(PAIR_KEY); return { ok: true } })
   var ss = SpreadsheetApp.getActiveSpreadsheet()
@@ -633,6 +637,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('SoW')
     .addItem('1. Setup + migrate (once)', 'menuSetup')
     .addItem('Show app token', 'menuToken')
+    .addItem('Make app setup file…', 'menuSetupFile')
     .addSeparator()
     .addItem('Remove a subject (backup first)…', 'menuRemoveSubject')
     .addToUi()
@@ -648,4 +653,34 @@ function menuRemoveSubject() {
   if (r.getSelectedButton() !== ui.Button.OK) return
   var out = removeSubject_(SpreadsheetApp.getActiveSpreadsheet(), r.getResponseText().trim())
   ui.alert('Removed ' + out.key, 'Backup: ' + out.url + '\nDownload (.xlsx): ' + out.downloadUrl, ui.ButtonSet.OK)
+}
+
+// ───────────────────────── setup file maker (bridge v2, t245u) ─────────────────────────
+// Builds the file Driftline opens from Sync › "Or open a setup file". Format (docs/REFERENCE.md §Setup files):
+// { kind:'sow-driftline-setup', v:1, bridgeUrl, token, sheetUrl, exportedAt, bridgeVersion }. The app also still reads the
+// old SoW file { kind:'sow-setup', v:1, syncUrl, token, sheetUrl, exportedAt, appVersion }.
+// The file holds the sheet's shared app token: anyone with it can read and write this sheet. Keep it private.
+var SETUP_KIND = 'sow-driftline-setup', SETUP_V = 1, SETUP_FILENAME = 'sow-driftline-setup.json'
+var EXEC_URL_RE = /^https:\/\/script\.google\.com\/(a\/[\w.-]+\/)?macros\/s\/[\w-]+\/exec$/
+/** Pure: the setup file text for this web-app URL. Throws a plain message when the URL is not a deployed /exec URL. */
+function setupFile_(execUrl, token, sheetUrl, nowIso) {
+  var url = String(execUrl || '')
+  if (!EXEC_URL_RE.test(url)) throw new Error('Deploy the web app first (Deploy › Manage deployments), then try again. Got: ' + (url || 'no web app URL'))
+  if (!token) throw new Error('No app token yet')
+  return JSON.stringify({ kind: SETUP_KIND, v: SETUP_V, bridgeUrl: url, token: String(token), sheetUrl: String(sheetUrl || ''), exportedAt: nowIso || nowIso_(), bridgeVersion: BRIDGE_VERSION }, null, 2) + '\n'
+}
+/** HTML for the download dialog: one button that saves the file; the token is never shown on screen. */
+function setupFileHtml_(text) {
+  var b64 = Utilities.base64Encode(text, Utilities.Charset.UTF_8)
+  return '<div style="font:14px Arial,sans-serif">' +
+    '<p>Save this file and open it on the phone: Driftline › Settings › Sync › <b>Or open a setup file</b>.</p>' +
+    '<p style="color:#a00">It holds the sheet\'s app key. Keep it private; don\'t post or email it around.</p>' +
+    '<a id="dl" download="' + SETUP_FILENAME + '" href="data:application/json;base64,' + b64 + '" style="display:inline-block;padding:8px 14px;background:#1a73e8;color:#fff;border-radius:4px;text-decoration:none">Download ' + SETUP_FILENAME + '</a>' +
+    '</div>'
+}
+function menuSetupFile() {
+  var ui = SpreadsheetApp.getUi(), ss = SpreadsheetApp.getActiveSpreadsheet(), text
+  try { text = setupFile_(ScriptApp.getService().getUrl(), token_(), ss.getUrl()) } catch (e) { ui.alert('Setup file', String(e && e.message || e), ui.ButtonSet.OK); return }
+  meta_(ss, 'setupFileMadeAt', nowIso_())
+  ui.showModalDialog(HtmlService.createHtmlOutput(setupFileHtml_(text)).setWidth(420).setHeight(200), 'App setup file')
 }

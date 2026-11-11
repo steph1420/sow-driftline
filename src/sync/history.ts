@@ -21,6 +21,9 @@ export class History {
   record(op: Op, before: boolean) { this.recordMany([{ op, before }]) }
   recordMany(cells: Cell[]) { if (!cells.length) return; const s = this.load(); s.undo = [...s.undo, { cells }]; s.redo = []; this.save(s) }
   dropOldest() { const s = this.load(); if (s.undo.length) { s.undo.shift(); this.save(s) } }
+  /** beta.16: a moved date re-keys its Undo/Redo steps, so an Undo after the move lands on the moved date. */
+  rekey(from: string, to: string, date: string) { const s = this.load(); const fix = (e: Entry): Entry => ({ cells: e.cells.map((c) => (c.op.sessionId === from ? { ...c, op: { ...c.op, sessionId: to, date } } : c)) })
+    if ([...s.undo, ...s.redo].some((e) => e.cells.some((c) => c.op.sessionId === from))) this.save({ undo: s.undo.map(fix), redo: s.redo.map(fix) }) }
   canUndo() { return this.load().undo.length > 0 }
   canRedo() { return this.load().redo.length > 0 }
   undo(at: string): Op[] | null { const s = this.load(); const e = s.undo.pop(); if (!e) return null; s.redo.push(e); this.save(s); return e.cells.map((c) => ({ ...c.op, set: c.before, updatedAt: at })) }

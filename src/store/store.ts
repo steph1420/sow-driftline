@@ -14,7 +14,8 @@ import { CONFIG, FLAVOR } from '../config'
 import { exportSetup, parseSetup } from '../data/setup'
 import { cleanSort, type NameSort } from '../data/sortNames'
 import { applyOps, cellKey, type Op } from '../sync/ops'
-import { applyEdits, revertEdit, type SessionEdit } from '../data/edits'
+import { applyEdits, collides, inverseEdit, movedId, sheetId, type SessionEdit } from '../data/edits'
+import { Outbox } from '../sync/outbox'
 import { modeOnOpen, type MarkMode } from '../data/late'
 import { scopeSubjects, stepScope, validPick, type ScopePick } from '../data/scope'
 import type { DateFmt, DateSub } from '../data/dateFormat'
@@ -78,11 +79,12 @@ const loadJson = <T,>(k: string, d: T): T => { try { return JSON.parse(localStor
 const loadEdits = (): SessionEdit[] => loadJson(EDITS(), [] as SessionEdit[]); const loadMarks = (): Marks => loadJson(MARKS(), {} as Marks)
 /** Undo and redo order across ticks and date edits (in memory); undone edits wait in `redoEdits` for Redo. */
 type Step = 'tick' | 'edit'
-let order: Step[] = []; let redoOrder: Step[] = []; let redoEdits: SessionEdit[] = []
+/** beta.16: date edits done (for Undo) and their inverses waiting for Redo. Undo/Redo of a date edit is a new edit, so it syncs like any other. */
+let order: Step[] = []; let redoOrder: Step[] = []; let redoEdits: SessionEdit[] = []; let doneEdits: SessionEdit[] = []
 /** A new action: it goes on the undo order and drops whatever was waiting for Redo. */
 const did = (k: Step) => { order.push(k); redoOrder = []; redoEdits = []
   // beta.15 (t245u): Undo keeps the last undoMax steps in all, ticks and date edits together
-  while (order.length > CONFIG.data.undoMax) { if (order.shift() === 'tick') hist().dropOldest() } }
+  while (order.length > CONFIG.data.undoMax) { if (order.shift() === 'tick') hist().dropOldest(); else doneEdits.shift() } }
 let left: { date: string; at: number } | null = null
 /** 'now' for the late rule; ?today= stills pretend it is midday that day. */
 export const nowMs = () => { const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('today') : null; return q ? Date.parse(`${q}T12:00:00+05:30`) : Date.now() }
@@ -147,11 +149,13 @@ export const useApp = create<State>((set, get) => ({
     set({ focus, markMode, jump: s.jump + 1 }) },
   setMarkMode: (markMode) => set({ markMode }),
   dismissHint: (id) => { const hints = [...new Set([...get().hints, id])]; localStorage.setItem(HINTS, JSON.stringify(hints)); set({ hints }) },
-  moveSession: liveOnly((sessionId, date) => { const se = get().data.sessions.find((x) => x.sessionId === sessionId); if (!se || se.date === date) return; edit({ sessionId, date, prevDate: se.date }) }),
-  setTopic: liveOnly((sessionId, topic) => { const se = get().data.sessions.find((x) => x.sessionId === sessionId); if (!se || se.topic === topic) return; edit({ sessionId, topic, prevTopic: se.topic }) }),
-  addSession: (subjectKey, date) => { if (viewOnly()) return ''; const sub = get().data.subjects.find((x) => x.subjectKey === subjectKey); if (!sub) return ''
-    let sessionId = `${subjectKey}|${date}`; while (get().data.sessions.some((x) => x.sessionId === sessionId)) sessionId += '+'
-    edit({ sessionId, add: { sessionId, subjectKey, classKey: sub.classKey, date, topic: '', status: 'Open', updatedAt: nowIso() } }); return sessionId },
+  // beta.16: a move gives the session the sheet's id for its new date (`subjectKey|date`); a day that subject already has is refused (F-DT-05)
+  moveSession: liveOnly((sessionId, date) => { const se = get().data.sessions.find((x) => x.sessionId === sessionId); if (!se || se.date === date || collides(get().data, se.subjectKey, date, sessionId)) return
+    edit({ sessionId, subjectKey: se.subjectKey, date, prevDate: se.date, to: freeId(se.subjectKey, date, sessionId) }) }),
+  setTopic: liveOnly((sessionId, topic) => { const se = get().data.sessions.find((x) => x.sessionId === sessionId); if (!se || se.topic === topic) return; edit({ sessionId, subjectKey: se.subjectKey, topic, prevTopic: se.topic }) }),
+  addSession: (subjectKey, date) => { if (viewOnly()) return ''; const sub = get().data.subjects.find((x) => x.subjectKey === subjectKey); if (!sub || collides(get().data, subjectKey, date)) return ''
+    const sessionId = freeId(subjectKey, date)
+    edit({ sessionId, subjectKey, add: { sessionId, subjectKey, classKey: sub.classKey, date, topic: '', status: 'Open', updatedAt: nowIso() } }); return sessionId },
   setFind: (find) => set({ find }), // v0.8 F-CL-06: name search row, opened from the bar magnifier
   jumpToAnchor: () => set({ focus: null, jump: get().jump + 1 }),
   tick: liveOnly((sessionId, roll) => {
@@ -168,11 +172,13 @@ export const useApp = create<State>((set, get) => ({
   }),
   setDeviceName: (deviceName) => { localStorage.setItem(DEVNAME, deviceName); set({ deviceName }) },
   undo: liveOnly(() => {
-    if (order[order.length - 1] === 'edit') { order.pop(); const e = undoEdit(); if (e) { redoEdits.push(e); redoOrder.push('edit') } useApp.setState(flags()); return }
+    if (order[order.length - 1] === 'edit') { order.pop(); const e = doneEdits.pop(); const inv = e ? inverseEdit(useApp.getState().data, e) : null
+      if (inv) { redoEdits.push(applyEdit(inv)); redoOrder.push('edit') } useApp.setState(flags()); return }
     order.pop(); const ops = hist().undo(nowIso()); if (ops) redoOrder.push('tick'); for (const op of ops ?? []) write(op); useApp.setState(flags())
   }),
   redo: liveOnly(() => {
-    if (redoOrder[redoOrder.length - 1] === 'edit') { redoOrder.pop(); order.push('edit'); applyEdit(redoEdits.pop()!); useApp.setState(flags()); return }
+    if (redoOrder[redoOrder.length - 1] === 'edit') { redoOrder.pop(); const inv = redoEdits.pop(); const e = inv ? inverseEdit(useApp.getState().data, inv) : null
+      if (e) { doneEdits.push(applyEdit(e)); order.push('edit') } useApp.setState(flags()); return }
     redoOrder.pop(); const ops = hist().redo(nowIso()); if (ops) order.push('tick'); for (const op of ops ?? []) write(op); useApp.setState(flags())
   }),
   snapshotNow: liveOnly((label: string) => { takeSnapshot(localStorage, snapKey(), get().data, label, nowIso(), CONFIG.data.snapshotsMax); set({ snaps: listSnapshots(localStorage, snapKey()) }) }),
@@ -205,7 +211,7 @@ export const useApp = create<State>((set, get) => ({
   unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); dropEngine(); set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(demoBase(), demoOps())) }) },
   pair: async (code) => { const u = COPY_BRIDGE_URL; const t = await claimPair(u, code, undefined, get().deviceName); localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); dropEngine(); await get().refresh() },
   refresh: async () => {
-    const paired = !!token()
+    const paired = !!token(); migrateEdits()
     const rs = paired ? sheetBridgeSource(bridgeUrl(), token) : fakeSource(applyOps(demoBase(), demoOps()))
     set({ status: 'loading', error: null })
     try {
@@ -216,14 +222,14 @@ export const useApp = create<State>((set, get) => ({
     }
     catch (e) { set({ status: 'error', error: e instanceof Error ? e.message : String(e) }) }
   },
-  reset: () => { syncLoop(false); dropEngine(); order = []; redoOrder = []; redoEdits = []; left = null; live = null; set({ ...initial(), ...flags() }) },
+  reset: () => { syncLoop(false); dropEngine(); order = []; redoOrder = []; redoEdits = []; doneEdits = []; left = null; live = null; set({ ...initial(), ...flags() }) },
 }))
 
-const flags = () => { const h = hist(); return { canUndo: h.canUndo() || order[order.length - 1] === 'edit', canRedo: h.canRedo() || redoOrder[redoOrder.length - 1] === 'edit', snaps: listSnapshots(localStorage, snapKey()) } }
+const flags = () => { const h = hist(); return { canUndo: h.canUndo() || (order[order.length - 1] === 'edit' && doneEdits.length > 0), canRedo: h.canRedo() || redoOrder[redoOrder.length - 1] === 'edit', snaps: listSnapshots(localStorage, snapKey()) } }
 /** While a past year is shown, engine state updates are ignored; Back to now pulls again. */
 function eng() {
   if (!engine) engine = createEngine({ storage: localStorage, key: storageKey('outbox'), lock: webLock, channel: broadcast(storageKey('tabs')), graceMs: CONFIG.timing.pendingGraceMs, retryMs: CONFIG.timing.saveRetryMs,
-    push: copyWriter(bridgeUrl(), token), onState: (f) => { if (!viewOnly()) useApp.setState((s) => withData(f(s.data), s.currentClass, s.subject)) }, onStatus: (save, waiting) => useApp.setState({ save, waiting }) })
+    push: copyWriter(bridgeUrl(), token), edits: { list: loadEdits, ack: ackEdits }, onState: (f) => { if (!viewOnly()) useApp.setState((s) => withData(f(s.data), s.currentClass, s.subject)) }, onStatus: (save, waiting) => useApp.setState({ save, waiting }) })
   return engine
 }
 /** One write path: copy → engine (queue, other tabs, auto-save); demo → on device only. */
@@ -241,23 +247,50 @@ if (typeof window !== 'undefined') {
 }
 export const currentBridge = () => ({ url: bridgeUrl(), token })
 /** beta.13 (t234u): this device's connection as a setup file (the text importSetup reads), or null in demo mode. */
-export const setupFileText = (): string | null => { const t = token(); return t ? exportSetup({ bridgeUrl: bridgeUrl(), token: t }) : null }
+export const setupFileText = (): string | null => { const t = token(); return t ? exportSetup({ bridgeUrl: bridgeUrl(), token: t, ...(lastSheetId ? { sheetUrl: `https://docs.google.com/spreadsheets/d/${lastSheetId}/edit` } : {}) }) : null } // beta.16: + sheetUrl
 export const onLive = () => lastSheetId === LIVE_SHEET_ID
 export const sheetLabel = () => (onLive() ? 'live sheet' : 'test copy')
 
-/** v0.7.0 S7/S8: record a date edit on this device (undoable). */
-function edit(e: Omit<SessionEdit, 'id' | 'at'>) { did('edit'); applyEdit(e); useApp.setState(flags()) }
-/** Stores the edit with a fresh time (a redo is a new edit as far as sync is concerned). */
-function applyEdit(e: Omit<SessionEdit, 'id' | 'at'>) {
-  const at = nowIso(); const edits = [...loadEdits(), { ...e, id: at, at }]
+/** v0.7.0 S7/S8: record a date edit (undoable). */
+function edit(e: Omit<SessionEdit, 'id' | 'at'>) { did('edit'); doneEdits.push(applyEdit(e)); useApp.setState(flags()) }
+/** beta.16: the id a session of `subjectKey` gets on `date` — the sheet's `subjectKey|date`, unless another row holds it. */
+function freeId(subjectKey: string, date: string, self?: string) { let id = sheetId(subjectKey, date); while (id !== self && useApp.getState().data.sessions.some((x) => x.sessionId === id)) id += '+'; return id }
+const isMoveEdit = (e: SessionEdit) => e.date != null && !e.add && !e.del
+/** Stores the edit with a fresh time (Undo and Redo are new edits as far as sync is concerned) and shows it at once.
+ *  On the test copy it waits with the ticks and goes out in the next push (beta.16); in demo it stays on the device. */
+function applyEdit(e: Omit<SessionEdit, 'id' | 'at'>): SessionEdit {
+  const at = nowIso(); const done: SessionEdit = { ...e, id: at, at }; const edits = [...loadEdits(), done]
   localStorage.setItem(EDITS(), JSON.stringify(edits))
-  useApp.setState((s) => ({ edits, ...withData(s.data, s.currentClass, s.subject) }))
+  if (isMoveEdit(done)) rekeyLocal(done.sessionId, movedId(done), done.date!)
+  if (done.del) { new Outbox(localStorage, storageKey('outbox')).dropSession(done.sessionId) }
+  useApp.setState((s) => ({ edits, focus: done.del && s.focus === done.sessionId ? null : s.focus, ...withData(s.data, s.currentClass, s.subject) }))
+  if (useApp.getState().source === 'copy' && token()) eng().nudge()
+  return done
 }
-function undoEdit(): SessionEdit | undefined {
-  const edits = loadEdits(); const e = edits.pop(); if (!e) return undefined
-  localStorage.setItem(EDITS(), JSON.stringify(edits))
-  useApp.setState((s) => ({ edits, focus: e.add && s.focus === e.sessionId ? null : s.focus, ...withData(revertEdit(s.data, e), s.currentClass, s.subject) }))
-  return e
+/** beta.16: a moved date takes its waiting ticks, Undo steps, marked times and the open column with it. */
+function rekeyLocal(from: string, to: string, date: string) {
+  if (from === to) return
+  new Outbox(localStorage, storageKey('outbox')).rekey(from, to, date); hist().rekey(from, to, date)
+  const s = useApp.getState(); const marks: Marks = {}; let moved = false
+  for (const [k, v] of Object.entries(s.marks)) { if (k.startsWith(from + '|') && /^\d+$/.test(k.slice(from.length + 1))) { marks[to + k.slice(from.length)] = v; moved = true } else marks[k] = v }
+  if (moved) localStorage.setItem(MARKS(), JSON.stringify(marks))
+  useApp.setState({ ...(moved ? { marks } : {}), ...(s.focus === from ? { focus: to } : {}) })
+}
+/** Saved edits leave the queue; anything newer stays (it goes in the next push). */
+function ackEdits(sent: SessionEdit[]) {
+  const done = new Set(sent.map((e) => e.id)); const edits = loadEdits().filter((e) => !done.has(e.id))
+  localStorage.setItem(EDITS(), JSON.stringify(edits)); useApp.setState({ edits })
+}
+/** beta.16: date moves saved by beta.14 or older kept the session's old id; give them the sheet's id now (once). */
+function migrateEdits() {
+  const edits = loadEdits(); if (!edits.some((e) => !e.subjectKey)) return
+  const alias = new Map<string, string>(); const res = (id: string) => { let x = id; for (let i = 0; i < 20 && alias.has(x); i++) x = alias.get(x)!; return x }
+  const next = edits.map((e) => { if (e.subjectKey) return e
+    const id = res(e.sessionId); const subjectKey = e.add?.subjectKey ?? id.split('|')[0]!
+    if (e.add) alias.delete(id)
+    if (!isMoveEdit(e)) return { ...e, sessionId: id, subjectKey }
+    const to = e.to ?? sheetId(subjectKey, e.date!); if (to !== id) { alias.set(id, to); alias.delete(to); rekeyLocal(id, to, e.date!) } return { ...e, sessionId: id, subjectKey, to } })
+  localStorage.setItem(EDITS(), JSON.stringify(next)); useApp.setState({ edits: next })
 }
 /** v0.7.0 S9 (F-LT-05): marked time per tick, kept apart from updatedAt so "newer wins" is untouched. Back-date = marked on the due day. */
 function mark(op: Op) {

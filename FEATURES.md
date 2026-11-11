@@ -456,7 +456,7 @@ House rules that apply to every feature:
 | Read | `ping`, `pull`, `pairClaim`, `devicesList` |
 | Write | `push`, `deviceRevoke`, `deviceRename` |
 
-The bridge's `push` also accepts `structs` of kind `rename` (moves a session and its ticks) and `delete`. v0.7 adds struct writes for Reschedule. Adding a date and saving a topic need a bridge update: see `docs/v0.7.0-plan.md` §Bridge.
+beta.16 (t245u): date edits reach the sheet through the deployed bridge's `push`: Reschedule = `structs` rename, Undo of New date = `structs` delete, New date and topic = `sessions`. No bridge update needed. Full contract, sheet layout and migration: `docs/REFERENCE.md`.
 
 ### Storage keys
 All keys are `storageKey(name)`:

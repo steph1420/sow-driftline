@@ -48,6 +48,7 @@ export async function claimPair(url: string, code: string, fetcher?: Fetcher, de
 }
 
 import type { Op } from '../sync/ops'
+import { editsToPush, type SessionEdit } from './edits'
 async function assertCopy(url: string, t: string, fetcher?: Fetcher, flavor: Flavor = FLAVOR) {
   const p = await call<{ sheetId?: string }>(url, { action: 'ping', token: t }, fetcher)
   if (!allowedSheets(flavor).includes(String(p.sheetId))) throw refuse(flavor)
@@ -55,12 +56,17 @@ async function assertCopy(url: string, t: string, fetcher?: Fetcher, flavor: Fla
 }
 /** Sheet id of the last successful ping (devices are disabled on LIVE). */
 export let lastSheetId: string | null = null
-/** Tick-only writer for the COPY. Re-proves the COPY on every push; never LIVE. Uses the existing bridge `push` (no Apps Script change). */
+/** Writer for the COPY. Re-proves the COPY on every push; never LIVE. Uses the existing bridge `push` (no Apps Script change):
+ *  tick cells, and since beta.16 (t245u) date edits as `structs` (rename, delete) and `sessions` (add a date, topic),
+ *  which bridge 0.40+ already applies (structs first, then ticks, then sessions). */
 export function copyWriter(url: string, token: () => string | null, fetcher?: Fetcher, flavor: Flavor = FLAVOR) {
-  return async (ops: Op[]): Promise<SheetState> => {
+  return async (ops: Op[], edits: SessionEdit[] = []): Promise<SheetState> => {
     const t = token(); if (!t) throw new Error('Not paired yet')
-    await assertCopy(url, t, fetcher, flavor) // tick cells only, via the existing bridge push; no struct/schema ops ever
-    const r = await call<{ state?: SheetState }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ticks: ops.map((o) => ({ subjectKey: o.subjectKey, date: sheetDate(o), topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt })) }, fetcher, true)
+    await assertCopy(url, t, fetcher, flavor)
+    const { structs, sessions } = editsToPush(edits)
+    // beta.16: ids follow the sheet (a move re-keys the session), so a tick goes under its session's date
+    const r = await call<{ state?: SheetState }>(url, { action: 'push', token: t, clientNow: new Date().toISOString(), ticks: ops.map((o) => ({ subjectKey: o.subjectKey, date: o.date || sheetDate(o), topic: '', roll: o.roll, set: o.set, updatedAt: o.updatedAt })),
+      ...(structs.length ? { structs } : {}), ...(sessions.length ? { sessions } : {}) }, fetcher, true)
     if (!r.state) throw new Error('Sheet: no state in reply')
     return r.state
   }

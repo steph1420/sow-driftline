@@ -1,4 +1,14 @@
 # Changelog
+## 0.9.0-beta.16 (2026-11-11)
+Steve t245u. Beta only; checked live on the test copy (sandbox dates, restored after). Live sheet untouched. Code.js changed: yes (bridge v2 written, NOT deployed).
+- Date edits now reach the sheet: Reschedule, + New date (even before its first tick), topic edits, and Undo/Redo of them. They go with the next save through the bridge already on the sheet (0.46.2), so no bridge update is needed for this.
+- Fixes the break-it open issues: Undo of an added date no longer comes back on the next sync; moving a date away and adding a new one on that day keeps their ticks apart; ticks stay on their date's own row.
+- A moved date takes the sheet's id for its new day, with its waiting ticks, Undo steps and marked times. Date moves saved by beta.14 that were still waiting are sent once on the next open.
+- Setup files: the old SoW file (kind sow-setup, syncUrl) now opens too. Exported files add v, exportedAt and sheetUrl. A newer file version says "update the app first".
+- Bridge v2 (bridge/Code.js, 0.51.0-dl.1): adds SoW › Make app setup file… and caps on ping, on top of the device registry. Additive; the old app's 63 bridge tests pass on it. Deploy steps: docs/REFERENCE.md §7.
+- docs/REFERENCE.md: sheet layout (old and v2), every bridge action, setup files, app architecture, release, tests, migration guide.
+- Tests: 389 app + bridge (runs the app's sync against the real 0.46.2 and v2 bridge code).
+- Rollback: set BETA_REF back to 5983f65 (beta.15); backup branch backup/pre-v0.9.0-beta.16.
 ## 0.9.0-beta.15 (2026-11-11)
 Steve t245u. Beta only.
 - Undo keeps the last 60 steps (ticks and date edits together); Redo too. Older steps are dropped. If the phone storage is full, the oldest steps go first and the tap still saves.

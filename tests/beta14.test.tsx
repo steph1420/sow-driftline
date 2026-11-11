@@ -66,28 +66,13 @@ describe('beta.14 a date moved on this device', () => {
     expect(sheetDate(o)).toBe('2026-11-02'); expect(sheetDate({ ...o, sessionId: 'X_Eng_CW|2026-11-02+' })).toBe('2026-11-02')
     expect(sheetDate({ ...o, sessionId: 's1' })).toBe('2026-11-05') // not a sheet id: the date as is
   })
-  it('B14-MV-02 copyWriter files ticks of a moved date under its own sheet session', async () => {
+  it('B14-MV-02 (beta.16) copyWriter files a tick under its op date; ids follow the sheet, the move itself goes as a rename (tests/beta16.test.ts)', async () => {
     const br = fakeBridge(); const w = copyWriter(URL, () => 'tok', br.fetch as never)
-    const op: Op = { sessionId: 'X_Eng_CW|2026-11-02', subjectKey: 'X_Eng_CW', classKey: 'X', date: '2026-11-05', roll: 2, set: true, updatedAt: '2026-11-10T10:00:00.000Z' }
-    const st = await w([op]); expect(br.pushes[0]![0]!.date).toBe('2026-11-02')
-    expect(st.sessions.map((x) => x.sessionId)).toEqual(['X_Eng_CW|2026-11-02']) // no second session on the 5th
+    const op: Op = { sessionId: 'X_Eng_CW|2026-11-02', subjectKey: 'X_Eng_CW', classKey: 'X', date: '2026-11-02', roll: 2, set: true, updatedAt: '2026-11-10T10:00:00.000Z' }
+    await w([op]); expect(br.pushes[0]![0]!.date).toBe('2026-11-02')
+    expect(sheetDate({ ...op, date: '' })).toBe('2026-11-02')
   })
-  describe('through the store', () => {
-    let br: ReturnType<typeof fakeBridge>
-    beforeEach(() => { br = fakeBridge(); vi.stubGlobal('fetch', br.fetch); history.replaceState(null, '', '/'); localStorage.clear() })
-    afterEach(() => vi.unstubAllGlobals())
-    it('B14-MV-03 move the date, tick: one column in the app, the tick on the original sheet session, nothing split', async () => {
-      const { useApp } = await import('../src/store/store'); const S = () => useApp.getState(); S().reset()
-      await S().importSetup(setup); expect(S().source).toBe('copy')
-      S().moveSession('X_Eng_CW|2026-11-02', '2026-11-05'); S().tick('X_Eng_CW|2026-11-02', 2);
-      expect(await until(() => br.pushes.length > 0, 5000)).toBe(true)
-      expect(br.get().sessions.map((x) => x.sessionId)).toEqual(['X_Eng_CW|2026-11-02'])
-      expect(br.get().ticks.find((t) => t.roll === 2)?.sessionId).toBe('X_Eng_CW|2026-11-02')
-      await until(() => S().save === 'saved')
-      expect(S().data.sessions.filter((x) => x.date === '2026-11-05').length).toBe(1)
-      expect(S().data.ticks.filter((t) => t.set).map((t) => t.roll).sort()).toEqual([1, 2])
-    }, 10000)
-  })
+  // B14-MV-03 (move then tick through the store, nothing split) is now B16-W-01 and B16-S-01 on the real bridge code.
 })
 
 describe('beta.14 a replaced engine stops', () => {

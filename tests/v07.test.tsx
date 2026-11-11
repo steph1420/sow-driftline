@@ -225,8 +225,9 @@ describe('S7–S10 dates, late and hints', () => {
   it('S7-04 moving keeps the ticks with the date, shows a toast, and Undo puts it back', async () => {
     const useApp = await load(); const n = useApp.getState().data.ticks.filter((t) => t.sessionId === sid && t.set).length
     openChange(); fireEvent.click(screen.getByRole('button', { name: 'Day Thu' })); fireEvent.click(screen.getByRole('button', { name: 'Move to Thu 5 Nov' }))
-    expect(useApp.getState().data.sessions.find((x) => x.sessionId === sid)!.date).toBe('2026-11-05')
-    expect(useApp.getState().data.ticks.filter((t) => t.sessionId === sid && t.set).length).toBe(n)
+    const moved = 'KG-A_ENG_HW|2026-11-05' // beta.16: a move gives the session the sheet's id for its new date
+    expect(useApp.getState().data.sessions.find((x) => x.sessionId === moved)!.date).toBe('2026-11-05')
+    expect(useApp.getState().data.ticks.filter((t) => t.sessionId === moved && t.set).length).toBe(n)
     expect(screen.getByText(/Moved to Thu 5 Nov/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' })); expect(useApp.getState().data.sessions.find((x) => x.sessionId === sid)!.date).toBe('2026-11-04')
   })

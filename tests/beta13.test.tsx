@@ -90,7 +90,7 @@ describe('beta.13 name sorting in the app', () => {
 
 describe('beta.13 Export setup file', () => {
   it('B13-EX-01 the file is exactly what importSetup reads (round trip), named sow-driftline-setup.json', () => {
-    const text = exportSetup(FAKE); expect(JSON.parse(text)).toEqual({ kind: 'sow-driftline-setup', ...FAKE }); expect(parseSetup(text)).toEqual(FAKE)
+    const text = exportSetup(FAKE); expect(JSON.parse(text)).toMatchObject({ kind: 'sow-driftline-setup', v: 1, ...FAKE }); expect(parseSetup(text)).toMatchObject(FAKE) // beta.16: + v, exportedAt
     expect(SETUP_FILENAME).toBe('sow-driftline-setup.json')
   })
   it('B13-EX-02 round trip through the store: setupFileText → importSetup stores the same connection', async () => {
@@ -98,7 +98,7 @@ describe('beta.13 Export setup file', () => {
     const { useApp, setupFileText } = await import('../src/store/store'); history.replaceState(null, '', '/'); localStorage.clear(); useApp.getState().reset()
     expect(setupFileText()).toBeNull() // demo: nothing to export
     localStorage.setItem(storageKey('copyBridge'), FAKE.bridgeUrl); localStorage.setItem(storageKey('copyToken'), FAKE.token)
-    const text = setupFileText()!; expect(parseSetup(text)).toEqual(FAKE)
+    const text = setupFileText()!; expect(parseSetup(text)).toMatchObject(FAKE)
     localStorage.clear(); const real = useApp.getState().refresh; useApp.setState({ refresh: async () => {} })
     try { await useApp.getState().importSetup(text) } finally { useApp.setState({ refresh: real }) }
     expect(localStorage.getItem(storageKey('copyBridge'))).toBe(FAKE.bridgeUrl); expect(localStorage.getItem(storageKey('copyToken')) === FAKE.token).toBe(true)
