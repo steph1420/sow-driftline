@@ -1,4 +1,6 @@
 # BUGS
+- FIXED 0.10.0-beta.1 B-V10-READD (P2, found building Admin): bringing back a date whose removal hadn't been saved yet replayed the removal over its ticks (they vanished again). The add now cancels the waiting removal. Test V10-S-04.
+- KNOWN 0.10.0-beta.1 (P3, by design until the op log/Register): on the old save path Rewind only takes back this phone's own changes; Start new year waits on the test copy; pulling children/class lists is demo only.
 None open on the branch (Phase 10 break-it, 9 Nov 2026; see docs/BREAK_IT_v0.8.md).
 - FIXED 0.8.0-beta.4 B-P10-SWIPE (P1): a sideways swipe that ended off the tick box (the usual case) was lost, and the box kept showing a tick that was never saved. An overshooting two-date swipe only ticked the first box. Tests BK-SW-01/02.
 - FIXED 0.8.0-beta.4 B-P10-REDO (P2): Redo never brought back an undone date move, new date or topic edit (Redo stayed off). Tests BK-STORE-01/02.

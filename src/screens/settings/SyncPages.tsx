@@ -5,10 +5,10 @@ import { devicesClient, type Device } from '../../data/devices'
 
 const failed = (err: unknown) => useApp.setState({ error: err instanceof Error ? err.message : String(err) })
 
-export function SyncPage() {
-  const s = useApp(); const [code, setCode] = useState(''); const [busy, setBusy] = useState(false)
+export function SyncPage({ onReview }: { onReview?: () => void } = {}) {
+  const s = useApp(); const clashes = s.reviewList().length; const [code, setCode] = useState(''); const [busy, setBusy] = useState(false)
   const run = async (job: () => Promise<void>) => { setBusy(true); try { await job() } catch (err) { failed(err) } setBusy(false) }
-  return (<div className="dl-card sow-set__card">
+  return (<><div className="dl-card sow-set__card">
     <p className="dl-muted sow-note">{s.source === 'copy' ? `Connected to the ${sheetLabel()}. Ticks save by themselves${s.pulledAt ? ` · checked ${new Date(s.pulledAt).toLocaleTimeString()}` : ''}.` : 'Showing a demo class with made-up names. Ticks stay on this device.'} Your live sheet is never touched.</p>
     {s.error && <p className="sow-note" role="alert">{s.error}</p>}
     {s.source === 'copy' ? (
@@ -23,7 +23,12 @@ export function SyncPage() {
         <input type="file" accept=".json,application/json" hidden aria-label="Setup file" onChange={(e) => { const f = e.target.files?.[0]; if (f) void run(async () => s.importSetup(await f.text())); e.target.value = '' }} />
       </label>
     </>)}
-  </div>)
+  </div>
+    {clashes > 0 && onReview && <section className="sow-set__group" role="group" aria-label="Clashes"><h2 className="dl-eyebrow sow-set__eyebrow">Clashes</h2>
+      <div className="dl-list"><button className="dl-row dl-row--btn sow-set__row" aria-label={`Review, ${clashes} sorted out by the rules`} onClick={onReview}>
+        <span className="sow-set__txt"><span>Review</span><small className="dl-muted">{`${clashes} sorted out by the rules · nothing lost`}</small></span><span className="sow-sp" /><span className="sow-count">{clashes}</span><span className="sow-set__chev" aria-hidden>›</span></button></div>
+      <p className="dl-muted sow-note">Two phones changed the same box before they saw each other. The sheet kept one answer by the set rules and wrote both down. Sync never stops for this.</p></section>}
+  </>)
 }
 
 type DeviceList = { supported: boolean; devices: Device[] } | null

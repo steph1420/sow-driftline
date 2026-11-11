@@ -33,6 +33,10 @@ import { broadcast, createEngine, webLock, type SaveStatus } from '../sync/engin
 import { History } from '../sync/history'
 import { createPoller } from '../sync/poller'
 import { listSnapshots, restoreOps, takeSnapshot, type Snapshot } from '../sync/snapshots'
+import { currentYear, diffPlan, newYearPlan, planSize, planWords, pullPlan, rewindFloor, rewindPicks, stateAtFromJournal, stateAtFromLog, type JournalEntry, type Pick as PullPick, type Plan } from '../admin/core'
+import { recentYears, type SchoolYear } from '../data/schoolYear'
+import type { Pupil } from '../data/contract'
+import { reviewItems, type ReviewItem } from '../admin/review'
 
 export type Tab = 'checklist' | 'overview' | 'settings'
 export type Side = 'night' | 'day' | 'system'
@@ -59,6 +63,13 @@ type State = {
   favs: string[]; toggleFav: (subjectKey: string) => void; scope: ScopePick; setScope: (p: ScopePick) => void; loop: boolean; setLoop: (b: boolean) => void; stepSubject: (dir: 1 | -1) => boolean
   /** t254u op log: which save path is on (the op log once the sheet is migrated and the bridge says caps 'oplog'), and the clashes the log resolved (Sync › Review later; read-only for now). */
   syncPath: 'push' | 'oplog'; conflicts: Conflict[]
+  /** v0.10.0 Admin (t209u–t212u): big changes for every device, each one undoable from the Admin page's pop-up Undo. */
+  adminUndos: number; reviewUndos: number; adminUndo: () => void
+  adminLoadPreview: (at: string) => string; adminLoad: (at: string) => void
+  adminRewindPreview: (at: string) => { ok: boolean; words: string }; adminRewind: (at: string) => void; rewindChoices: () => { floor: string; picks: string[] }
+  yearNow: () => SchoolYear; adminNewYear: () => void; pastYears: () => PastYear[]
+  adminPullPreview: (yearId: string, pick: PullPick) => { words: string; ok: boolean }; adminPull: (yearId: string, pick: PullPick) => void; canPullPupils: () => boolean
+  reviewList: () => ReviewItem[]; reviewChange: (c: ReviewItem) => void; reviewUndo: () => void
   setToken: (t: string) => void; unpair: () => void; pair: (code: string) => Promise<void>; refresh: () => Promise<void>; reset: () => void
 }
 export type View = { weeks: boolean; phoneCols: 1 | 2; dateFmt: DateFmt; dateSub: DateSub } // t122u: phoneCols; RDs2: header date format + subtext
@@ -128,14 +139,14 @@ function shape(data: SheetState, prev?: string, prevSubject?: string) {
   const keep = prevSubject && data.subjects.some((x) => x.subjectKey === prevSubject && x.classKey === currentClass)
   return { data, classes, currentClass, subject: keep ? prevSubject! : firstSubject(data, currentClass) }
 }
-const withData = (raw: SheetState, prev?: string, prevSubject?: string) => shape(applyEdits(raw, loadEdits()), prev, prevSubject)
+const withData = (raw: SheetState, prev?: string, prevSubject?: string) => shape(withPupils(applyEdits(raw, loadEdits())), prev, prevSubject)
 /** The current year's view while a past year is shown, so Back to now is instant (refresh then catches up). */
 let live: ReturnType<typeof shape> | null = null
 const viewOnly = () => useApp.getState().viewing !== null
 /** Wraps a write action so it does nothing while a past year is shown (F-SH-09: view-only). */
 const liveOnly = <A extends unknown[]>(fn: (...a: A) => void) => (...a: A) => { if (!viewOnly()) fn(...a) }
 const initial = () => ({ tab: loadTab(), // t112u/t113u: first open is Overview, then the last tab used
-  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, notice: null, syncPath: 'push' as const, conflicts: [] as Conflict[], viewing: null as string | null, hints: list<string>(loadJson(HINTS, [])).filter((x) => typeof x === 'string'), favs: list<string>(loadJson(FAVS, [])).filter((x) => typeof x === 'string'), nameSort: cleanSort(loadJson(SORT, null)), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
+  ...loadPrefs(), update: { ready: false, apply: null, checkedAt: null } as Update, source: 'demo' as const, status: 'idle' as const, error: null, pulledAt: null, jump: 0, focus: null as string | null, pending: false, find: null as string | null, openedAt: nowMs(), save: 'demo' as const, waiting: 0, canUndo: false, canRedo: false, snaps: [] as Snapshot[], dev: loadDev(), view: loadView(), quick: false, quickPull: 0, edits: loadEdits(), marks: loadMarks(), markMode: 'late' as MarkMode, lateToast: 0, notice: null, syncPath: 'push' as const, conflicts: [] as Conflict[], adminUndos: 0, reviewUndos: 0, viewing: null as string | null, hints: list<string>(loadJson(HINTS, [])).filter((x) => typeof x === 'string'), favs: list<string>(loadJson(FAVS, [])).filter((x) => typeof x === 'string'), nameSort: cleanSort(loadJson(SORT, null)), ...loadScope(applyOps(demoBase(), demoOps())), deviceName: (typeof localStorage !== 'undefined' && localStorage.getItem(DEVNAME)) || guessName(), ...withData(applyOps(demoBase(), demoOps())) })
 export const useApp = create<State>((set, get) => ({
   ...initial(),
   setTab: (tab) => set({ tab, find: null }),
@@ -218,6 +229,7 @@ export const useApp = create<State>((set, get) => ({
     if (s.viewing === null) { live = shape(s.data, s.currentClass, s.subject); syncLoop(false) }
     set({ viewing: next, focus: null, find: null, pending: false, ...shape(pastSchoolState(yearById(next), yearOf(todayIso()))) })
   },
+  ...adminActions(),
   setToken: (t) => localStorage.setItem(TOKEN, t),
   unpair: () => { syncLoop(false); localStorage.removeItem(TOKEN); localStorage.removeItem(BRIDGE); dropEngine(); set({ source: 'demo', status: 'idle', error: null, pulledAt: null, save: 'demo', waiting: 0, ...flags(), ...withData(applyOps(demoBase(), demoOps())) }) },
   pair: async (code) => { const u = COPY_BRIDGE_URL; const t = await claimPair(u, code, undefined, get().deviceName); localStorage.setItem(BRIDGE, u); localStorage.setItem(TOKEN, t); dropEngine(); await get().refresh() },
@@ -239,10 +251,10 @@ export const useApp = create<State>((set, get) => ({
     }
     catch (e) { set({ status: 'error', error: e instanceof Error ? e.message : String(e) }) }
   },
-  reset: () => { syncLoop(false); dropEngine(); order = []; redoOrder = []; redoEdits = []; doneEdits = []; left = null; live = null; set({ ...initial(), ...flags() }) },
+  reset: () => { syncLoop(false); dropEngine(); reviewStack = []; order = []; redoOrder = []; redoEdits = []; doneEdits = []; left = null; live = null; set({ ...initial(), ...flags() }) },
 }))
 
-const flags = () => { const h = hist(); return { canUndo: h.canUndo() || (order[order.length - 1] === 'edit' && doneEdits.length > 0), canRedo: h.canRedo() || redoOrder[redoOrder.length - 1] === 'edit', snaps: listSnapshots(localStorage, snapKey()) } }
+const flags = () => { const h = hist(); return { canUndo: h.canUndo() || (order[order.length - 1] === 'edit' && doneEdits.length > 0), canRedo: h.canRedo() || redoOrder[redoOrder.length - 1] === 'edit', snaps: listSnapshots(localStorage, snapKey()), adminUndos: adminStack().length, reviewUndos: reviewStack.length } }
 /** While a past year is shown, engine state updates are ignored; Back to now pulls again. */
 function eng() {
   if (!engine) engine = createEngine({ storage: localStorage, key: storageKey('outbox'), lock: webLock, channel: broadcast(storageKey('tabs')), graceMs: CONFIG.timing.pendingGraceMs, retryMs: CONFIG.timing.saveRetryMs,
@@ -252,6 +264,7 @@ function eng() {
 }
 /** One write path: copy → engine (queue, other tabs, auto-save); demo → on device only. */
 function write(op: Op) {
+  if (!opMode) journal({ at: op.updatedAt, tick: { op, before: useApp.getState().data.ticks.some((t) => t.sessionId === op.sessionId && t.roll === op.roll && t.set) } })
   if (opMode && olog && useApp.getState().source === 'copy') opLocal('tick.set', cellKey(op), op.set)
   else if (useApp.getState().source === 'copy' && token()) eng().local(op)
   else { const l = demoOps().filter((x) => !(x.sessionId === op.sessionId && x.roll === op.roll)); l.push(op); localStorage.setItem(demoTicksKey(), JSON.stringify(l)); useApp.setState((s) => withData(applyOps(s.data, [op]), s.currentClass, s.subject)) }
@@ -280,11 +293,15 @@ const isMoveEdit = (e: SessionEdit) => e.date != null && !e.add && !e.del
 function applyEdit(e: Omit<SessionEdit, 'id' | 'at'>): SessionEdit {
   const at = nowIso(); const done: SessionEdit = { ...e, id: at, at }
   if (opMode && olog && useApp.getState().source === 'copy') { editOps(done); useApp.setState((s) => ({ focus: done.del && s.focus === done.sessionId ? null : s.focus })); return done }
-  const edits = [...loadEdits(), done]
+  journal({ at, edit: done })
+  // v0.10: bringing back a date whose removal hasn't been saved yet cancels that removal (so its ticks stay, and a later
+  // replay of the list can't drop ticks written after the add)
+  const prev = loadEdits(); let k = -1; for (let i = prev.length - 1; i >= 0; i--) if (prev[i]!.sessionId === done.sessionId || (isMoveEdit(prev[i]!) && movedId(prev[i]!) === done.sessionId)) { k = i; break }
+  const cancels = !!done.add && k >= 0 && !!prev[k]!.del; const edits = cancels ? prev.filter((_, i) => i !== k) : [...prev, done]
   localStorage.setItem(EDITS(), JSON.stringify(edits))
   if (isMoveEdit(done)) rekeyLocal(done.sessionId, movedId(done), done.date!)
   if (done.del) { new Outbox(localStorage, storageKey('outbox')).dropSession(done.sessionId); new Outbox<MarkOp>(localStorage, MARKS_OUT).dropSession(done.sessionId) }
-  useApp.setState((s) => ({ edits, focus: done.del && s.focus === done.sessionId ? null : s.focus, ...withData(s.data, s.currentClass, s.subject) }))
+  useApp.setState((s) => ({ edits, focus: done.del && s.focus === done.sessionId ? null : s.focus, ...withData(cancels ? applyEdits(s.data, [done]) : s.data, s.currentClass, s.subject) }))
   if (useApp.getState().source === 'copy' && token()) eng().nudge()
   return done
 }
@@ -412,3 +429,110 @@ function opRefused(rs: OpRefusal[]) {
 }
 /** Tests: the op log of this device (read-only use). */
 export const opLogOf = () => olog
+
+// ───────── v0.10.0 Admin (t209u–t212u, locked 11 Nov 2026) ─────────
+// Load, Rewind, Start new year and Pull in are plans (src/admin/core): new changes that take the data from now to the
+// state wanted, so nothing is erased. Before each one the state is kept on an Admin undo list; the Admin page's pop-up
+// Undo plans back to it. On the op log the changes are ops (they sync to every device); on the old save path (demo, the
+// test copy before the op log) they go through the same writes as a tap. Pupils can only be added on demo for now: on a
+// sheet they go through the SOW Register (registerHooks), which is not connected yet.
+export type PastYear = { id: string; label: string; at: string; state: SheetState; kept: boolean }
+type AdminStep = { label: string; at: string; before: SheetState; pupils: Pupil[]; year: YearMeta; years: PastYear[] }
+type YearMeta = { started: string | null; at: string | null }
+function akey(k: string) { return storageKey(`${k}-${src()}${wantsSchool() ? '-school' : ''}`) }
+const JOURNAL_MAX = 3000; const ADMIN_MAX = 5
+function journal(e: JournalEntry) { if (viewOnly()) return; const l = list<JournalEntry>(loadJson(akey('journal'), [])); l.push(e)
+  for (let k = l.length > JOURNAL_MAX ? l.length - JOURNAL_MAX : 0; ; k += 200) { try { localStorage.setItem(akey('journal'), JSON.stringify(l.slice(k))); return } catch { if (k >= l.length) return } } }
+const loadJournal = () => list<JournalEntry>(loadJson(akey('journal'), []))
+function adminStack(): AdminStep[] { return typeof localStorage === 'undefined' ? [] : list<AdminStep>(loadJson(akey('adminUndo'), [])) }
+function saveStack(l: AdminStep[]) { try { localStorage.setItem(akey('adminUndo'), JSON.stringify(l.slice(-ADMIN_MAX))) } catch { try { localStorage.setItem(akey('adminUndo'), JSON.stringify(l.slice(-1))) } catch { /* storage full: no undo kept */ } } }
+function loadPupils(): Pupil[] { return list<Pupil>(loadJson(akey('pupils'), [])) }
+/** Demo: pupils pulled in from a past year sit next to the class list (never in place of anyone). */
+function withPupils(s: SheetState): SheetState { const add = loadPupils().filter((p) => !s.roster.some((x) => x.classKey === p.classKey && x.roll === p.roll)); return add.length ? { ...s, roster: [...s.roster, ...add] } : s }
+const loadYear = (): YearMeta => ({ started: null, at: null, ...loadJson<Partial<YearMeta>>(akey('year'), {}) })
+const loadYears = (): PastYear[] => list<PastYear>(loadJson(akey('years'), []))
+/** The interface the SOW Register will fill (server-side hooks). Not deployed yet: nothing here talks to a sheet. */
+export type RegisterHooks = { addPupils?: (p: Pupil[]) => Promise<void> }
+export const registerHooks: RegisterHooks = {}
+/** Session ids in `s` renamed to where those dates live now (old save path: a move renames the session). */
+function remap(s: SheetState, since: string): SheetState {
+  const m = movedSince(since); return { ...s, sessions: s.sessions.map((x) => ({ ...x, sessionId: m(x.sessionId) })), ticks: s.ticks.map((t) => { const id = m(t.sessionId); return id === t.sessionId ? t : { ...t, sessionId: id, tickId: `${id}|${t.roll}` } }) }
+}
+/** One plan through the write path in use. Order: dates added, then ticks, topics, moves, and dates hidden last. */
+function applyPlan(p: Plan) {
+  const at = nowIso()
+  if (opMode && olog && useApp.getState().source === 'copy') {
+    for (const x of p.addSessions) opLocal('session.add', x.sessionId, { subjectKey: x.subjectKey, classKey: x.classKey, date: x.date, topic: x.topic ?? '' })
+    for (const c of [...p.ticksOn.map((c) => [c, true] as const), ...p.ticksOff.map((c) => [c, false] as const)]) opLocal('tick.set', cellKey(c[0]), c[1])
+    for (const x of p.topics) opLocal('session.topic', x.session.sessionId, x.topic)
+    for (const x of p.moves) opLocal('session.date', x.session.sessionId, x.date)
+    for (const x of p.removeSessions) opLocal('session.remove', x.sessionId, null)
+    for (const x of p.left) opLocal('left.set', `${x.classKey}|${x.roll}`, x.status)
+    return
+  }
+  for (const x of p.addSessions) if (!useApp.getState().data.sessions.some((y) => y.sessionId === x.sessionId)) applyEdit({ sessionId: x.sessionId, subjectKey: x.subjectKey, add: { ...x, updatedAt: at } })
+  for (const [c, set] of [...p.ticksOn.map((c) => [c, true] as const), ...p.ticksOff.map((c) => [c, false] as const)]) write({ ...c, set, updatedAt: nowIso() })
+  for (const x of p.topics) applyEdit({ sessionId: x.session.sessionId, subjectKey: x.session.subjectKey, topic: x.topic, prevTopic: x.session.topic })
+  for (const x of p.moves) { const cur = useApp.getState().data.sessions.find((y) => y.sessionId === x.session.sessionId); if (cur && !collides(useApp.getState().data, cur.subjectKey, x.date, cur.sessionId)) applyEdit({ sessionId: cur.sessionId, subjectKey: cur.subjectKey, date: x.date, prevDate: cur.date, to: freeId(cur.subjectKey, x.date, cur.sessionId) }) }
+  for (const x of p.removeSessions) { const cur = useApp.getState().data.sessions.find((y) => y.sessionId === x.sessionId); if (cur) applyEdit({ sessionId: cur.sessionId, subjectKey: cur.subjectKey, del: cur }) }
+}
+/** Keep the state before a big action (for the pop-up Undo), with a snapshot so Load can reach it too. */
+function keepBefore(label: string) {
+  const s = useApp.getState(); s.snapshotNow(`Before ${label}`)
+  saveStack([...adminStack(), { label, at: nowIso(), before: s.data, pupils: loadPupils(), year: loadYear(), years: loadYears() }])
+}
+const done = () => useApp.setState(flags())
+/** The state of the data at `at`: from the op log (every device) or this device's change list (old save path). */
+function stateAt(at: string): SheetState {
+  if (opMode && olog) return stateAtFromLog(olog.base, olog.ops(), olog.rules, olog.roster, at)
+  return remap(stateAtFromJournal(useApp.getState().data, loadJournal(), at), at)
+}
+const tz = (iso: string) => new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' }).replace(/\b(am|pm)\b/, (x) => x.toUpperCase())
+const rewindCheck = (at: string) => { const floor = rewindFloor(todayIso(), loadYear().at); return at < floor ? 'You can go back as far as the start of this school year, not into last year.' : '' }
+const yearNowOf = () => currentYear(todayIso(), loadYear().started)
+const pastOf = (id: string) => useApp.getState().pastYears().find((y) => y.id === id)
+let reviewStack: { item: ReviewItem; value: unknown }[] = []
+function reviewWrite(c: ReviewItem, value: unknown) {
+  if (opMode && olog && useApp.getState().source === 'copy') { const kind = ({ tick: 'tick.set', left: 'left.set', date: 'session.date', topic: 'session.topic', alive: value === true ? 'session.add' : 'session.remove' } as Record<string, Kind>)[c.field]; if (kind) opLocal(kind, c.target, value); return }
+  if (c.field === 'tick' && c.sessionId && c.roll != null) { const se = useApp.getState().data.sessions.find((x) => x.sessionId === c.sessionId); if (se) write({ sessionId: se.sessionId, subjectKey: se.subjectKey, classKey: se.classKey, date: se.date, roll: c.roll, set: value === true, updatedAt: nowIso() }) }
+}
+type AdminKeys = 'adminUndo' | 'adminLoadPreview' | 'adminLoad' | 'adminRewindPreview' | 'adminRewind' | 'rewindChoices' | 'yearNow' | 'adminNewYear' | 'pastYears' | 'canPullPupils' | 'adminPullPreview' | 'adminPull' | 'reviewList' | 'reviewChange' | 'reviewUndo'
+function adminActions(): Pick<State, AdminKeys> {
+  const g = () => useApp.getState()
+  return {
+    adminUndo: liveOnly(() => { const l = adminStack(); const st = l.pop(); if (!st) return; saveStack(l)
+      localStorage.setItem(akey('pupils'), JSON.stringify(st.pupils)); localStorage.setItem(akey('year'), JSON.stringify(st.year)); localStorage.setItem(akey('years'), JSON.stringify(st.years))
+      useApp.setState((s) => withData(s.data, s.currentClass, s.subject)); applyPlan(diffPlan(g().data, remap(st.before, st.at))); done() }),
+    adminLoadPreview: (at: string) => { const snap = g().snaps.find((x) => x.at === at); return snap ? planWords(diffPlan(g().data, remap(snap.state, at), { keepDates: true })) : '' },
+    adminLoad: liveOnly((at: string) => { const snap = listSnapshots(localStorage, snapKey()).find((x) => x.at === at); if (!snap) return
+      const p = diffPlan(g().data, remap(snap.state, at), { keepDates: true }); if (!planSize(p)) return; keepBefore('loading a snapshot'); applyPlan(p); done() }),
+    adminRewindPreview: (at: string) => { const no = rewindCheck(at); if (no) return { ok: false, words: no }
+      const w = planWords(diffPlan(g().data, stateAt(at))); return { ok: !!w, words: w ? `This will ${w} made after ${tz(at)}.` : `Nothing has changed since ${tz(at)}.` } },
+    adminRewind: liveOnly((at: string) => { if (rewindCheck(at)) return; const p = diffPlan(g().data, stateAt(at)); if (!planSize(p)) return; keepBefore('rewinding'); applyPlan(p); done() }),
+    rewindChoices: () => { const floor = rewindFloor(todayIso(), loadYear().at); const times = opMode && olog ? olog.ops().map((o) => String(o.wallAt)) : loadJournal().map((e) => e.at); return { floor, picks: rewindPicks(times, floor) } },
+    yearNow: () => yearNowOf(),
+    /** Old save path on a sheet (the test copy before the op log): hiding every date there would delete its rows, so Start new year waits for the op log or the Register. */
+    adminNewYear: liveOnly(() => { const s = g(); if ((s.source === 'copy' && !opMode) || !s.data.sessions.length) return // nothing to put aside (a second tap does nothing)
+      const y = yearNowOf(); keepBefore('starting a new year')
+      localStorage.setItem(akey('years'), JSON.stringify([{ id: y.id, label: y.label, at: nowIso(), state: s.data, kept: true }, ...loadYears().filter((x) => x.id !== y.id)]))
+      const next = `${y.start + 1}-${String((y.start + 2) % 100).padStart(2, '0')}`
+      applyPlan(newYearPlan(g().data)); localStorage.setItem(akey('year'), JSON.stringify({ started: next, at: nowIso() })); done() }),
+    pastYears: (): PastYear[] => { const now = yearNowOf(); const kept = loadYears().filter((y) => y.id !== now.id)
+      const made = g().source === 'demo' && wantsSchool() ? recentYears(todayIso()).filter((y) => y.start < now.start && !kept.some((k) => k.id === y.id)).map((y) => ({ id: y.id, label: y.label, at: '', state: pastSchoolState(y, yearOf(todayIso())), kept: false })) : []
+      return [...kept, ...made].sort((a, b) => (a.id < b.id ? 1 : -1)) },
+    canPullPupils: () => g().source === 'demo' || !!registerHooks.addPupils,
+    adminPullPreview: (yearId: string, pick: PullPick) => { const y = pastOf(yearId); if (!y) return { ok: false, words: '' }
+      const r = pullPlan(y.state, g().data, pick, yearNowOf().start - Number(yearId.slice(0, 4)), nowIso(), yearNowOf().label); return { ok: planSize(r.plan) + r.pupils.length > 0, words: r.words } },
+    adminPull: liveOnly((yearId: string, pick: PullPick) => { const y = pastOf(yearId); if (!y) return
+      const r = pullPlan(y.state, g().data, pick, yearNowOf().start - Number(yearId.slice(0, 4)), nowIso(), yearNowOf().label)
+      const pupils = g().canPullPupils() ? r.pupils : []; if (!planSize(r.plan) && !pupils.length) return
+      keepBefore('pulling in from a past year')
+      if (pupils.length) { if (g().source === 'demo') { localStorage.setItem(akey('pupils'), JSON.stringify([...loadPupils(), ...pupils])); useApp.setState((s) => withData(s.data, s.currentClass, s.subject)) } else void registerHooks.addPupils?.(pupils) }
+      applyPlan(r.plan); done() }),
+    reviewList: () => { const s = g(); const fake = s.source === 'demo' && typeof location !== 'undefined' && new URLSearchParams(location.search).has('clashes')
+      return reviewItems(fake ? demoClashes(s.data, 'dThisPhone', todayIso()) : s.conflicts, s.data, fake ? 'dThisPhone' : opDeviceId()) },
+    reviewChange: liveOnly((c: ReviewItem) => { reviewStack.push({ item: c, value: c.keptValue }); reviewWrite(c, c.otherValue); done() }),
+    reviewUndo: liveOnly(() => { const x = reviewStack.pop(); if (x) reviewWrite(x.item, x.value); done() }),
+  }
+}
+import { demoClashes } from '../admin/review'

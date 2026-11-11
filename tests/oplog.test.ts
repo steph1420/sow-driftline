@@ -181,4 +181,35 @@ describe('op log through the store and the real ol.1 bridge', () => {
     const S = await start(false); b.c.olMigrate_(b.ss); S().tick(S1, 4)
     expect(await until(() => S().syncPath === 'oplog' && S().save === 'saved' && S().waiting === 0, 10000)).toBe(true); expect(setOn(S1)).toEqual([1, 4])
   }, 15000)
+  // v0.10.0-beta.1 Admin (t212u build): big changes are new ops on the log (nothing is taken out of it), every device follows.
+  it('V10-OL-01 Rewind on the op log takes back this phone’s and the other phone’s changes after the time; Undo brings them back', async () => {
+    const S = await start(); S().tick(S1, 3); expect(await save(S)).toBe(true)
+    await new Promise((r) => setTimeout(r, 15)); const t0 = new Date().toISOString(); await new Promise((r) => setTimeout(r, 15))
+    S().tick(S1, 2); other(1, 'tick.set', `${S1}|4`, true); expect(await save(S)).toBe(true); await S().refresh(); expect(setOn(S1)).toEqual([1, 2, 3, 4])
+    const n = opsTab().length; expect(S().adminRewindPreview(t0).words).toMatch(/remove 2 ticks/)
+    S().adminRewind(t0); expect(await save(S)).toBe(true); expect(setOn(S1)).toEqual([1, 3]); expect(opsTab().length).toBe(n + 2)
+    S().adminUndo(); expect(await save(S)).toBe(true); expect(setOn(S1)).toEqual([1, 2, 3, 4]); expect(opsTab().length).toBe(n + 4)
+  }, 20000)
+  it('V10-OL-02 Start new year on the op log hides every date with ops (kept in the log); Undo brings the dates and ticks back', async () => {
+    const S = await start(); expect(S().data.sessions.length).toBeGreaterThan(0)
+    S().adminNewYear(); expect(await save(S)).toBe(true); expect(sheet().sessions).toEqual([]); expect(S().pastYears()[0]!.state.sessions.length).toBeGreaterThan(0)
+    expect(opsTab().filter((o) => o.kind === 'session.remove').length).toBeGreaterThan(0)
+    S().adminUndo(); expect(await save(S)).toBe(true); expect(sheet().sessions.map((x: any) => x.sessionId)).toContain(S1); expect(setOn(S1)).toEqual([1])
+  }, 20000)
+  it('V10-OL-03 Review on a real clash: Change saves the other answer as a new op; the pop-up Undo saves the kept one again', async () => {
+    const S = await start(); net = 'off'; S().tick(S1, 2); await gone(S); other(1, 'tick.set', `${S1}|2`, false)
+    net = 'on'; expect(await save(S)).toBe(true); await S().refresh()
+    const l = S().reviewList(); expect(l).toHaveLength(1); expect(l[0]).toMatchObject({ field: 'tick', rule: 'Set wins', kept: 'ticked (this phone)' })
+    S().reviewChange(l[0]!); expect(await save(S)).toBe(true); expect(setOn(S1)).not.toContain(2); expect(S().reviewUndos).toBe(1)
+    S().reviewUndo(); expect(await save(S)).toBe(true); expect(setOn(S1)).toContain(2)
+  }, 20000)
+  it('V10-OL-04 test copy before the op log: Rewind and Load go through the usual save; Start new year waits (no rows removed)', async () => {
+    const S = await start(false); expect(S().syncPath).toBe('push'); const t0 = new Date(Date.now() - 1).toISOString(); await new Promise((r) => setTimeout(r, 10))
+    S().snapshotNow('Backed up'); const snap = S().snaps[0]!.at
+    S().tick(S1, 3); expect(await save(S)).toBe(true); expect(setOn(S1)).toEqual([1, 3])
+    S().adminRewind(t0); expect(await save(S)).toBe(true); expect(setOn(S1)).toEqual([1])
+    S().adminUndo(); expect(await save(S)).toBe(true); expect(setOn(S1)).toEqual([1, 3])
+    S().adminLoad(snap); expect(await save(S)).toBe(true); expect(setOn(S1)).toEqual([1])
+    const n = sheet().sessions.length; S().adminNewYear(); expect(await save(S)).toBe(true); expect(sheet().sessions.length).toBe(n); expect(b.pushes().some((p: any) => (p.structs ?? []).some((x: any) => x.kind === 'delete'))).toBe(false)
+  }, 20000)
 })
