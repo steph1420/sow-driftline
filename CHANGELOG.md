@@ -1,4 +1,9 @@
 # Changelog
+## 0.9.0-beta.15 (2026-11-11)
+Steve t245u. Beta only.
+- Undo keeps the last 60 steps (ticks and date edits together); Redo too. Older steps are dropped. If the phone storage is full, the oldest steps go first and the tap still saves.
+- Tests: 364 app.
+- Rollback: set BETA_REF back to 17a3115 (beta.14); backup branch backup/pre-v0.9.0-beta.15.
 ## 0.9.0-beta.14 (2026-11-10)
 Steve t243u break-it run on the test copy. Beta only; the live sheet was never touched.
 - Reschedule then tick (connected): the tick now stays on that date's own sheet row. Before, the sheet got a second date and the app showed two columns.

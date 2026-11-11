@@ -80,7 +80,9 @@ const loadEdits = (): SessionEdit[] => loadJson(EDITS(), [] as SessionEdit[]); c
 type Step = 'tick' | 'edit'
 let order: Step[] = []; let redoOrder: Step[] = []; let redoEdits: SessionEdit[] = []
 /** A new action: it goes on the undo order and drops whatever was waiting for Redo. */
-const did = (k: Step) => { order.push(k); redoOrder = []; redoEdits = [] }
+const did = (k: Step) => { order.push(k); redoOrder = []; redoEdits = []
+  // beta.15 (t245u): Undo keeps the last undoMax steps in all, ticks and date edits together
+  while (order.length > CONFIG.data.undoMax) { if (order.shift() === 'tick') hist().dropOldest() } }
 let left: { date: string; at: number } | null = null
 /** 'now' for the late rule; ?today= stills pretend it is midday that day. */
 export const nowMs = () => { const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('today') : null; return q ? Date.parse(`${q}T12:00:00+05:30`) : Date.now() }

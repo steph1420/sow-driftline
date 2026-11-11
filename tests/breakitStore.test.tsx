@@ -8,10 +8,10 @@ let seed = 7; const rnd = (n: number) => { seed = (seed * 16807) % 2147483647; r
 
 describe('P10 break-it: store storm', () => {
   beforeEach(() => { localStorage.clear(); history.replaceState(null, '', '/?demo=school&today=2026-11-04'); useApp.getState().reset() })
-  it('BK-STORE-01 200 random ticks / moves / topics, then undo everything: back to the start; redo everything: back to the end', () => {
+  it('BK-STORE-01 55 random ticks / moves / topics (under the beta.15 cap of 60), then undo everything: back to the start; redo everything: back to the end', () => {
     const s0 = view(); let done = 0
     act(() => {
-      for (let i = 0; i < 200; i++) {
+      for (let i = 0; done < 55; i++) { // beta.15 (t245u): Undo keeps the last 60 steps
         const s = useApp.getState(); const ses = s.data.sessions.filter((x) => x.date <= '2026-11-06'); const se = ses[rnd(ses.length)]!
         const k = rnd(10)
         if (k < 6) { s.tick(se.sessionId, 1 + rnd(20)); done++ }
@@ -24,6 +24,12 @@ describe('P10 break-it: store storm', () => {
     expect(view()).toBe(s0); expect(useApp.getState().canUndo).toBe(false)
     act(() => { for (let i = 0; i < done + 5; i++) useApp.getState().redo() })
     expect(view()).toBe(s1)
+  })
+  it('BK-STORE-01b beta.15: after 80 ticks and date edits, exactly the last 60 can be undone', () => {
+    act(() => { for (let i = 0; i < 80; i++) { const s = useApp.getState(); const se = s.data.sessions.filter((x) => x.date <= '2026-11-06')[i % 3]!
+      if (i % 10 === 9) s.setTopic(se.sessionId, `Cap ${i}`); else s.tick(se.sessionId, 1 + (i % 20)) } })
+    let n = 0; act(() => { while (useApp.getState().canUndo && n < 200) { useApp.getState().undo(); n++ } })
+    expect(n).toBe(60)
   })
   it('BK-STORE-02 Redo brings back an undone date move and topic edit, in order with ticks', () => {
     const sid = useApp.getState().data.sessions.find((x) => x.date === '2026-11-04')!.sessionId; const at = () => useApp.getState().data.sessions.find((x) => x.sessionId === sid)!
